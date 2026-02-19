@@ -1,1 +1,381 @@
+zabbix_export:
+  version: '7.0'
+  template_groups:
+    - uuid: 51e0ab2102104153b1bc789931e579bb
+      name: 'Templates/Network devices'
+  templates:
+    - uuid: 2e438f5dbcfe4141883684758ca49f92
+      template: 'Dell ECS S3 Namespace and Bucket Monitoring by HTTP API'
+      name: 'Dell ECS S3 Namespace and Bucket Monitoring by HTTP API'
+      groups:
+        - name: 'Templates/Network devices'
+      items:
+        - uuid: d78ca2472b4041d1b691f537d6b766b5
+          name: 'ECS Buckets Bulk Item'
+          type: SCRIPT
+          key: ecs.discovery.bulk.item
+          delay: 5m
+          history: 5d
+          value_type: TEXT
+          trends: '0'
+          params: |
+            // Dell ECS multi-namespace billing (namespace totals + bucket details when enabled)
+            
+            function unitToMul(u) {
+                u = (u || '').toString().toUpperCase();
+                if (u === 'KB') return 1024;
+                if (u === 'MB') return 1024 * 1024;
+                if (u === 'GB') return 1024 * 1024 * 1024;
+                if (u === 'TB') return 1024 * 1024 * 1024 * 1024;
+                return 1;
+            }
+            function toNum(v) {
+                if (v === null || typeof v === 'undefined') return 0;
+                var n = Number(v);
+                return isNaN(n) ? 0 : n;
+            }
+            function toIntNonNeg(v) {
+                var n = parseInt(v, 10);
+                if (isNaN(n) || n < 0) return 0;
+                return n;
+            }
+            function getHeaderCaseInsensitive(headers, name) {
+                if (!headers) return '';
+                var target = (name || '').toLowerCase();
+                for (var k in headers) {
+                    if (k && k.toLowerCase() === target) return headers[k];
+                }
+                return '';
+            }
+            function splitNamespaces(s) {
+                if (!s) return [];
+                var arr = s.split(',').map(function (x) { return x.trim(); })
+                    .filter(function (x) { return x.length > 0; });
+                var seen = {}, out = [];
+                for (var i = 0; i < arr.length; i++) {
+                    if (!seen[arr[i]]) { seen[arr[i]] = true; out.push(arr[i]); }
+                }
+                return out;
+            }
+            
+            var p = JSON.parse(value);
+            
+            var host = p.host;
+            var port = (p.port || '4443').toString();
+            var user = p.user;
+            var pass = p.pass;
+            
+            var sizeunit = (p.sizeunit || 'GB').toString().toUpperCase();
+            
+            // list can be in either "namespaces" or "namespace"
+            var nsText = (typeof p.namespaces !== 'undefined' && p.namespaces !== null && p.namespaces !== '')
+                ? p.namespaces
+                : p.namespace;
+            
+            var namespaces = splitNamespaces(nsText);
+            
+            // default=false; set param include_bucket_detail=true if you want buckets
+            var includeBucket = (p.include_bucket_detail || 'false').toString().toLowerCase() === 'true';
+            
+            if (!host || !user || !pass || namespaces.length === 0) {
+                throw 'Missing required params. Need host,user,pass and namespaces (or namespace).';
+            }
+            
+            var baseUrl = 'https://' + host + ':' + port;
+            var req = new HttpRequest();
+            
+            // --- LOGIN ---
+            req.setHttpAuth(HTTPAUTH_BASIC, user, pass);
+            req.addHeader('Accept: application/json');
+            
+            req.get(baseUrl + '/login');
+            if (req.getStatus() !== 200) {
+                throw 'Login failed. HTTP ' + req.getStatus();
+            }
+            
+            var token = getHeaderCaseInsensitive(req.getHeaders(), 'X-SDS-AUTH-TOKEN');
+            if (!token || token.length < 10) {
+                throw 'X-SDS-AUTH-TOKEN not found in /login response headers';
+            }
+            
+            // --- BILLING ---
+            req.clearHeader();
+            req.addHeader('Accept: application/json');
+            req.addHeader('Content-Type: application/json');
+            req.addHeader('X-SDS-AUTH-TOKEN: ' + token);
+            
+            var out = {
+                sizeunit: sizeunit,
+                include_bucket_detail: includeBucket,
+            
+                namespaces_lld: { data: [] },
+                buckets_lld: { data: [] },
+            
+                errors: []
+            };
+            
+            for (var n = 0; n < namespaces.length; n++) {
+                var ns = namespaces[n];
+                var marker = '';
+                var nsTotalsAdded = false;
+            
+                while (true) {
+                    var url = baseUrl
+                        + '/object/billing/namespace/'
+                        + encodeURIComponent(ns)
+                        + '/info'
+                        + '?sizeunit=' + encodeURIComponent(sizeunit)
+                        + '&include_bucket_detail=' + (includeBucket ? 'true' : 'false');
+            
+                    if (marker) url += '&marker=' + encodeURIComponent(marker);
+            
+                    var resp = req.get(url);
+                    var st = req.getStatus();
+            
+                    if (st !== 200) {
+                        out.errors.push({ namespace: ns, http_status: st, body: resp });
+                        break; // next namespace
+                    }
+            
+                    var j = JSON.parse(resp);
+                    var realNs = (j.namespace || ns);
+            
+                    // Namespace totals once
+                    if (!nsTotalsAdded) {
+                        var nsUnit = (j.total_size_unit || sizeunit).toString().toUpperCase();
+                        var nsMul = unitToMul(nsUnit);
+            
+                        out.namespaces_lld.data.push({
+                            "{#NAMESPACE}": realNs,
+                            namespace: realNs,
+            
+                            namespace_total_objects: toIntNonNeg(j.total_objects),
+            
+                            namespace_total_size_bytes: toNum(j.total_size) * nsMul,
+                            namespace_total_mpu_size_bytes: toNum(j.total_mpu_size) * nsMul,
+            
+                            sample_time: j.sample_time || '',
+                            uptodate_till: j.uptodate_till || ''
+                        });
+            
+                        nsTotalsAdded = true;
+                    }
+            
+                    // Buckets (only if enabled)
+                    if (includeBucket) {
+                        var buckets = j.bucket_billing_info || [];
+                        for (var i = 0; i < buckets.length; i++) {
+                            var b = buckets[i];
+            
+                            var bUnit = (b.total_size_unit || sizeunit).toString().toUpperCase();
+                            var mul = unitToMul(bUnit);
+            
+                            var totalSize = toNum(b.total_size);
+                            var mpuSize = toNum(b.total_mpu_size);
+            
+                            out.buckets_lld.data.push({
+                                "{#NAMESPACE}": realNs,
+                                "{#BUCKET}": b.name,
+            
+                                namespace: realNs,
+                                bucket: b.name,
+            
+                                vpool_id: b.vpool_id || '',
+            
+                                total_size: totalSize,
+                                total_size_unit: bUnit,
+                                total_size_bytes: totalSize * mul,
+            
+                                total_objects: toIntNonNeg(b.total_objects),
+            
+                                total_mpu_size: mpuSize,
+                                total_mpu_size_bytes: mpuSize * mul,
+                                total_mpu_parts: toIntNonNeg(b.total_mpu_parts),
+            
+                                sample_time: b.sample_time || j.sample_time || '',
+                                uptodate_till: b.uptodate_till || j.uptodate_till || ''
+                            });
+                        }
+                    }
+            
+                    marker = (j.next_marker || j.nextMarker || '').toString();
+                    if (!marker) break;
+                }
+            }
+            
+            // --- LOGOUT ---
+            try {
+                req.clearHeader();
+                req.addHeader('X-SDS-AUTH-TOKEN: ' + token);
+                req.get(baseUrl + '/logout');
+            } catch (e) { /* ignore */ }
+            
+            return JSON.stringify(out);
+          parameters:
+            - name: host
+              value: '{$ECS.HOST}'
+            - name: include_bucket_detail
+              value: '{$ECS.INCLUDE_BUCKET}'
+            - name: namespaces
+              value: '{$ECS.NAMESPACES}'
+            - name: pass
+              value: '{$ECS.PASS}'
+            - name: port
+              value: '{$ECS.PORT}'
+            - name: sizeunit
+              value: '{$ECS.SIZEUNIT}'
+            - name: user
+              value: '{$ECS.USER}'
+      discovery_rules:
+        - uuid: 5f1018155b0b455f982b4a39fb669e1f
+          name: 'ECS Buckets discovery'
+          type: DEPENDENT
+          key: ecs.buckets.discovery
+          delay: '0'
+          item_prototypes:
+            - uuid: 8c0b518b42704548bec5b7c84fded906
+              name: 'ECS bucket {#NAMESPACE} - {#BUCKET}: MPU parts'
+              type: DEPENDENT
+              key: 'ecs.bucket.mpu.parts[{#NAMESPACE},{#BUCKET}]'
+              delay: '0'
+              history: 5d
+              preprocessing:
+                - type: JSONPATH
+                  parameters:
+                    - '$.buckets_lld.data[?(@.namespace=="{#NAMESPACE}" && @.bucket=="{#BUCKET}")].total_mpu_parts.first()'
+              master_item:
+                key: ecs.discovery.bulk.item
+            - uuid: 327c84f15f24476688906c3ac892ed67
+              name: 'ECS bucket {#NAMESPACE} - {#BUCKET}: MPU size'
+              type: DEPENDENT
+              key: 'ecs.bucket.mpu.size.bytes[{#NAMESPACE},{#BUCKET}]'
+              delay: '0'
+              history: 5d
+              value_type: FLOAT
+              units: B
+              preprocessing:
+                - type: JSONPATH
+                  parameters:
+                    - '$.buckets_lld.data[?(@.namespace=="{#NAMESPACE}" && @.bucket=="{#BUCKET}")].total_mpu_size_bytes.first()'
+              master_item:
+                key: ecs.discovery.bulk.item
+            - uuid: e5742ea8dc3c45a1b92e34fba54aca76
+              name: 'ECS bucket {#NAMESPACE} - {#BUCKET}: Object count'
+              type: DEPENDENT
+              key: 'ecs.bucket.objects[{#NAMESPACE},{#BUCKET}]'
+              delay: '0'
+              history: 5d
+              value_type: FLOAT
+              preprocessing:
+                - type: JSONPATH
+                  parameters:
+                    - '$.buckets_lld.data[?(@.namespace=="{#NAMESPACE}" && @.bucket=="{#BUCKET}")].total_objects.first()'
+              master_item:
+                key: ecs.discovery.bulk.item
+            - uuid: 5c1e2f523b32414bac5f2bc67f0afd31
+              name: 'ECS bucket {#NAMESPACE} - {#BUCKET}: Sample time'
+              type: DEPENDENT
+              key: 'ecs.bucket.sample_time[{#NAMESPACE},{#BUCKET}]'
+              delay: '0'
+              history: 5d
+              value_type: TEXT
+              trends: '0'
+              preprocessing:
+                - type: JSONPATH
+                  parameters:
+                    - '$.buckets_lld.data[?(@.namespace=="{#NAMESPACE}" && @.bucket=="{#BUCKET}")].sample_time.first()'
+              master_item:
+                key: ecs.discovery.bulk.item
+            - uuid: cdfa18dcace946dab497a1d89e38c56b
+              name: 'ECS bucket {#NAMESPACE} - {#BUCKET}: Used size'
+              type: DEPENDENT
+              key: 'ecs.bucket.size.bytes[{#NAMESPACE},{#BUCKET}]'
+              delay: '0'
+              history: 5d
+              value_type: FLOAT
+              units: B
+              preprocessing:
+                - type: JSONPATH
+                  parameters:
+                    - '$.buckets_lld.data[?(@.namespace=="{#NAMESPACE}" && @.bucket=="{#BUCKET}")].total_size_bytes.first()'
+              master_item:
+                key: ecs.discovery.bulk.item
+            - uuid: 4983ba5fd31f4936ac2952482ac783bf
+              name: 'ECS bucket {#NAMESPACE} - {#BUCKET}: Up-to-date till'
+              type: DEPENDENT
+              key: 'ecs.bucket.uptodate_till[{#NAMESPACE},{#BUCKET}]'
+              delay: '0'
+              history: 5d
+              value_type: TEXT
+              trends: '0'
+              preprocessing:
+                - type: JSONPATH
+                  parameters:
+                    - '$.buckets_lld.data[?(@.namespace=="{#NAMESPACE}" && @.bucket=="{#BUCKET}")].uptodate_till.first()'
+              master_item:
+                key: ecs.discovery.bulk.item
+          master_item:
+            key: ecs.discovery.bulk.item
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.buckets_lld
+        - uuid: 7f580da3f2f94881b9425f989cd508e6
+          name: 'ECS Namespaces discovery'
+          type: DEPENDENT
+          key: ecs.namespace.discovery
+          delay: '0'
+          item_prototypes:
+            - uuid: 87f172acc68f45f895c7796c43e2bbbf
+              name: 'ECS namespace {#NAMESPACE}: Objects'
+              type: DEPENDENT
+              key: 'ecs.namespace.objects[{#NAMESPACE}]'
+              delay: '0'
+              history: 5d
+              value_type: FLOAT
+              units: B
+              preprocessing:
+                - type: JSONPATH
+                  parameters:
+                    - '$.namespaces_lld.data[?(@.namespace=="{#NAMESPACE}")].namespace_total_objects.first()'
+              master_item:
+                key: ecs.discovery.bulk.item
+            - uuid: b53d10693226409581f40e26c4d8b216
+              name: 'ECS namespace {#NAMESPACE}: Size'
+              type: DEPENDENT
+              key: 'ecs.namespace.size.bytes[{#NAMESPACE}]'
+              delay: '0'
+              history: 5d
+              value_type: FLOAT
+              units: B
+              preprocessing:
+                - type: JSONPATH
+                  parameters:
+                    - '$.namespaces_lld.data[?(@.namespace=="{#NAMESPACE}")].namespace_total_size_bytes.first()'
+              master_item:
+                key: ecs.discovery.bulk.item
+          master_item:
+            key: ecs.discovery.bulk.item
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.namespaces_lld
+      macros:
+        - macro: '{$ECS.HOST}'
+          description: 'ECS node/IP'
+        - macro: '{$ECS.INCLUDE_BUCKET}'
+          value: 'true'
+          description: 'Set to true to monitor bucket data; set to false to disable bucket data monitoring'
+        - macro: '{$ECS.NAMESPACES}'
+          description: 'Enter the namespace(s) to be monitored. If you specify multiple namespaces, separate them with commas (e.g., ns1 or ns1,ns2,ns3).'
+        - macro: '{$ECS.PASS}'
+          description: 'User password'
+        - macro: '{$ECS.PORT}'
+          value: '4443'
+          description: 'ECS API port'
+        - macro: '{$ECS.SIZEUNIT}'
+          value: GB
+          description: 'ECS size unit'
+        - macro: '{$ECS.USER}'
+          description: 'A user account with SYSTEM_ADMIN, SYSTEM_MONITOR, or NAMESPACE_ADMIN privileges.'
 
