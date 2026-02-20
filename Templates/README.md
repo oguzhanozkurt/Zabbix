@@ -19,8 +19,6 @@ Templates may differ between Zabbix versions. Please use the branch that matches
 
 Templates are grouped by category under the `Templates/` directory (e.g. `san`, `net`, `db`, `os`, etc.):
 
-
-
 Each template folder includes:
 - `README.md`: Requirements, setup notes, macros, and usage instructions
 - `*.yaml`: Zabbix template export file
@@ -57,3 +55,19 @@ Zabbix sürümüne göre template içerikleri değişebilir. Kullandığınız Z
 ### Klasör yapısı
 
 Template’ler `Templates/` altında kategori bazlı toplanır (örn. `san`, `net`, `db`, `os` vb.):
+
+Her template klasörü şunları içerir:
+- `README.md`: Gereksinimler, kurulum notları, makrolar ve kullanım adımları
+- `*.yaml`: Zabbix template export dosyası
+
+### Import (yükleme)
+
+1. Kullandığınız branch üzerinden template `.yaml` dosyasını indirin.
+2. Zabbix arayüzünde: **Data collection → Templates → Import**
+3. `.yaml` dosyasını yükleyin ve import işlemini tamamlayın.
+4. Import edilen template’i hedef host’a linkleyin.
+
+### Notlar
+
+- Template’ler olduğu gibi paylaşılmaktadır.
+- Hata/iyileştirme için Issue veya Pull Request açabilirsiniz.
