@@ -62,11 +62,6 @@ Set the following user macros on the host (or template):
 | `{$ECS.SIZEUNIT}` | Billing unit requested from API (KB/MB/GB) | `GB` |
 | `{$ECS.NAMESPACES}` | Comma-separated namespace list | `ns1,ns2,ns3` |
 
-### Important: macro syntax
-Zabbix macros must include `$`, for example:
-- ✅ `{$ECS.HOST}`
-- ❌ `{ECS.HOST}`
-
 ## How it works
 
 ### Master item (bulk collector)
@@ -134,10 +129,6 @@ All bucket items filter by namespace + bucket:
 
 - Use a dedicated ECS monitoring user with least privileges.
 - Prefer storing passwords in host macros (masked) and limit read access to Zabbix configuration.
-
-## License
-
-Specify your preferred license (MIT/Apache-2.0/GPLv3 etc.)
 
 ## Contributing
 
