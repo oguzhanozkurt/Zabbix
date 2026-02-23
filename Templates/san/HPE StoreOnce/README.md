@@ -101,7 +101,7 @@ The template includes the following LLD trigger prototypes:
 
 ### `{$STOREONCE.HOST}`
 **Purpose:** StoreOnce appliance management address used for Script-based API calls (CPU/Memory resourceMonitoring).  
-**What to enter:** IP address or FQDN reachable from the Zabbix Server/Proxy, e.g. `10.10.101.210` or `storeonce01.company.local`.  
+**What to enter:** IP address or FQDN reachable from the Zabbix Server/Proxy, e.g. `10.0.0.110` or `storeonce01.company.local`.  
 **Best practice:** Use the same address as the host interface `{HOST.CONN}` to keep configuration consistent.
 
 ---
