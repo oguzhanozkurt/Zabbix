@@ -1,4 +1,4 @@
-# HPE StoreOnce Health by HTTP (Zabbix 7.0)
+# StoreOnce Health by HTTP
 
 Zabbix template for monitoring **HPE StoreOnce** appliances via **HTTPS REST API** (XML/JSON), including:
 
