@@ -1,0 +1,453 @@
+zabbix_export:
+  version: '7.0'
+  template_groups:
+    - uuid: ad01c1e8adba4363bb716d6c4d7492e8
+      name: Templates/Appliances
+  templates:
+    - uuid: 7ed4db6d582e4011ae81b19b5b46ec92
+      template: 'Symantec SMG Hardware Appliance by SNMP'
+      name: 'Symantec SMG Hardware Appliance by SNMP'
+      description: |
+        Symantec/Blue Coat Messaging Gateway (SMG) monitoring via SNMP.
+        Based on SYMANTEC-EMAIL-SECURITY MIB (mailSecurityAppliance) plus RFC1213 system OIDs.
+      groups:
+        - name: Templates/Appliances
+      items:
+        - uuid: 6ed30d96fa5643b4904142baa09956ff
+          name: 'ICMP ping'
+          type: SIMPLE
+          key: icmpping
+          history: 1w
+          tags:
+            - tag: Application
+              value: Status
+          triggers:
+            - uuid: 83433e94b6f648198dada052cc012238
+              expression: 'max(/Symantec SMG Hardware Appliance by SNMP/icmpping,#3)=0'
+              name: 'Unavailable by ICMP ping'
+              priority: DISASTER
+              description: 'Last three attempts returned timeout.  Please check device connectivity.'
+        - uuid: 7ccec37b359f48df94756981d39ace80
+          name: 'ICMP loss'
+          type: SIMPLE
+          key: icmppingloss
+          history: 1w
+          value_type: FLOAT
+          units: '%'
+          tags:
+            - tag: Application
+              value: Status
+          triggers:
+            - uuid: f02a627408294b31a96537c88c8de77c
+              expression: 'min(/Symantec SMG Hardware Appliance by SNMP/icmppingloss,5m)>{$ICMP_LOSS_WARN} and min(/Symantec SMG Hardware Appliance by SNMP/icmppingloss,5m)<100'
+              name: 'High ICMP ping loss'
+              opdata: 'Loss: {ITEM.LASTVALUE1}'
+              priority: WARNING
+              dependencies:
+                - name: 'Unavailable by ICMP ping'
+                  expression: 'max(/Symantec SMG Hardware Appliance by SNMP/icmpping,#3)=0'
+        - uuid: 25bbc8bb432141288db689962cacce38
+          name: 'ICMP response time'
+          type: SIMPLE
+          key: icmppingsec
+          history: 1w
+          value_type: FLOAT
+          units: s
+          tags:
+            - tag: Application
+              value: Status
+          triggers:
+            - uuid: 379009986f6d46db874a420fa288eaf7
+              expression: 'avg(/Symantec SMG Hardware Appliance by SNMP/icmppingsec,5m)>{$ICMP_RESPONSE_TIME_WARN}'
+              name: 'High ICMP ping response time'
+              opdata: 'Value: {ITEM.LASTVALUE1}'
+              priority: WARNING
+              dependencies:
+                - name: 'High ICMP ping loss'
+                  expression: 'min(/Symantec SMG Hardware Appliance by SNMP/icmppingloss,5m)>{$ICMP_LOSS_WARN} and min(/Symantec SMG Hardware Appliance by SNMP/icmppingloss,5m)<100'
+                - name: 'Unavailable by ICMP ping'
+                  expression: 'max(/Symantec SMG Hardware Appliance by SNMP/icmpping,#3)=0'
+        - uuid: d282a9f5ee934e52a58fd9a7bd7bef31
+          name: 'CPU internal temperature status'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.4.1.393.200.130.2.1.1.5.0
+          key: smg.hardware.cpuInternalTemperature.status
+          history: 30d
+          valuemap:
+            name: 'Symantec SMG pass/fail status'
+          tags:
+            - tag: component
+              value: hardware
+            - tag: subsystem
+              value: thermal
+          triggers:
+            - uuid: 5b836aad84b54bc9846e4ef95bb3f689
+              expression: 'last(/Symantec SMG Hardware Appliance by SNMP/smg.hardware.cpuInternalTemperature.status)=2'
+              name: 'CPU internal temperature failure'
+              priority: HIGH
+              description: 'MIB value fail(2).'
+              tags:
+                - tag: scope
+                  value: availability
+        - uuid: b8a1aa83e94c4a528208ea75624217d5
+          name: 'Fan redundancy status'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.4.1.393.200.130.2.1.2.2.0
+          key: smg.hardware.fan.redundancy
+          history: 30d
+          valuemap:
+            name: 'Symantec SMG redundancy status'
+          tags:
+            - tag: component
+              value: hardware
+            - tag: subsystem
+              value: fans
+          triggers:
+            - uuid: 1156944a28144f03ada4436693c40948
+              expression: 'last(/Symantec SMG Hardware Appliance by SNMP/smg.hardware.fan.redundancy)=2'
+              name: 'Fan redundancy lost'
+              priority: HIGH
+              description: 'MIB value redundancyLost(2) indicates a non-redundant fan state.'
+              tags:
+                - tag: scope
+                  value: availability
+        - uuid: 358005b43b434503b1553bc1c0541337
+          name: 'Internal ambient temperature status'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.4.1.393.200.130.2.1.1.4.0
+          key: smg.hardware.internalAmbientTemperature.status
+          history: 30d
+          valuemap:
+            name: 'Symantec SMG pass/fail status'
+          tags:
+            - tag: component
+              value: hardware
+            - tag: subsystem
+              value: thermal
+          triggers:
+            - uuid: e0f1587644d94593949819386bd3a37a
+              expression: 'last(/Symantec SMG Hardware Appliance by SNMP/smg.hardware.internalAmbientTemperature.status)=2'
+              name: 'Internal ambient temperature failure'
+              priority: HIGH
+              description: 'MIB value fail(2).'
+              tags:
+                - tag: scope
+                  value: availability
+        - uuid: 51924e45f15642788c7bbcd59119a958
+          name: 'Power supply redundancy status'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.4.1.393.200.130.2.1.2.1.0
+          key: smg.hardware.powersupply.redundancy
+          history: 30d
+          valuemap:
+            name: 'Symantec SMG redundancy status'
+          tags:
+            - tag: component
+              value: hardware
+            - tag: subsystem
+              value: power
+          triggers:
+            - uuid: ccb04306129a470d93e0bdb1cb652bfe
+              expression: 'last(/Symantec SMG Hardware Appliance by SNMP/smg.hardware.powersupply.redundancy)=2'
+              name: 'Power supply redundancy lost'
+              priority: HIGH
+              description: 'MIB value redundancyLost(2) indicates a non-redundant power supply state.'
+              tags:
+                - tag: scope
+                  value: availability
+        - uuid: 2fbe2ecc1240476a8026ebe9a6c4f229
+          name: 'System blower fan status'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.4.1.393.200.130.2.1.1.1.0
+          key: smg.hardware.systemBlowerFan.status
+          history: 30d
+          valuemap:
+            name: 'Symantec SMG pass/fail status'
+          tags:
+            - tag: component
+              value: hardware
+            - tag: subsystem
+              value: fans
+          triggers:
+            - uuid: ed9b37bdf5d842819c0a903d36486814
+              expression: 'last(/Symantec SMG Hardware Appliance by SNMP/smg.hardware.systemBlowerFan.status)=2'
+              name: 'System blower fan failure'
+              priority: HIGH
+              description: 'MIB value fail(2).'
+              tags:
+                - tag: scope
+                  value: availability
+        - uuid: 348185c22b5b4aa1ad96ffa3d6e6a5c6
+          name: 'System memory fan status'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.4.1.393.200.130.2.1.1.2.0
+          key: smg.hardware.systemMemoryFan.status
+          history: 30d
+          valuemap:
+            name: 'Symantec SMG pass/fail status'
+          tags:
+            - tag: component
+              value: hardware
+            - tag: subsystem
+              value: fans
+          triggers:
+            - uuid: 502c3e80bf96404a99e40b9af934bfd0
+              expression: 'last(/Symantec SMG Hardware Appliance by SNMP/smg.hardware.systemMemoryFan.status)=2'
+              name: 'System memory fan failure'
+              priority: HIGH
+              description: 'MIB value fail(2).'
+              tags:
+                - tag: scope
+                  value: availability
+        - uuid: 0437cd8c4f384655a40bc43ccf99530f
+          name: 'System PCI fan status'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.4.1.393.200.130.2.1.1.3.0
+          key: smg.hardware.systemPciFan.status
+          history: 30d
+          valuemap:
+            name: 'Symantec SMG pass/fail status'
+          tags:
+            - tag: component
+              value: hardware
+            - tag: subsystem
+              value: fans
+          triggers:
+            - uuid: 9df4d2d68ea543a2bc3ca64f29dc3812
+              expression: 'last(/Symantec SMG Hardware Appliance by SNMP/smg.hardware.systemPciFan.status)=2'
+              name: 'System PCI fan failure'
+              priority: HIGH
+              description: 'MIB value fail(2).'
+              tags:
+                - tag: scope
+                  value: availability
+        - uuid: 66d1f9f5d28c4fe08fecd8af43c7cdd6
+          name: 'System contact details'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.2.1.1.4.0
+          key: 'system.contact[sysContact.0]'
+          delay: 1h
+          history: 2w
+          value_type: CHAR
+          trends: '0'
+          description: |
+            MIB: SNMPv2-MIB
+            The textual identification of the contact person for this managed node, together with information on how to contact this person.  If no contact information is known, the value is the zero-length string.
+          inventory_link: CONTACT
+          preprocessing:
+            - type: DISCARD_UNCHANGED_HEARTBEAT
+              parameters:
+                - 1d
+          tags:
+            - tag: Application
+              value: General
+        - uuid: c41dc31ee12449db97d19d32064cc408
+          name: 'System description'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.2.1.1.1.0
+          key: system.descr
+          delay: 1h
+          history: 7d
+          value_type: TEXT
+          trends: '0'
+          tags:
+            - tag: component
+              value: system
+        - uuid: cf7ed5679e2b43f989a3022e0cb6773c
+          name: 'System location'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.2.1.1.6.0
+          key: 'system.location[sysLocation.0]'
+          delay: 1h
+          history: 2w
+          value_type: CHAR
+          trends: '0'
+          description: |
+            MIB: SNMPv2-MIB
+            The physical location of this node (e.g., `telephone closet, 3rd floor').  If the location is unknown, the value is the zero-length string.
+          inventory_link: LOCATION
+          preprocessing:
+            - type: DISCARD_UNCHANGED_HEARTBEAT
+              parameters:
+                - 1h
+          tags:
+            - tag: Application
+              value: General
+        - uuid: 64dce0b631054046a7a3775dee41b859
+          name: 'System name'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.2.1.1.5.0
+          key: system.name
+          delay: 1h
+          history: 7d
+          value_type: TEXT
+          trends: '0'
+          tags:
+            - tag: component
+              value: system
+        - uuid: d3368b20b8564698999467ee6efbffd5
+          name: 'System uptime'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.2.1.1.3.0
+          key: system.uptime
+          delay: 5m
+          history: 7d
+          value_type: FLOAT
+          units: s
+          preprocessing:
+            - type: MULTIPLIER
+              parameters:
+                - '0.01'
+          tags:
+            - tag: component
+              value: system
+        - uuid: dfcaeed6180448d595dc6b9e38b19bb8
+          name: Uptime
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.2.1.1.3.0
+          key: 'system.uptime[sysUpTime.0]'
+          delay: 30s
+          history: 2w
+          trends: 0d
+          units: uptime
+          description: |
+            MIB: SNMPv2-MIB
+            The time (in hundredths of a second) since the network management portion of the system was last re-initialized.
+          preprocessing:
+            - type: MULTIPLIER
+              parameters:
+                - '0.01'
+          tags:
+            - tag: Application
+              value: Status
+          triggers:
+            - uuid: 055086deef2642ca83fc556479d1e4a3
+              expression: 'last(/Symantec SMG Hardware Appliance by SNMP/system.uptime[sysUpTime.0])<10m'
+              name: '{HOST.NAME} has been restarted (uptime < 10m)'
+              priority: HIGH
+              description: 'Uptime is less than 10 minutes'
+              manual_close: 'YES'
+              dependencies:
+                - name: 'No SNMP data collection'
+                  expression: 'max(/Symantec SMG Hardware Appliance by SNMP/zabbix[host,snmp,available],{$SNMP.TIMEOUT})=0'
+        - uuid: 0f353d94b2b947c7aef2054af59561a0
+          name: 'SNMP agent availability'
+          type: INTERNAL
+          key: 'zabbix[host,snmp,available]'
+          history: 7d
+          tags:
+            - tag: Application
+              value: Status
+          triggers:
+            - uuid: 3bb23c029c0b41d9ae1c56d9c2751403
+              expression: 'max(/Symantec SMG Hardware Appliance by SNMP/zabbix[host,snmp,available],{$SNMP.TIMEOUT})=0'
+              name: 'No SNMP data collection'
+              opdata: 'Current state: {ITEM.LASTVALUE1}'
+              priority: DISASTER
+              description: 'SNMP is not available for polling. Please check device connectivity and SNMP settings.'
+              dependencies:
+                - name: 'Unavailable by ICMP ping'
+                  expression: 'max(/Symantec SMG Hardware Appliance by SNMP/icmpping,#3)=0'
+      discovery_rules:
+        - uuid: 71fd19c54842483c8b35fad751214403
+          name: 'SMG MTA instance discovery'
+          type: SNMP_AGENT
+          snmp_oid: 'discovery[{#SMG.INDEX},1.3.6.1.4.1.393.200.130.2.2.1.1.1,{#SMG.INSTANCE},1.3.6.1.4.1.393.200.130.2.2.1.1.2]'
+          key: smg.mta.discovery
+          delay: 1h
+          description: 'Discovers MTA instances running on the SMG appliance.'
+          item_prototypes:
+            - uuid: 79de1d62b562457a9fcc002c61761b50
+              name: 'MTA instance {#SMG.INSTANCE}: Connections'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.393.200.130.2.2.1.1.3.{#SMG.INDEX}'
+              key: 'smg.mta.connections[{#SMG.INDEX}]'
+              history: 30d
+              tags:
+                - tag: component
+                  value: mta
+            - uuid: 2b32ab399c1e46fca116fbd23207837f
+              name: 'MTA instance {#SMG.INSTANCE}: Data rate'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.393.200.130.2.2.1.1.4.{#SMG.INDEX}'
+              key: 'smg.mta.datarate[{#SMG.INDEX}]'
+              history: 30d
+              tags:
+                - tag: component
+                  value: mta
+            - uuid: 60f77e59ad704c07983ac14e5e479a2d
+              name: 'MTA instance {#SMG.INSTANCE}: Deferred messages'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.393.200.130.2.2.1.1.5.{#SMG.INDEX}'
+              key: 'smg.mta.deferred[{#SMG.INDEX}]'
+              history: 30d
+              tags:
+                - tag: component
+                  value: mta
+            - uuid: d13e02af30d24b8aabf2672fb3d8919c
+              name: 'MTA instance {#SMG.INSTANCE}: Description'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.393.200.130.2.2.1.1.2.{#SMG.INDEX}'
+              key: 'smg.mta.descr[{#SMG.INDEX}]'
+              delay: 10m
+              history: 30d
+              value_type: TEXT
+              trends: '0'
+              tags:
+                - tag: component
+                  value: mta
+            - uuid: 3cb90c0d1d794c378c7c7e7dc07e5734
+              name: 'MTA instance {#SMG.INSTANCE}: Message rate'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.393.200.130.2.2.1.1.6.{#SMG.INDEX}'
+              key: 'smg.mta.messagerate[{#SMG.INDEX}]'
+              history: 30d
+              tags:
+                - tag: component
+                  value: mta
+            - uuid: 30c083ad6228402ea1318d985baf1a68
+              name: 'MTA instance {#SMG.INSTANCE}: Queued messages'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.393.200.130.2.2.1.1.8.{#SMG.INDEX}'
+              key: 'smg.mta.queued[{#SMG.INDEX}]'
+              history: 30d
+              tags:
+                - tag: component
+                  value: mta
+            - uuid: e859079b9c254faebd34bb85ac0f5d8d
+              name: 'MTA instance {#SMG.INSTANCE}: Queue size'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.393.200.130.2.2.1.1.7.{#SMG.INDEX}'
+              key: 'smg.mta.queuesize[{#SMG.INDEX}]'
+              history: 30d
+              tags:
+                - tag: component
+                  value: mta
+      macros:
+        - macro: '{$SNMP_COMMUNITY}'
+          value: public
+          description: 'SNMP community (for SNMPv2c)'
+        - macro: '{$SNMP_PORT}'
+          value: '161'
+          description: 'SNMP port'
+      valuemaps:
+        - uuid: 0ff46b7572da428d8eb734127468fba6
+          name: 'Symantec SMG pass/fail status'
+          mappings:
+            - value: '1'
+              newvalue: pass
+            - value: '2'
+              newvalue: fail
+            - value: '3'
+              newvalue: unknown
+            - value: '4'
+              newvalue: unavailable
+        - uuid: 6aeae1982cd5427db894d497253838a7
+          name: 'Symantec SMG redundancy status'
+          mappings:
+            - value: '1'
+              newvalue: fullyRedundant
+            - value: '2'
+              newvalue: redundancyLost
+            - value: '3'
+              newvalue: redundancyUnknown
