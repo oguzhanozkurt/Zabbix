@@ -1,0 +1,669 @@
+zabbix_export:
+  version: '7.0'
+  template_groups:
+    - uuid: 748ad4d098d447d492bb935c907f652f
+      name: Templates/Databases
+  templates:
+    - uuid: 10670425e9bb4bb8b49353c05caf2677
+      template: 'PgBouncer Template by HTTP'
+      name: 'PgBouncer Template by HTTP'
+      groups:
+        - name: Templates/Databases
+      items:
+        - uuid: ec5c13c81192401f9acc8745252c641f
+          name: 'PgBouncer Max Client Connections'
+          type: DEPENDENT
+          key: pgbouncer.max.client.connections
+          delay: '0'
+          history: 7d
+          preprocessing:
+            - type: REGEX
+              parameters:
+                - '(?m)^\s*pgbouncer_config_max_client_connections\s+([0-9]+(?:\.[0-9]+)?)\s*$'
+                - \1
+          master_item:
+            key: pgbouncer.prometheus.bulk
+        - uuid: 84be2178d52f4c75b6fc63fe26d320b5
+          name: 'PgBouncer Process Max FDS'
+          type: DEPENDENT
+          key: pgbouncer.process.max.fds
+          delay: '0'
+          history: 7d
+          preprocessing:
+            - type: REGEX
+              parameters:
+                - '(?m)^\s*process_max_fds\s+([0-9]+(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?)\s*$'
+                - \1
+            - type: JAVASCRIPT
+              parameters:
+                - |
+                  // value: 1. adımın çıktısı (ör: "1.048576e+06")
+                  return Number(value);
+          master_item:
+            key: pgbouncer.prometheus.bulk
+        - uuid: 3e8ae80898dc46f690d37c9c7c8c2cd2
+          name: 'PgBouncer Process Open FDS'
+          type: DEPENDENT
+          key: pgbouncer.process.open.fds
+          delay: '0'
+          history: 7d
+          preprocessing:
+            - type: REGEX
+              parameters:
+                - '(?m)^\s*process_open_fds\s+([0-9]+(?:\.[0-9]+)?)\s*$'
+                - \1
+          master_item:
+            key: pgbouncer.prometheus.bulk
+        - uuid: 78346408061d4914a2fa55e53095ae71
+          name: 'PgBouncer Process Resident Memory bytes'
+          type: DEPENDENT
+          key: pgbouncer.process.resident.memory.bytes
+          delay: '0'
+          history: 7d
+          preprocessing:
+            - type: REGEX
+              parameters:
+                - '(?m)^\s*process_resident_memory_bytes\s+([0-9]+(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?)\s*$'
+                - \1
+            - type: JAVASCRIPT
+              parameters:
+                - |
+                  // value: 1. adımın çıktısı (ör: "1.048576e+06")
+                  return Number(value);
+          master_item:
+            key: pgbouncer.prometheus.bulk
+        - uuid: 9387c6a2f9bd49f9aab6651f7c2d6c2f
+          name: 'Prometheus Bulk Item'
+          type: HTTP_AGENT
+          key: pgbouncer.prometheus.bulk
+          history: 3d
+          value_type: TEXT
+          trends: '0'
+          url: '{$PGBOUNCER.METRICS.URL}'
+        - uuid: 73cf1d8058a94177a0e4259926601d1b
+          name: 'PgBouncer State'
+          type: DEPENDENT
+          key: pgbouncer.state
+          delay: '0'
+          history: 7d
+          valuemap:
+            name: 'PgBouncer State'
+          preprocessing:
+            - type: REGEX
+              parameters:
+                - '(?m)^\s*pgbouncer_up\s+([0-9]+(?:\.[0-9]+)?)\s*$'
+                - \1
+          master_item:
+            key: pgbouncer.prometheus.bulk
+        - uuid: 0233d0d7c6b848058eebfe66015fda06
+          name: 'PgBouncer Used Clients'
+          type: DEPENDENT
+          key: pgbouncer.used.clients
+          delay: '0'
+          history: 7d
+          preprocessing:
+            - type: REGEX
+              parameters:
+                - '(?m)^\s*pgbouncer_used_clients\s+([0-9]+(?:\.[0-9]+)?)\s*$'
+                - \1
+          master_item:
+            key: pgbouncer.prometheus.bulk
+        - uuid: e9a140c025374b2d95afe7d103979d4c
+          name: 'PgBouncer Used Servers'
+          type: DEPENDENT
+          key: pgbouncer.used.servers
+          delay: '0'
+          history: 7d
+          preprocessing:
+            - type: REGEX
+              parameters:
+                - '(?m)^\s*pgbouncer_used_servers\s+([0-9]+(?:\.[0-9]+)?)\s*$'
+                - \1
+          master_item:
+            key: pgbouncer.prometheus.bulk
+        - uuid: dc73f207991c4d9f9f85eba7e31b02bb
+          name: 'PgBouncer Version'
+          type: DEPENDENT
+          key: pgbouncer.version
+          delay: '0'
+          history: 7d
+          value_type: TEXT
+          trends: '0'
+          preprocessing:
+            - type: REGEX
+              parameters:
+                - '(?m)^\s*pgbouncer_version_info\{[^}]*version="([^"]+)"[^}]*\}\s+[0-9]+(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?\s*$'
+                - \1
+          master_item:
+            key: pgbouncer.prometheus.bulk
+      discovery_rules:
+        - uuid: b59f23e22cfb40bc91bcfcd7979cf041
+          name: 'Client Waiting Seconds Total'
+          type: DEPENDENT
+          key: pgbouncer.client.waiting.seconds.total
+          delay: '0'
+          item_prototypes:
+            - uuid: 46ce9b222b28459298b9991f6128deea
+              name: '{#DATABASE} Client Wait seconds Total'
+              type: DEPENDENT
+              key: 'client.wait.seconds.total.[{#DATABASE}]'
+              delay: '0'
+              history: 5d
+              value_type: FLOAT
+              preprocessing:
+                - type: REGEX
+                  parameters:
+                    - '(?m)^pgbouncer_stats_client_wait_seconds_total\{[^}]*database="{#DATABASE}"[^}]*\}\s+([0-9]+(?:\.[0-9]+)?)\s*$'
+                    - \1
+              master_item:
+                key: pgbouncer.prometheus.bulk
+          master_item:
+            key: pgbouncer.prometheus.bulk
+          preprocessing:
+            - type: JAVASCRIPT
+              parameters:
+                - |
+                  // value = master item'dan gelen ham text
+                  var lines = value.split('\n');
+                  var seen = {};
+                  var data = [];
+                  
+                  for (var i = 0; i < lines.length; i++) {
+                    var line = lines[i].trim();
+                  
+                    // Örn:
+                    // pgbouncer_stats_client_wait_seconds_total{database="utts_device_monitor_uat",...} 1000
+                    var m = line.match(/^pgbouncer_stats_client_wait_seconds_total\{([^}]*)\}\s+([0-9]+(?:\.[0-9]+)?)\s*$/);
+                    if (!m) continue;
+                  
+                    var labels = m[1];
+                    var dbMatch = labels.match(/database="([^"]*)"/);
+                    if (!dbMatch) continue;
+                  
+                    var db = dbMatch[1];
+                    if (db === "" || seen[db]) continue;
+                  
+                    seen[db] = true;
+                    data.push({"{#DATABASE}": db});
+                  }
+                  
+                  return JSON.stringify({data: data});
+        - uuid: a7bdb622a020481e8f638c68a5e54770
+          name: 'Database Disabled State'
+          type: DEPENDENT
+          key: pgbouncer.database.disabled.state
+          delay: '0'
+          item_prototypes:
+            - uuid: 9f28ee37a2b7459cbdf96f9979a1619f
+              name: '{#DATABASE} Database Disabled state'
+              type: DEPENDENT
+              key: 'database.disabled.state.[{#DATABASE}]'
+              delay: '0'
+              history: 5d
+              value_type: FLOAT
+              valuemap:
+                name: 'Database State'
+              preprocessing:
+                - type: REGEX
+                  parameters:
+                    - '(?m)^\s*pgbouncer_databases_disabled\{[^}]*database="{#DATABASE}"[^}]*\}\s+([0-9]+(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?)\s*$'
+                    - \1
+              master_item:
+                key: pgbouncer.prometheus.bulk
+          master_item:
+            key: pgbouncer.prometheus.bulk
+          preprocessing:
+            - type: JAVASCRIPT
+              parameters:
+                - |
+                  // value = master item'dan gelen ham text
+                  var lines = value.split('\n');
+                  var seen = {};
+                  var data = [];
+                  
+                  for (var i = 0; i < lines.length; i++) {
+                    var line = lines[i].trim();
+                  
+                    // Örn:
+                    // pgbouncer_databases_disabled{database="utts_device_monitor_uat",...} 1000
+                    var m = line.match(/^pgbouncer_databases_disabled\{([^}]*)\}\s+([0-9]+(?:\.[0-9]+)?)\s*$/);
+                    if (!m) continue;
+                  
+                    var labels = m[1];
+                    var dbMatch = labels.match(/database="([^"]*)"/);
+                    if (!dbMatch) continue;
+                  
+                    var db = dbMatch[1];
+                    if (db === "" || seen[db]) continue;
+                  
+                    seen[db] = true;
+                    data.push({"{#DATABASE}": db});
+                  }
+                  
+                  return JSON.stringify({data: data});
+        - uuid: d7a2a024e8c34b7887dcf079a1aa2aa9
+          name: 'Database Paused State'
+          type: DEPENDENT
+          key: pgbouncer.database.paused.state
+          delay: '0'
+          item_prototypes:
+            - uuid: c9f3f5874af345fd9231d40abd08ad1d
+              name: '{#DATABASE} Database Paused state'
+              type: DEPENDENT
+              key: 'database.paused.state.[{#DATABASE}]'
+              delay: '0'
+              history: 5d
+              value_type: FLOAT
+              valuemap:
+                name: 'Database State'
+              preprocessing:
+                - type: REGEX
+                  parameters:
+                    - '(?m)^\s*pgbouncer_databases_paused\{[^}]*database="{#DATABASE}"[^}]*\}\s+([0-9]+(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?)\s*$'
+                    - \1
+              master_item:
+                key: pgbouncer.prometheus.bulk
+          master_item:
+            key: pgbouncer.prometheus.bulk
+          preprocessing:
+            - type: JAVASCRIPT
+              parameters:
+                - |
+                  // value = master item'dan gelen ham text
+                  var lines = value.split('\n');
+                  var seen = {};
+                  var data = [];
+                  
+                  for (var i = 0; i < lines.length; i++) {
+                    var line = lines[i].trim();
+                  
+                    // Örn:
+                    // pgbouncer_databases_paused{database="utts_device_monitor_uat",...} 1000
+                    var m = line.match(/^pgbouncer_databases_paused\{([^}]*)\}\s+([0-9]+(?:\.[0-9]+)?)\s*$/);
+                    if (!m) continue;
+                  
+                    var labels = m[1];
+                    var dbMatch = labels.match(/database="([^"]*)"/);
+                    if (!dbMatch) continue;
+                  
+                    var db = dbMatch[1];
+                    if (db === "" || seen[db]) continue;
+                  
+                    seen[db] = true;
+                    data.push({"{#DATABASE}": db});
+                  }
+                  
+                  return JSON.stringify({data: data});
+        - uuid: 9cd4a3a4aded465f9887121b85817396
+          name: 'Database Pool Size'
+          type: DEPENDENT
+          key: pgbouncer.database.pool.size
+          delay: '0'
+          item_prototypes:
+            - uuid: af0bf2547f8e41e7a2d9a0ad22ef584b
+              name: '{#DATABASE} pool size'
+              type: DEPENDENT
+              key: 'pool.size.[{#DATABASE}]'
+              delay: '0'
+              history: 5d
+              value_type: FLOAT
+              preprocessing:
+                - type: REGEX
+                  parameters:
+                    - '(?m)^pgbouncer_databases_pool_size\{[^}]*database="{#DATABASE}"[^}]*\}\s+([0-9]+(?:\.[0-9]+)?)\s*$'
+                    - \1
+              master_item:
+                key: pgbouncer.prometheus.bulk
+          master_item:
+            key: pgbouncer.prometheus.bulk
+          preprocessing:
+            - type: JAVASCRIPT
+              parameters:
+                - |
+                  // value = master item'dan gelen ham text
+                  var lines = value.split('\n');
+                  var seen = {};
+                  var data = [];
+                  
+                  for (var i = 0; i < lines.length; i++) {
+                    var line = lines[i].trim();
+                  
+                    // Örn:
+                    // pgbouncer_databases_pool_size{database="utts_device_monitor_uat",...} 1000
+                    var m = line.match(/^pgbouncer_databases_pool_size\{([^}]*)\}\s+([0-9]+(?:\.[0-9]+)?)\s*$/);
+                    if (!m) continue;
+                  
+                    var labels = m[1];
+                    var dbMatch = labels.match(/database="([^"]*)"/);
+                    if (!dbMatch) continue;
+                  
+                    var db = dbMatch[1];
+                    if (db === "" || seen[db]) continue;
+                  
+                    seen[db] = true;
+                    data.push({"{#DATABASE}": db});
+                  }
+                  
+                  return JSON.stringify({data: data});
+        - uuid: c727c2c890f847e19ccf6a77b11221c2
+          name: 'Database Pools Client Waiting Connections'
+          type: DEPENDENT
+          key: pgbouncer.database.pools.client.waiting.connections
+          delay: '0'
+          item_prototypes:
+            - uuid: e37d3d37c9a84323afa99ebab00bbf1f
+              name: '{#DATABASE} Client Waiting Connections'
+              type: DEPENDENT
+              key: 'client.waiting.connections.[{#DATABASE}]'
+              delay: '0'
+              history: 5d
+              value_type: FLOAT
+              preprocessing:
+                - type: REGEX
+                  parameters:
+                    - '(?m)^pgbouncer_pools_client_waiting_connections\{[^}]*database="{#DATABASE}"[^}]*\}\s+([0-9]+(?:\.[0-9]+)?)\s*$'
+                    - \1
+              master_item:
+                key: pgbouncer.prometheus.bulk
+          master_item:
+            key: pgbouncer.prometheus.bulk
+          preprocessing:
+            - type: JAVASCRIPT
+              parameters:
+                - |
+                  // value = master item'dan gelen ham text
+                  var lines = value.split('\n');
+                  var seen = {};
+                  var data = [];
+                  
+                  for (var i = 0; i < lines.length; i++) {
+                    var line = lines[i].trim();
+                  
+                    // Örn:
+                    // pgbouncer_pools_client_waiting_connections{database="utts_device_monitor_uat",...} 1000
+                    var m = line.match(/^pgbouncer_pools_client_waiting_connections\{([^}]*)\}\s+([0-9]+(?:\.[0-9]+)?)\s*$/);
+                    if (!m) continue;
+                  
+                    var labels = m[1];
+                    var dbMatch = labels.match(/database="([^"]*)"/);
+                    if (!dbMatch) continue;
+                  
+                    var db = dbMatch[1];
+                    if (db === "" || seen[db]) continue;
+                  
+                    seen[db] = true;
+                    data.push({"{#DATABASE}": db});
+                  }
+                  
+                  return JSON.stringify({data: data});
+        - uuid: 573528050bfd4c3a85d0e0128b402b5d
+          name: 'Pools Server Used Connections'
+          type: DEPENDENT
+          key: pgbouncer.pools.server.used.connections
+          delay: '0'
+          item_prototypes:
+            - uuid: 39caee4872d8471aa1bc5bfe8e30f04e
+              name: '{#DATABASE} Pools Server Used Connections'
+              type: DEPENDENT
+              key: 'pools.server.used.connections.[{#DATABASE}]'
+              delay: '0'
+              history: 5d
+              value_type: FLOAT
+              preprocessing:
+                - type: REGEX
+                  parameters:
+                    - '(?m)^\s*pgbouncer_pools_server_used_connections\{[^}]*database="{#DATABASE}"[^}]*\}\s+([0-9]+(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?)\s*$'
+                    - \1
+              master_item:
+                key: pgbouncer.prometheus.bulk
+          master_item:
+            key: pgbouncer.prometheus.bulk
+          preprocessing:
+            - type: JAVASCRIPT
+              parameters:
+                - |
+                  // value = master item'dan gelen ham text
+                  var lines = value.split('\n');
+                  var seen = {};
+                  var data = [];
+                  
+                  for (var i = 0; i < lines.length; i++) {
+                    var line = lines[i].trim();
+                  
+                    // Örn:
+                    // pgbouncer_pools_server_used_connections{database="utts_device_monitor_uat",...} 1000
+                    var m = line.match(/^pgbouncer_pools_server_used_connections\{([^}]*)\}\s+([0-9]+(?:\.[0-9]+)?)\s*$/);
+                    if (!m) continue;
+                  
+                    var labels = m[1];
+                    var dbMatch = labels.match(/database="([^"]*)"/);
+                    if (!dbMatch) continue;
+                  
+                    var db = dbMatch[1];
+                    if (db === "" || seen[db]) continue;
+                  
+                    seen[db] = true;
+                    data.push({"{#DATABASE}": db});
+                  }
+                  
+                  return JSON.stringify({data: data});
+        - uuid: e2ea489045744fee8ad1d7915a739c97
+          name: 'Query Duration Seconds Total'
+          type: DEPENDENT
+          key: pgbouncer.query.duration.seconds.total
+          delay: '0'
+          item_prototypes:
+            - uuid: 113ae99aa411416e95db458f5b0a1330
+              name: '{#DATABASE} Queries Duration Seconds Total'
+              type: DEPENDENT
+              key: 'queries.duration.seconds.total.[{#DATABASE}]'
+              delay: '0'
+              history: 5d
+              value_type: FLOAT
+              preprocessing:
+                - type: REGEX
+                  parameters:
+                    - '(?m)^\s*pgbouncer_stats_queries_duration_seconds_total\{[^}]*database="{#DATABASE}"[^}]*\}\s+([0-9]+(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?)\s*$'
+                    - \1
+              master_item:
+                key: pgbouncer.prometheus.bulk
+          master_item:
+            key: pgbouncer.prometheus.bulk
+          preprocessing:
+            - type: JAVASCRIPT
+              parameters:
+                - |
+                  // value = master item'dan gelen ham text
+                  var lines = value.split('\n');
+                  var seen = {};
+                  var data = [];
+                  
+                  for (var i = 0; i < lines.length; i++) {
+                    var line = lines[i].trim();
+                  
+                    // Örn:
+                    // pgbouncer_stats_queries_duration_seconds_total{database="utts_device_monitor_uat",...} 1000
+                    var m = line.match(/^pgbouncer_stats_queries_duration_seconds_total\{([^}]*)\}\s+([0-9]+(?:\.[0-9]+)?)\s*$/);
+                    if (!m) continue;
+                  
+                    var labels = m[1];
+                    var dbMatch = labels.match(/database="([^"]*)"/);
+                    if (!dbMatch) continue;
+                  
+                    var db = dbMatch[1];
+                    if (db === "" || seen[db]) continue;
+                  
+                    seen[db] = true;
+                    data.push({"{#DATABASE}": db});
+                  }
+                  
+                  return JSON.stringify({data: data});
+        - uuid: ed0f8b8d7f6742c6b5c380eb29176bf8
+          name: 'Server in Transactions Total'
+          type: DEPENDENT
+          key: pgbouncer.server.in.transactions.total
+          delay: '0'
+          item_prototypes:
+            - uuid: 1b86d2f956cd4bcab4f6d096e198cf84
+              name: '{#DATABASE} Server in Transaction Seconds Total'
+              type: DEPENDENT
+              key: 'server.transaction.seconds.total.[{#DATABASE}]'
+              delay: '0'
+              history: 5d
+              value_type: FLOAT
+              preprocessing:
+                - type: REGEX
+                  parameters:
+                    - '(?m)^\s*pgbouncer_stats_server_in_transaction_seconds_total\{[^}]*database="{#DATABASE}"[^}]*\}\s+([0-9]+(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?)\s*$'
+                    - \1
+              master_item:
+                key: pgbouncer.prometheus.bulk
+          master_item:
+            key: pgbouncer.prometheus.bulk
+          preprocessing:
+            - type: JAVASCRIPT
+              parameters:
+                - |
+                  // value = master item'dan gelen ham text
+                  var lines = value.split('\n');
+                  var seen = {};
+                  var data = [];
+                  
+                  for (var i = 0; i < lines.length; i++) {
+                    var line = lines[i].trim();
+                  
+                    // Örn:
+                    // pgbouncer_stats_server_in_transaction_seconds_total{database="utts_device_monitor_uat",...} 1000
+                    var m = line.match(/^pgbouncer_stats_server_in_transaction_seconds_total\{([^}]*)\}\s+([0-9]+(?:\.[0-9]+)?)\s*$/);
+                    if (!m) continue;
+                  
+                    var labels = m[1];
+                    var dbMatch = labels.match(/database="([^"]*)"/);
+                    if (!dbMatch) continue;
+                  
+                    var db = dbMatch[1];
+                    if (db === "" || seen[db]) continue;
+                  
+                    seen[db] = true;
+                    data.push({"{#DATABASE}": db});
+                  }
+                  
+                  return JSON.stringify({data: data});
+        - uuid: 5503a8a79bf349d8b553104c0dd5008b
+          name: 'Stats Received Bytes Total'
+          type: DEPENDENT
+          key: pgbouncer.stats.received.bytes.total
+          delay: '0'
+          item_prototypes:
+            - uuid: 40380b3140fc4298acbf221ec51b460f
+              name: '{#DATABASE} Stats Received Bytes Total'
+              type: DEPENDENT
+              key: 'stats.received.bytes.total.[{#DATABASE}]'
+              delay: '0'
+              history: 5d
+              value_type: FLOAT
+              preprocessing:
+                - type: REGEX
+                  parameters:
+                    - '(?m)^\s*pgbouncer_stats_received_bytes_total\{[^}]*database="{#DATABASE}"[^}]*\}\s+([0-9]+(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?)\s*$'
+                    - \1
+              master_item:
+                key: pgbouncer.prometheus.bulk
+          master_item:
+            key: pgbouncer.prometheus.bulk
+          preprocessing:
+            - type: JAVASCRIPT
+              parameters:
+                - |
+                  // value: master item'dan gelen ham Prometheus text çıktısı
+                  var lines = value.split('\n');
+                  var seen = {};
+                  var data = [];
+                  
+                  for (var i = 0; i < lines.length; i++) {
+                    var line = lines[i].trim();
+                  
+                    // pgbouncer_stats_received_bytes_total{database="postgres"} 4.3813917e+07
+                    var m = line.match(/^pgbouncer_stats_received_bytes_total\{([^}]*)\}\s+[0-9]+(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?\s*$/);
+                    if (!m) continue;
+                  
+                    var labels = m[1];
+                    var dbMatch = labels.match(/database="([^"]+)"/);
+                    if (!dbMatch) continue;
+                  
+                    var db = dbMatch[1];
+                    if (seen[db]) continue;
+                  
+                    seen[db] = true;
+                    data.push({"{#DATABASE}": db});
+                  }
+                  
+                  return JSON.stringify({data: data});
+        - uuid: 92acd5160c604deb9cc944d5d007b6f5
+          name: 'Stats Sent Bytes Total'
+          type: DEPENDENT
+          key: pgbouncer.stats.sent.bytes.total
+          delay: '0'
+          item_prototypes:
+            - uuid: 60eb129621e2400ba0f1126868c79b36
+              name: '{#DATABASE} Stats Sent Bytes Total'
+              type: DEPENDENT
+              key: 'stats.sent.bytes.total.[{#DATABASE}]'
+              delay: '0'
+              history: 5d
+              value_type: FLOAT
+              preprocessing:
+                - type: REGEX
+                  parameters:
+                    - '(?m)^\s*pgbouncer_stats_sent_bytes_total\{[^}]*database="{#DATABASE}"[^}]*\}\s+([0-9]+(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?)\s*$'
+                    - \1
+              master_item:
+                key: pgbouncer.prometheus.bulk
+          master_item:
+            key: pgbouncer.prometheus.bulk
+          preprocessing:
+            - type: JAVASCRIPT
+              parameters:
+                - |
+                  // value: master item'dan gelen ham Prometheus text çıktısı
+                  var lines = value.split('\n');
+                  var seen = {};
+                  var data = [];
+                  
+                  for (var i = 0; i < lines.length; i++) {
+                    var line = lines[i].trim();
+                  
+                    // pgbouncer_stats_sent_bytes_total{database="postgres"} 4.3813917e+07
+                    var m = line.match(/^pgbouncer_stats_sent_bytes_total\{([^}]*)\}\s+[0-9]+(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?\s*$/);
+                    if (!m) continue;
+                  
+                    var labels = m[1];
+                    var dbMatch = labels.match(/database="([^"]+)"/);
+                    if (!dbMatch) continue;
+                  
+                    var db = dbMatch[1];
+                    if (seen[db]) continue;
+                  
+                    seen[db] = true;
+                    data.push({"{#DATABASE}": db});
+                  }
+                  
+                  return JSON.stringify({data: data});
+      macros:
+        - macro: '{$PGBOUNCER.METRICS.URL}'
+          description: 'http://pgbouncer-metrics.local/metrics'
+      valuemaps:
+        - uuid: c35beb9b01f34022bc815c9dc0eff258
+          name: 'Database State'
+          mappings:
+            - value: '1'
+              newvalue: Down
+            - value: '0'
+              newvalue: Up
+        - uuid: 58ed8ac0404f485a9c7a44ca27481038
+          name: 'PgBouncer State'
+          mappings:
+            - value: '0'
+              newvalue: Down
+            - value: '1'
+              newvalue: Up
