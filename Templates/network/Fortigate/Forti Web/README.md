@@ -1,0 +1,175 @@
+# FortiWEB by SNMP (Zabbix Template)
+
+This repository provides a Zabbix template to monitor **Fortinet FortiWeb** appliances via **SNMP**.
+
+- Template name: **FortiWEB by SNMP**
+- Zabbix export: **7.0**
+- File: **FortiWEB by SNMP.yaml**
+- Vendor MIB: Fortinet enterprise OID **12356**
+
+> Note: This is a community template and is not an official Fortinet release.
+
+---
+
+## What’s Included
+
+### Availability & Connectivity
+- ICMP ping, packet loss, and response time
+- SNMP agent availability (Zabbix internal check)
+
+### System Information (SNMP system MIB)
+- System name, description, contact, location
+- Uptime (sysUpTime)
+
+### Appliance Health (Fortinet MIB)
+- CPU utilization
+- Memory utilization
+- System temperature (if supported by model)
+- Session/connection counters (if supported by MIB version)
+
+### Automated Discovery (LLD)
+Depending on the exposed FortiWeb SNMP tables, the template can be extended to discover:
+- Interfaces
+- HA status / cluster members
+- Virtual servers / policies (if exposed)
+
+> The current export focuses on common health and availability metrics.
+
+---
+
+## Requirements
+
+- Zabbix Server/Proxy: **7.0** (or compatible newer versions)
+- FortiWeb appliance: SNMP enabled and reachable from Zabbix
+- Network access: Zabbix → FortiWeb **UDP/161**
+- Zabbix host must have an **SNMP interface** configured
+
+---
+
+## Quick Start
+
+### 1) Import the Template
+Zabbix UI → **Data collection → Templates → Import**  
+Import: `FortiWEB by SNMP.yaml`
+
+### 2) Create/Update the Host
+Zabbix UI → **Data collection → Hosts → Create host**
+- Add an **SNMP interface** (FortiWeb IP/DNS + port 161)
+- Configure SNMP credentials (v2c community or SNMPv3)
+- Link template: **FortiWEB by SNMP**
+
+### 3) Review Thresholds (Macros)
+Adjust macro thresholds to align with your operational baseline.
+
+---
+
+## Macros
+
+| Macro | Default | Description |
+|------|---------|-------------|
+| `{$CPU.UTIL.MAX}` | `90` | CPU utilization threshold (%) |
+| `{$MEM.UTIL.MAX}` | `90` | Memory utilization threshold (%) |
+| `{$ICMP_LOSS_WARN}` | `20` | ICMP loss warning threshold (%) |
+| `{$ICMP_RESPONSE_TIME_WARN}` | `0.15` | ICMP RTT warning threshold (seconds) |
+| `{$SNMP.TIMEOUT}` | `5m` | Window used to detect missing SNMP polling |
+| `{$PING.THRESOLD}` | `3m` | Window used for ICMP availability evaluation |
+
+> If your export does not include some of these macros, define them at host level.
+
+---
+
+## Monitored Items (Summary)
+
+### Connectivity
+- `icmpping`
+- `icmppingloss` (%)
+- `icmppingsec` (s)
+- `zabbix[host,snmp,available]`
+
+### System (RFC1213 / SNMPv2-MIB)
+- `system.descr` (OID: `1.3.6.1.2.1.1.1.0`)
+- `system.contact[sysContact.0]` (OID: `1.3.6.1.2.1.1.4.0`)
+- `system.name` (OID: `1.3.6.1.2.1.1.5.0`)
+- `system.location[sysLocation.0]` (OID: `1.3.6.1.2.1.1.6.0`)
+- `system.uptime` / `system.uptime[sysUpTime.0]` (OID: `1.3.6.1.2.1.1.3.0`)
+
+### FortiWeb Health (Fortinet Enterprise)
+Common OIDs vary by FortiWeb version/model. Typical examples:
+- CPU utilization (Fortinet host resources): varies by MIB implementation
+- Memory utilization: varies by MIB implementation
+
+> If an item is unsupported, verify the exact OID set exposed by your FortiWeb firmware using `snmpwalk` and adjust the template accordingly.
+
+---
+
+## Triggers (Included)
+
+### Availability / Connectivity
+- **Unavailable by ICMP ping** (DISASTER)  
+  `max(icmpping, {$PING.THRESOLD}) = 0`
+- **High ICMP ping loss** (WARNING)  
+  `min(icmppingloss, 5m) > {$ICMP_LOSS_WARN}` and `< 100`
+- **High ICMP ping response time** (WARNING)  
+  `avg(icmppingsec, 5m) > {$ICMP_RESPONSE_TIME_WARN}`
+
+### SNMP Polling
+- **No SNMP data collection** (DISASTER)  
+  `max(zabbix[host,snmp,available], {$SNMP.TIMEOUT}) = 0`
+
+### Utilization
+- **High CPU utilization** (HIGH)  
+  `max(cpu.utilization, 5m) > {$CPU.UTIL.MAX}`
+- **High memory utilization** (HIGH)  
+  `max(memory.utilization, 5m) > {$MEM.UTIL.MAX}`
+
+---
+
+## Validation & Troubleshooting
+
+From your Zabbix server/proxy, validate SNMP reachability and available OIDs:
+
+~~~bash
+# Basic system info
+snmpwalk -v2c -c <COMMUNITY> <FORTIWEB_IP> 1.3.6.1.2.1.1
+
+# Fortinet enterprise subtree
+snmpwalk -v2c -c <COMMUNITY> <FORTIWEB_IP> 1.3.6.1.3.6.1.4.1.12356
+~~~
+
+### If you see "No SNMP data collection"
+- Confirm UDP/161 reachability (firewall/ACL).
+- Verify SNMP community and port (or SNMPv3 credentials).
+- Ensure the host has an SNMP interface configured in Zabbix.
+- Check whether FortiWeb restricts SNMP by source IP.
+
+### If items are unsupported
+- Run `snmpwalk` to confirm the OID exists on your firmware/model.
+- Compare results with the template OIDs and update items accordingly.
+- Ensure correct SNMP version and permissions.
+
+---
+
+## Security Notes
+
+SNMPv2c uses community strings in plaintext. Reduce exposure by applying:
+- Source IP allow-lists
+- Network segmentation
+- Firewall policies
+
+If you require SNMPv3, you can adapt the host SNMP interface settings accordingly (the template OIDs remain the same).
+
+---
+
+## Contributing
+
+Contributions are welcome, including:
+- OID corrections per FortiWeb firmware/model
+- Additional metrics (interfaces, HA status, virtual servers)
+- Improved triggers and threshold recommendations
+- Documentation improvements and validation examples
+
+Please open an issue with:
+- FortiWeb model and firmware version
+- Zabbix version
+- Sanitized `snmpwalk` output for relevant OIDs
+- Expected vs. actual behavior

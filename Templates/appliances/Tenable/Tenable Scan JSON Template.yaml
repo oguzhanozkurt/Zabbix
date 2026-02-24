@@ -1,0 +1,109 @@
+zabbix_export:
+  version: '7.0'
+  template_groups:
+    - uuid: 57b7ae836ca64446ba2c296389c009b7
+      name: Templates/Modules
+  templates:
+    - uuid: ecddc55ebc5844bbbe0ce6879268cfee
+      template: 'Tenable Scan JSON Template'
+      name: 'Tenable Scan JSON Template'
+      groups:
+        - name: Templates/Modules
+      items:
+        - uuid: 25660c59993045e2bca6687afef9c02f
+          name: 'Tenable Bulk item'
+          type: HTTP_AGENT
+          key: tenable.bulk.item
+          delay: 1h
+          history: 15d
+          value_type: TEXT
+          trends: '0'
+          timeout: 10s
+          url: '{$TENABLE.URL}'
+          output_format: JSON
+      discovery_rules:
+        - uuid: d057f41580b248f7a65389dccc2917f0
+          name: 'Tenable Scan Discovery'
+          type: DEPENDENT
+          key: tenable.scan.discovery
+          delay: '0'
+          lifetime: 1h
+          enabled_lifetime_type: DISABLE_NEVER
+          item_prototypes:
+            - uuid: 741287e593aa430b9cb69544aa16fb69
+              name: 'SCAN - {#HOST} - {#RISK} - {#PLUGIN}'
+              type: CALCULATED
+              key: 'scan.[{#SCANID},{#NO}]'
+              delay: 30m
+              value_type: TEXT
+              trends: '0'
+              params: '{#RISK}'
+              description: |
+                Host - ScanID: {#HOST} - {#SCANID}
+                Segment: {#SEGMENT}
+                VLAN: {#VLAN}
+                Plugin: {#PLUGIN}
+                CVEs: {#CVES}
+                Description: {#DESC}
+              tags:
+                - tag: Application
+                  value: 'Tenable Scan'
+              trigger_prototypes:
+                - uuid: d4407038ac4f4194af62baa0bce4c1a8
+                  expression: 'last(/Tenable Scan JSON Template/scan.[{#SCANID},{#NO}])="High" or last(/Tenable Scan JSON Template/scan.[{#SCANID},{#NO}])="Critical"'
+                  name: '{#HOST} - {#RISK} - {#PLUGIN}'
+                  priority: AVERAGE
+                  description: |
+                    Host - ScanID: {#HOST} - {#SCANID}
+                    Segment: {#SEGMENT}
+                    VLAN: {#VLAN}
+                    Plugin: {#PLUGIN}
+                    CVEs: {#CVES}
+                    Description: {#DESC}
+                  manual_close: 'YES'
+          master_item:
+            key: tenable.bulk.item
+          lld_macro_paths:
+            - lld_macro: '{#CVES}'
+              path: $.CVEs
+            - lld_macro: '{#DESC}'
+              path: $.Description
+            - lld_macro: '{#HOST}'
+              path: $.Host
+            - lld_macro: '{#NO}'
+              path: $.No
+            - lld_macro: '{#PLUGIN}'
+              path: $.Plugin
+            - lld_macro: '{#RISK}'
+              path: $.Risk
+            - lld_macro: '{#SCANID}'
+              path: $.ScanID
+            - lld_macro: '{#SEGMENT}'
+              path: $.Segment
+            - lld_macro: '{#VLAN}'
+              path: $.Vlan
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.body
+            - type: JAVASCRIPT
+              parameters:
+                - |
+                  var s = (value || "");
+                  // UTF-8 BOM varsa kaldır
+                  s = s.replace(/^\uFEFF/, "");
+                  // JSON başlangıcını bul (başta çöp karakter varsa kes)
+                  var i = s.search(/[\[\{]/);
+                  if (i > 0) s = s.substring(i);
+                  
+                  // Şimdi string JSON'u dizi/obje olarak parse et
+                  var data = JSON.parse(s);
+                  
+                  // Dizi/obje olarak bir SONRAKİ adıma geçmesi için tekrar stringle
+                  return JSON.stringify(data);
+            - type: JSONPATH
+              parameters:
+                - '$[*]'
+      macros:
+        - macro: '{$TENABLE.URL}'
+          value: 'https://sms.kalekalip.com.tr/combined_critical_high.json'

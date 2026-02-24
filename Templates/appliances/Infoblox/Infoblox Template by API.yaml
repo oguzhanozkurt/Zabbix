@@ -1,0 +1,144 @@
+zabbix_export:
+  version: '7.0'
+  template_groups:
+    - uuid: a571c0d144b14fd4a87a9d9b2aa9fcd6
+      name: Templates/Applications
+  templates:
+    - uuid: 313ffcec15924175bd607340a33c845b
+      template: 'Infoblox Template by API'
+      name: 'Infoblox Template by API'
+      groups:
+        - name: Templates/Applications
+      items:
+        - uuid: 06eeab2497e4482e83cbe938a0114a28
+          name: 'Infoblox Script Raw Data'
+          type: SCRIPT
+          key: infoblox.script.raw.data
+          delay: 15m
+          history: 15d
+          value_type: TEXT
+          trends: '0'
+          params: |
+            var base    = '{$INFOBLOX_BASEURL}';                // https://csp.infoblox.com
+            var token   = '{$INFOBLOX_TOKEN}';                  // Secret macro
+            var network = '{$INFOBLOX_NETWORK}';                // Örn: Customer Box NAT IP,Customer Kalıp (DFP),Customer Box 1  (ENCODE ETME!)
+            var hours   = Number('{$INFOBLOX_HOURS}') || 9;
+            var threat  = '{$INFOBLOX_THREAT}' || '3';
+            
+            function enc(v){ return encodeURIComponent(v); }
+            
+            var t1 = Math.floor(Date.now()/1000);
+            var t0 = t1 - Math.max(0, hours)*3600;
+            
+            var url = base.replace(/\/+$/,'') + '/api/dnsdata/v2/dns_event'
+                      + '?t0=' + t0
+                      + '&t1=' + t1
+                      + '&threat_level=' + enc(threat)
+                      + '&network=' + enc(network);
+            
+            var req = new HttpRequest();
+            req.addHeader('Authorization: Token ' + token);
+            req.addHeader('Accept: application/json');
+            
+            var body = req.get(url);
+            var status = req.getStatus();
+            
+            if (status !== 200) {
+              throw 'HTTP ' + status + ' (Infoblox): ' + (body || '<empty>');
+            }
+            
+            try { JSON.parse(body); } 
+            catch (e) { throw 'Invalid JSON: ' + e + ' Body: ' + (body || '<empty>'); }
+            
+            return body;
+          timeout: 30s
+      discovery_rules:
+        - uuid: 04cf6a9f0fcb4a828dc7e2d0d0e8b724
+          name: 'Infoblox Discovery'
+          type: DEPENDENT
+          key: infoblox.dns.events.lld
+          delay: '0'
+          lifetime: 3d
+          enabled_lifetime_type: DISABLE_NEVER
+          item_prototypes:
+            - uuid: 9928b74033a3494b9b581632d33f67f8
+              name: '{#DEVICE} - {#SEVERITY} - {#HASH}'
+              type: CALCULATED
+              key: 'device.severity.[{#HASH}]'
+              delay: 15m
+              value_type: TEXT
+              trends: '0'
+              params: '{#QNAME}'
+              description: |
+                Device: {#DEVICE}
+                Severity: {#SEVERITY}
+                Event Time: {#EVENT_TIME}
+                Network: {#NETWORK}
+                Rdata: {#RDATA}
+                Qname:{#QNAME}
+              tags:
+                - tag: Application
+                  value: Infoblox
+              trigger_prototypes:
+                - uuid: dbe10136bddd414f8edcb8651e75247d
+                  expression: 'last(/Infoblox Template by API/device.severity.[{#HASH}])<>""'
+                  name: '{#DEVICE} - {#SEVERITY} - {#NETWORK} - {#RDATA} - {#QNAME}'
+                  priority: AVERAGE
+                  manual_close: 'YES'
+          master_item:
+            key: infoblox.script.raw.data
+          preprocessing:
+            - type: JAVASCRIPT
+              parameters:
+                - |
+                  // Gelen "body" master item'ın değeri
+                  var o = JSON.parse(value);
+                  var arr = Array.isArray(o) ? o : (o.result || []);
+                  
+                  var seen = {};
+                  function hash(s){                           // basit 32-bit hash → hex
+                    var h = 0;
+                    for (var i=0;i<s.length;i++){ h=((h<<5)-h)+s.charCodeAt(i); h|=0; }
+                    return (h>>>0).toString(16);
+                  }
+                  
+                  var data = [];
+                  for (var i=0; i<arr.length; i++){
+                    var r = arr[i];
+                    var device = r.device || '';
+                    var event_time = r.event_time || '';
+                    var network = r.network || '';
+                    var qname = r.qname || '';
+                    var rdata = r.rdata || '';
+                    var severity = r.severity || '';
+                  
+                    // "uniq" anahtar: 6 alanın tamamı
+                    var key = device+'|'+event_time+'|'+network+'|'+qname+'|'+rdata+'|'+severity;
+                    if (seen[key]) continue;
+                    seen[key] = 1;
+                  
+                    data.push({
+                      "{#DEVICE}": device,
+                      "{#EVENT_TIME}": event_time,      // ISO string
+                      "{#NETWORK}": network,
+                      "{#QNAME}": qname,
+                      "{#RDATA}": rdata,
+                      "{#SEVERITY}": severity,
+                      "{#HASH}": hash(key)              // anahtar için güvenli id
+                    });
+                  }
+                  
+                  return JSON.stringify({data:data});
+      macros:
+        - macro: '{$INFOBLOX_BASEURL}'
+          description: 'Enter the URL (e.g., https://csp.infoblox.com ).'
+        - macro: '{$INFOBLOX_HOURS}'
+          description: 'Specify the number of past hours of events to monitor (e.g., 9).'
+        - macro: '{$INFOBLOX_NETWORK}'
+          description: 'Enter the network address in plain text (without encoding), e.g., NAT IP, DMZ Network, Local Area Network1.'
+        - macro: '{$INFOBLOX_THREAT}'
+          description: 'Enter the number of threats (e.g., 3).'
+        - macro: '{$INFOBLOX_TIMEOUT}'
+          description: 'Enter the timeout value (e.g., 30).'
+        - macro: '{$INFOBLOX_TOKEN}'
+          description: 'Enter the token.'

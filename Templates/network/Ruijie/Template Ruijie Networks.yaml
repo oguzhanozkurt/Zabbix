@@ -1,0 +1,278 @@
+zabbix_export:
+  version: '7.0'
+  template_groups:
+    - uuid: 36bff6c29af64692839d077febfc7079
+      name: 'Templates/Network devices'
+  templates:
+    - uuid: 84830182a4fc4c94823a1fb122ae2e64
+      template: 'Template Ruijie Networks'
+      name: 'Template Ruijie Networks'
+      groups:
+        - name: 'Templates/Network devices'
+      items:
+        - uuid: 30563e9cb6544089865610556aa92f56
+          name: 'CPU Utilization'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.4.1.4881.1.1.10.2.36.1.1.10.0
+          key: cpu.utilization
+          history: 30d
+          units: '%'
+          tags:
+            - tag: Marka
+              value: Ruijie
+          triggers:
+            - uuid: 4f537f25623149b7b0517fa55007d2df
+              expression: 'min(/Template Ruijie Networks/cpu.utilization,15m)>{$CPU.UTIL.CRIT}'
+              recovery_mode: RECOVERY_EXPRESSION
+              recovery_expression: 'min(/Template Ruijie Networks/cpu.utilization,5m)<{$CPU.UTIL.CRIT}'
+              name: 'High CPU utilization (over {$CPU.UTIL.CRIT}% for 15m)'
+              priority: HIGH
+              manual_close: 'YES'
+        - uuid: bfe1f89ff5a94f70990b7204e6f0b753
+          name: 'Fan Status'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.4.1.4881.1.1.10.2.1.1.21.1.2.0
+          key: fan1.status
+          history: 30d
+          valuemap:
+            name: 'Fan Status'
+          tags:
+            - tag: Marka
+              value: Ruijie
+          triggers:
+            - uuid: be4ec2c46f21491b8bf661d228cfd910
+              expression: 'last(/Template Ruijie Networks/fan1.status)<>4'
+              recovery_mode: RECOVERY_EXPRESSION
+              recovery_expression: 'last(/Template Ruijie Networks/fan1.status)=4'
+              name: 'Fan status problem {ITEM.LASTVALUE}'
+              priority: HIGH
+              manual_close: 'YES'
+        - uuid: f0f723edf2804cfc94ac45c680489dbc
+          name: 'Hardware Version'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.4.1.4881.1.1.10.2.1.1.1.0
+          key: hardware.version
+          delay: 6h
+          history: 30d
+          value_type: CHAR
+          trends: '0'
+          tags:
+            - tag: Marka
+              value: Ruijie
+        - uuid: bd51f09feb024c08beedd26d65ff8991
+          name: 'Memory Free Size'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.4.1.4881.1.1.10.2.35.1.1.1.14.0
+          key: memory.free
+          history: 30d
+          units: M
+          tags:
+            - tag: Marka
+              value: Ruijie
+        - uuid: 3057f30ecb764ca8a25f2095383dcc57
+          name: 'Memory Total Size'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.4.1.4881.1.1.10.2.35.1.1.1.12.0
+          key: memory.size
+          delay: 6h
+          history: 30d
+          units: M
+          tags:
+            - tag: Marka
+              value: Ruijie
+        - uuid: b3978cecbdf1444380cef206ea49d461
+          name: 'Memory Used Size'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.4.1.4881.1.1.10.2.35.1.1.1.13.0
+          key: memory.used
+          history: 30d
+          units: M
+          tags:
+            - tag: Marka
+              value: Ruijie
+        - uuid: 0aaad0d9a5b64ec8a876584a72d0feb4
+          name: 'Memory Utilization'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.4.1.4881.1.1.10.2.35.1.1.1.3.0
+          key: memory.utilization
+          history: 30d
+          units: '%'
+          tags:
+            - tag: Marka
+              value: Ruijie
+          triggers:
+            - uuid: 0b7ff998e55948e3b126e492dc79928e
+              expression: 'min(/Template Ruijie Networks/memory.utilization,15m)>{$MEMORY.UTIL.CRIT}'
+              recovery_mode: RECOVERY_EXPRESSION
+              recovery_expression: 'min(/Template Ruijie Networks/memory.utilization,5m)<{$MEMORY.UTIL.CRIT}'
+              name: 'High Memory utilization (over {$MEMORY.UTIL.CRIT}% for 15m)'
+              priority: HIGH
+              manual_close: 'YES'
+        - uuid: 12978e55bb5a4bfd89807d291c877c0b
+          name: 'Serial Number'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.4.1.4881.1.1.10.2.1.1.24.0
+          key: serial.number
+          delay: 6h
+          history: 30d
+          value_type: CHAR
+          trends: '0'
+          tags:
+            - tag: Marka
+              value: Ruijie
+        - uuid: 1389b526d1e34cb2b337aa7bef3cc33d
+          name: 'Software Version'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.4.1.4881.1.1.10.2.1.1.2.0
+          key: software.version
+          delay: 6h
+          history: 30d
+          value_type: CHAR
+          trends: '0'
+          tags:
+            - tag: Marka
+              value: Ruijie
+        - uuid: 97574e70e43e40f4aa047f846a5841b2
+          name: 'System Model'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.4.1.4881.1.1.10.2.1.1.26.0
+          key: system.model
+          delay: 6h
+          history: 30d
+          value_type: CHAR
+          trends: '0'
+          tags:
+            - tag: Marka
+              value: Ruijie
+        - uuid: 837909bfa3db4bf4af9a4794b4f6a1a6
+          name: 'System Temperature'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.4.1.4881.1.1.10.2.1.1.16.0
+          key: system.temperature
+          history: 30d
+          units: °C
+          tags:
+            - tag: Marka
+              value: Ruijie
+          triggers:
+            - uuid: b441f01266254fdca5cf0887cb1cdf25
+              expression: 'min(/Template Ruijie Networks/system.temperature,15m)>{$TEMP.UTIL.CRIT}'
+              recovery_mode: RECOVERY_EXPRESSION
+              recovery_expression: 'min(/Template Ruijie Networks/system.temperature,5m)<{$TEMP.UTIL.CRIT}'
+              name: 'High System Temperature (over {$TEMP.UTIL.CRIT}% for 15m)'
+              priority: HIGH
+              manual_close: 'YES'
+      discovery_rules:
+        - uuid: dea2d3ba7d704f56b418ca694b7e761b
+          name: 'Power Discovery'
+          type: SNMP_AGENT
+          snmp_oid: 'discovery[{#SNMPVALUE},1.3.6.1.4.1.4881.1.1.10.2.21.1.5.1.2,{#PSNAME},1.3.6.1.4.1.4881.1.1.10.2.21.1.5.1.4]'
+          key: power.discovery
+          delay: 6h
+          lifetime: 30d
+          enabled_lifetime_type: DISABLE_NEVER
+          item_prototypes:
+            - uuid: 0165c4f760214e19b30dcdb735a3a848
+              name: 'Power Supply [{#PSNAME}] Serial Number'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.4881.1.1.10.2.21.1.5.1.5.{#SNMPINDEX}'
+              key: 'PowerSerialNo.[{#SNMPINDEX}]'
+              delay: 6h
+              history: 90d
+              value_type: CHAR
+              trends: '0'
+              tags:
+                - tag: Marka
+                  value: Ruijie
+            - uuid: ecd9fd631211463483fb66957e2d8530
+              name: 'Power Supply [{#PSNAME}] Status'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.4881.1.1.10.2.21.1.5.1.3.{#SNMPINDEX}'
+              key: 'PowerStatus.[{#SNMPINDEX}]'
+              history: 90d
+              valuemap:
+                name: 'Power Status'
+              tags:
+                - tag: Marka
+                  value: Ruijie
+              trigger_prototypes:
+                - uuid: baeb42dd2afd4f4ba051c230287310eb
+                  expression: 'last(/Template Ruijie Networks/PowerStatus.[{#SNMPINDEX}])<>1 and last(/Template Ruijie Networks/PowerStatus.[{#SNMPINDEX}])<>4'
+                  recovery_mode: RECOVERY_EXPRESSION
+                  recovery_expression: 'last(/Template Ruijie Networks/PowerStatus.[{#SNMPINDEX}])=1 or last(/Template Ruijie Networks/PowerStatus.[{#SNMPINDEX}])=4'
+                  name: 'Power Supply [{#PSNAME}] Status has problem'
+                  priority: HIGH
+                  manual_close: 'YES'
+        - uuid: f111947d14be4bb9b0d27edd9ed960e1
+          name: 'Temperature Discovery'
+          type: SNMP_AGENT
+          snmp_oid: 'discovery[{#SNMPVALUE},1.3.6.1.4.1.4881.1.1.10.2.21.1.4.1.2]'
+          key: temperature.discovery
+          delay: 6h
+          lifetime: 30d
+          enabled_lifetime_type: DISABLE_NEVER
+          item_prototypes:
+            - uuid: 3a302c4f187849df9f5c3e107b346c19
+              name: 'Temperature [{#SNMPINDEX}] Status'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.4881.1.1.10.2.21.1.4.1.3.{#SNMPINDEX}'
+              key: 'TemperatureStatus.[{#SNMPINDEX}]'
+              history: 90d
+              valuemap:
+                name: 'Temperature Status'
+              tags:
+                - tag: Marka
+                  value: Ruijie
+              trigger_prototypes:
+                - uuid: 0275a896cee64a91b3843b22ab1f236f
+                  expression: 'last(/Template Ruijie Networks/TemperatureStatus.[{#SNMPINDEX}])<>1'
+                  recovery_mode: RECOVERY_EXPRESSION
+                  recovery_expression: 'last(/Template Ruijie Networks/TemperatureStatus.[{#SNMPINDEX}])=1'
+                  name: 'Temperature [{#SNMPINDEX}] Status is not Normal'
+                  priority: HIGH
+                  manual_close: 'YES'
+      macros:
+        - macro: '{$CPU.UTIL.CRIT}'
+          value: '90'
+        - macro: '{$MEMORY.UTIL.CRIT}'
+          value: '90'
+        - macro: '{$TEMP.UTIL.CRIT}'
+          value: '65'
+      valuemaps:
+        - uuid: f313053db2ee418abaf8b46bd591094d
+          name: 'Fan Status'
+          mappings:
+            - value: '1'
+              newvalue: noexist
+            - value: '2'
+              newvalue: existnopower
+            - value: '3'
+              newvalue: existreadypower
+            - value: '4'
+              newvalue: normal
+            - value: '5'
+              newvalue: powerbutabnormal
+            - value: '6'
+              newvalue: unknown
+            - value: '7'
+              newvalue: linefail
+        - uuid: 55ae999108024b3ba2ef8c370c024747
+          name: 'Power Status'
+          mappings:
+            - value: '1'
+              newvalue: noLink
+            - value: '2'
+              newvalue: linkAndNoPower
+            - value: '3'
+              newvalue: linkAndReadyForPower
+            - value: '4'
+              newvalue: linkAndPower
+            - value: '5'
+              newvalue: linkAndPowerAbnormal
+        - uuid: 3c2ce836acbf4f61ae1d8ddb99bb9ee2
+          name: 'Temperature Status'
+          mappings:
+            - value: '1'
+              newvalue: tempNormal
+            - value: '2'
+              newvalue: tempWarning
