@@ -132,6 +132,40 @@ Item prototype OIDs (per `{#SMG.INDEX}`):
 
 From your Zabbix server/proxy, validate SNMP access:
 
-```bash
+~~~bash
 snmpwalk -v2c -c <COMMUNITY> <SMG_IP> 1.3.6.1.2.1.1
 snmpwalk -v2c -c <COMMUNITY> <SMG_IP> 1.3.6.1.4.1.393.200.130.2.2.1.1
+~~~
+
+### If you see "No SNMP data collection"
+- Confirm UDP/161 reachability (firewall/ACL).
+- Verify SNMP community and port.
+- Ensure the host has an SNMP interface configured in Zabbix.
+- Check whether SMG restricts SNMP by source IP.
+
+---
+
+## Security Notes
+
+SNMPv2c uses community strings in plaintext. Reduce exposure by applying:
+- Source IP allow-lists
+- Network segmentation
+- Firewall policies
+
+If you require SNMPv3, you can adapt the host SNMP interface settings accordingly (the template OIDs remain the same).
+
+---
+
+## Contributing
+
+Contributions are welcome, including:
+- OID corrections and coverage improvements
+- Discovery (LLD) enhancements
+- Trigger tuning and threshold recommendations
+- Documentation improvements (examples, validation steps, known issues)
+
+Please open an issue with:
+- SMG version
+- Zabbix version
+- Sample `snmpwalk` output (sanitized)
+- A clear description of expected vs. actual behavior
