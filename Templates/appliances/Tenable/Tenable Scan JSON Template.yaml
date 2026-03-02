@@ -106,4 +106,4 @@ zabbix_export:
                 - '$[*]'
       macros:
         - macro: '{$TENABLE.URL}'
-          value: 'https://sms.kalekalip.com.tr/combined_critical_high.json'
+          value: 'https://tenable.company.local/combined_critical_high.json'
