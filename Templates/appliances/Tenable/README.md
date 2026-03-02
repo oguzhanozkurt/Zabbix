@@ -89,7 +89,7 @@ Set the JSON feed URL at **host level**:
 
 | Macro | Default | Description |
 |------|---------|-------------|
-| `{$TENABLE.URL}` | `https://sms.kalekalip.com.tr/combined_critical_high.json` | Full URL to the JSON feed |
+| `{$TENABLE.URL}` | `https://tenable.company.local/combined_critical_high.json` | Full URL to the JSON feed |
 
 ---
 
