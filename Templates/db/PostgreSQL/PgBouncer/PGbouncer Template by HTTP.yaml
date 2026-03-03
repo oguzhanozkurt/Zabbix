@@ -172,7 +172,7 @@ zabbix_export:
                     var line = lines[i].trim();
                   
                     // Örn:
-                    // pgbouncer_stats_client_wait_seconds_total{database="utts_device_monitor_uat",...} 1000
+                    // pgbouncer_stats_client_wait_seconds_total{database="PSQL",...} 1000
                     var m = line.match(/^pgbouncer_stats_client_wait_seconds_total\{([^}]*)\}\s+([0-9]+(?:\.[0-9]+)?)\s*$/);
                     if (!m) continue;
                   
