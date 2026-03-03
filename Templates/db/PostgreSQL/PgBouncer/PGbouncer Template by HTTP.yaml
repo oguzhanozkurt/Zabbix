@@ -225,7 +225,7 @@ zabbix_export:
                     var line = lines[i].trim();
                   
                     // Örn:
-                    // pgbouncer_databases_disabled{database="utts_device_monitor_uat",...} 1000
+                    // pgbouncer_databases_disabled{database="postgres",...} 1000
                     var m = line.match(/^pgbouncer_databases_disabled\{([^}]*)\}\s+([0-9]+(?:\.[0-9]+)?)\s*$/);
                     if (!m) continue;
                   
@@ -278,7 +278,7 @@ zabbix_export:
                     var line = lines[i].trim();
                   
                     // Örn:
-                    // pgbouncer_databases_paused{database="utts_device_monitor_uat",...} 1000
+                    // pgbouncer_databases_paused{database="postgres",...} 1000
                     var m = line.match(/^pgbouncer_databases_paused\{([^}]*)\}\s+([0-9]+(?:\.[0-9]+)?)\s*$/);
                     if (!m) continue;
                   
@@ -329,7 +329,7 @@ zabbix_export:
                     var line = lines[i].trim();
                   
                     // Örn:
-                    // pgbouncer_databases_pool_size{database="utts_device_monitor_uat",...} 1000
+                    // pgbouncer_databases_pool_size{database="postgres",...} 1000
                     var m = line.match(/^pgbouncer_databases_pool_size\{([^}]*)\}\s+([0-9]+(?:\.[0-9]+)?)\s*$/);
                     if (!m) continue;
                   
@@ -380,7 +380,7 @@ zabbix_export:
                     var line = lines[i].trim();
                   
                     // Örn:
-                    // pgbouncer_pools_client_waiting_connections{database="utts_device_monitor_uat",...} 1000
+                    // pgbouncer_pools_client_waiting_connections{database="postgres",...} 1000
                     var m = line.match(/^pgbouncer_pools_client_waiting_connections\{([^}]*)\}\s+([0-9]+(?:\.[0-9]+)?)\s*$/);
                     if (!m) continue;
                   
@@ -431,7 +431,7 @@ zabbix_export:
                     var line = lines[i].trim();
                   
                     // Örn:
-                    // pgbouncer_pools_server_used_connections{database="utts_device_monitor_uat",...} 1000
+                    // pgbouncer_pools_server_used_connections{database="postgres",...} 1000
                     var m = line.match(/^pgbouncer_pools_server_used_connections\{([^}]*)\}\s+([0-9]+(?:\.[0-9]+)?)\s*$/);
                     if (!m) continue;
                   
@@ -482,7 +482,7 @@ zabbix_export:
                     var line = lines[i].trim();
                   
                     // Örn:
-                    // pgbouncer_stats_queries_duration_seconds_total{database="utts_device_monitor_uat",...} 1000
+                    // pgbouncer_stats_queries_duration_seconds_total{database="postgres",...} 1000
                     var m = line.match(/^pgbouncer_stats_queries_duration_seconds_total\{([^}]*)\}\s+([0-9]+(?:\.[0-9]+)?)\s*$/);
                     if (!m) continue;
                   
@@ -533,7 +533,7 @@ zabbix_export:
                     var line = lines[i].trim();
                   
                     // Örn:
-                    // pgbouncer_stats_server_in_transaction_seconds_total{database="utts_device_monitor_uat",...} 1000
+                    // pgbouncer_stats_server_in_transaction_seconds_total{database="postgres",...} 1000
                     var m = line.match(/^pgbouncer_stats_server_in_transaction_seconds_total\{([^}]*)\}\s+([0-9]+(?:\.[0-9]+)?)\s*$/);
                     if (!m) continue;
                   
