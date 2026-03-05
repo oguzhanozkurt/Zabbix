@@ -136,3 +136,10 @@ Issues and pull requests are welcome:
 - ECS version compatibility notes
 - Additional metrics/triggers/dashboards
 - Bug fixes and improvements
+
+## License
+Licensed under the MIT License. See the `LICENSE` file for details.
+
+## Trademarks
+All product names, trademarks, and registered trademarks are property of their respective owners.
+This project is not affiliated with, endorsed by, or sponsored by any vendor mentioned in this repository.
