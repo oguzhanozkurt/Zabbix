@@ -1,0 +1,232 @@
+zabbix_export:
+  version: '7.0'
+  template_groups:
+    - uuid: ad01c1e8adba4363bb716d6c4d7492e8
+      name: Templates/Appliances
+  templates:
+    - uuid: 36b039a87ca24b05861681ead6099614
+      template: 'QRadar by HTTP'
+      name: 'QRadar by HTTP'
+      groups:
+        - name: Templates/Appliances
+      items:
+        - uuid: 6e99084ea8644b1fbe69db7da0209c98
+          name: 'QRadar: Offenses raw (OPEN)'
+          type: HTTP_AGENT
+          key: qradar.offenses.raw
+          history: 15d
+          value_type: TEXT
+          trends: '0'
+          url: '{$QRADAR.URL}/api/siem/offenses?filter=status%3D%22OPEN%22&fields=id,offense_source,categories,description,log_sources(type_name)'
+          headers:
+            - name: SEC
+              value: '{$QRADAR.TOKEN}'
+            - name: Version
+              value: '{$QRADAR.API.VERSION}'
+            - name: Range
+              value: '{$QRADAR.RANGE}'
+            - name: Accept
+              value: application/json
+          triggers:
+            - uuid: 54873c15ecf048478cd7cccf7968a370
+              expression: 'nodata(/QRadar by HTTP/qradar.offenses.raw,1d)=1'
+              recovery_mode: RECOVERY_EXPRESSION
+              recovery_expression: 'nodata(/QRadar by HTTP/qradar.offenses.raw,10m)=0'
+              name: 'No data has been retrieved from the QRadar API for the past 24 hours.'
+              priority: DISASTER
+              manual_close: 'YES'
+      discovery_rules:
+        - uuid: 933d8f6adfac40e6b7623491c2b4e453
+          name: 'QRadar: Offense discovery'
+          type: DEPENDENT
+          key: qradar.offense.discovery
+          delay: '0'
+          lifetime: 6d
+          enabled_lifetime_type: DISABLE_AFTER
+          enabled_lifetime: 1h
+          item_prototypes:
+            - uuid: 14a7d03177d6403eb1ebbe468b190060
+              name: 'All Values - [{#OFFENSE_ID}] - [{#OFFENSE_SOURCE}] - [{#DESCRIPTION}] - [{#CATEGORIES}] - [{#TYPE_NAME}]'
+              type: CALCULATED
+              key: 'all.values[{#OFFENSE_ID}]'
+              history: 5d
+              value_type: TEXT
+              trends: '0'
+              params: '{#OFFENSE_ID}'
+              tags:
+                - tag: Qradar
+                  value: 'All Values'
+            - uuid: 245abf638d6a4b7cbc992a5256b7cae9
+              name: 'QRadar offense [{#OFFENSE_ID}] categories'
+              type: DEPENDENT
+              key: 'qradar.offense.categories[{#OFFENSE_ID}]'
+              delay: '0'
+              history: 5d
+              value_type: TEXT
+              trends: '0'
+              preprocessing:
+                - type: JAVASCRIPT
+                  parameters:
+                    - |
+                      var data = JSON.parse(value);
+                      var id = parseInt("{#OFFENSE_ID}", 10);
+                      
+                      for (var i = 0; i < data.length; i++) {
+                        if (data[i] && data[i].id == id) {
+                          return (data[i].categories || []).join(", ");
+                        }
+                      }
+                      return "";
+              master_item:
+                key: qradar.offenses.raw
+            - uuid: e2df41abcd77438889a41e65cbcb265a
+              name: 'QRadar offense [{#OFFENSE_ID}] description'
+              type: DEPENDENT
+              key: 'qradar.offense.description[{#OFFENSE_ID}]'
+              delay: '0'
+              history: 5d
+              value_type: TEXT
+              trends: '0'
+              preprocessing:
+                - type: JAVASCRIPT
+                  parameters:
+                    - |
+                      var data = JSON.parse(value);
+                      var id = parseInt("{#OFFENSE_ID}", 10);
+                      
+                      for (var i = 0; i < data.length; i++) {
+                        if (data[i] && data[i].id == id) {
+                          return String(data[i].description || "")
+                            .replace(/\r?\n/g, " ")
+                            .replace(/^\s+|\s+$/g, "");
+                        }
+                      }
+                      return "";
+              master_item:
+                key: qradar.offenses.raw
+            - uuid: 660a4f4cec7441fe875be2f984abc62c
+              name: 'QRadar offense [{#OFFENSE_ID}] source'
+              type: DEPENDENT
+              key: 'qradar.offense.source[{#OFFENSE_ID}]'
+              delay: '0'
+              history: 5d
+              value_type: TEXT
+              trends: '0'
+              preprocessing:
+                - type: JAVASCRIPT
+                  parameters:
+                    - |
+                      var data = JSON.parse(value);
+                      var id = parseInt("{#OFFENSE_ID}", 10);
+                      
+                      for (var i = 0; i < data.length; i++) {
+                        if (data[i] && data[i].id == id) {
+                          return String(data[i].offense_source || "");
+                        }
+                      }
+                      return "";
+              master_item:
+                key: qradar.offenses.raw
+            - uuid: c026682703064286b8b2868a1bb6a541
+              name: 'QRadar offense [{#OFFENSE_ID}] log source types'
+              type: DEPENDENT
+              key: 'qradar.offense.type_name[{#OFFENSE_ID}]'
+              delay: '0'
+              history: 5d
+              value_type: TEXT
+              trends: '0'
+              preprocessing:
+                - type: JAVASCRIPT
+                  parameters:
+                    - |
+                      var data = JSON.parse(value);
+                      var id = parseInt("{#OFFENSE_ID}", 10);
+                      
+                      for (var i = 0; i < data.length; i++) {
+                        if (data[i] && data[i].id == id) {
+                          var tnames = [];
+                          var ls = data[i].log_sources || [];
+                          for (var j = 0; j < ls.length; j++) {
+                            var tn = ls[j] ? ls[j].type_name : "";
+                            if (tn && tnames.indexOf(tn) === -1) tnames.push(tn);
+                          }
+                          return tnames.join(", ");
+                        }
+                      }
+                      return "";
+              master_item:
+                key: qradar.offenses.raw
+          master_item:
+            key: qradar.offenses.raw
+          preprocessing:
+            - type: JAVASCRIPT
+              parameters:
+                - |
+                  var data = JSON.parse(value);
+                  var out = [];
+                  
+                  for (var i = 0; i < data.length; i++) {
+                    var o = data[i] || {};
+                  
+                    // categories -> "a, b, c"
+                    var cats = (o.categories || []).join(", ");
+                  
+                    // log_sources[].type_name -> unique "WindowsAuthServer, IIS"
+                    var tnames = [];
+                    var ls = o.log_sources || [];
+                    for (var j = 0; j < ls.length; j++) {
+                      var tn = ls[j] ? ls[j].type_name : "";
+                      if (tn && tnames.indexOf(tn) === -1) tnames.push(tn);
+                    }
+                  
+                    // description -> tek satır + trim
+                    var desc = (o.description || "")
+                      .replace(/\r?\n/g, " ")
+                      .replace(/^\s+|\s+$/g, "");
+                  
+                    out.push({
+                      "{#OFFENSE_ID}": String(o.id),
+                      "{#OFFENSE_SOURCE}": String(o.offense_source || ""),
+                      "{#CATEGORIES}": cats,
+                      "{#TYPE_NAME}": tnames.join(", "),
+                      "{#DESCRIPTION}": desc
+                    });
+                  }
+                  
+                  return JSON.stringify(out);
+      macros:
+        - macro: '{$QRADAR.API.VERSION}'
+          value: '21.0'
+          description: 'Specify the version used in the QRadar API documentation (e.g., 20.0, or the version running in your environment).'
+        - macro: '{$QRADAR.RANGE}'
+          value: items=0-49
+          description: 'items=0-99 (0-99 etc.)'
+        - macro: '{$QRADAR.TOKEN}'
+          description: 'QRadar authorized services token (SEC header)'
+        - macro: '{$QRADAR.URL}'
+          description: 'https://qradar.company.local (base URL)'
+      dashboards:
+        - uuid: d77fc07c91c545069b6c715e511d23e4
+          name: 'QRadar All Values'
+          display_period: '10'
+          pages:
+            - widgets:
+                - type: itemnavigator
+                  width: '71'
+                  height: '24'
+                  fields:
+                    - type: INTEGER
+                      name: item_tags.0.operator
+                      value: '0'
+                    - type: STRING
+                      name: item_tags.0.tag
+                      value: Qradar
+                    - type: STRING
+                      name: item_tags.0.value
+                      value: 'All Values'
+                    - type: INTEGER
+                      name: problems
+                      value: '0'
+                    - type: STRING
+                      name: reference
+                      value: NCQEF
