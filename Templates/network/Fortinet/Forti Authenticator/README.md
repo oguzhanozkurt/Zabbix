@@ -308,3 +308,10 @@ Please open an issue with:
 - Zabbix version
 - Sanitized `snmpwalk` output for relevant OIDs
 - Expected vs. actual behavior
+
+## License
+Licensed under the MIT License. See the `LICENSE` file for details.
+
+## Trademarks
+All product names, trademarks, and registered trademarks are property of their respective owners.
+This project is not affiliated with, endorsed by, or sponsored by any vendor mentioned in this repository.
