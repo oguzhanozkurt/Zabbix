@@ -1,4 +1,3 @@
-[README.md](https://github.com/user-attachments/files/25771747/README.md)
 # StoreOnce Health by HTTP
 
 Zabbix template for monitoring **HPE StoreOnce** appliances via **HTTPS REST API** (XML/JSON), including:
