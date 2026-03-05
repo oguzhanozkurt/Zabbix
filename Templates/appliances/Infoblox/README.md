@@ -174,3 +174,10 @@ Please open an issue with:
 - Sanitized sample API response (remove sensitive data)
 - Expected vs. actual behavior
 - Any relevant error output from the master item
+
+## License
+Licensed under the MIT License. See the `LICENSE` file for details.
+
+## Trademarks
+All product names, trademarks, and registered trademarks are property of their respective owners.
+This project is not affiliated with, endorsed by, or sponsored by any vendor mentioned in this repository.
