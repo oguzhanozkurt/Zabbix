@@ -1,0 +1,1139 @@
+zabbix_export:
+  version: '7.0'
+  template_groups:
+    - uuid: 7c2cb727f85b492d88cd56e17127c64d
+      name: Templates/SAN
+  templates:
+    - uuid: 31f8b11e619543f5a2afb6f3bb678501
+      template: 'StoreOnce Health by HTTP'
+      name: 'StoreOnce Health by HTTP'
+      groups:
+        - name: Templates/SAN
+      items:
+        - uuid: 2492e7dcdab3440aba31832ac07cca7e
+          name: 'CPU Usage (%)'
+          type: DEPENDENT
+          key: cpu.usage
+          delay: '0'
+          value_type: FLOAT
+          units: '%'
+          preprocessing:
+            - type: JAVASCRIPT
+              parameters:
+                - |
+                  var v = (value || '').trim();
+                  if (!v) return null;
+                  
+                  // JSON: {"cpuStats":[...,"cpuUsage":12.3,...]}
+                  if (v[0] === '{' || v[0] === '[') {
+                    try {
+                      var j = JSON.parse(v);
+                      if (j.cpuStats && j.cpuStats.length) {
+                        var last = j.cpuStats[j.cpuStats.length - 1];
+                        if (last.cpuUsage !== undefined) return parseFloat(last.cpuUsage);
+                      }
+                    } catch (e) {}
+                  }
+                  
+                  // XML: <cpuUsage>12.3</cpuUsage>
+                  var m = v.match(/<cpuUsage>\s*([0-9]+(?:\.[0-9]+)?)\s*<\/cpuUsage>/i);
+                  if (m) return parseFloat(m[1]);
+                  
+                  // Plain text: value \n timestamp \n value \n timestamp ...
+                  var tokens = v.split(/\s+/);
+                  var lastNum = null;
+                  for (var i = 0; i < tokens.length; i++) {
+                    if (/^[0-9]+(\.[0-9]+)?([eE][-+]?[0-9]+)?$/.test(tokens[i])) lastNum = tokens[i];
+                  }
+                  if (lastNum !== null) return parseFloat(lastNum);
+                  
+                  // Boş cpuStats ise “no data” kabul et
+                  if (v.indexOf('<cpuStats') !== -1) return null;
+                  
+                  throw 'CPU parse failed. First 120 chars: ' + v.slice(0, 120);
+          master_item:
+            key: storeonce.cpu.raw
+          triggers:
+            - uuid: f8c15c0fb9ca4bd9bba7786336311095
+              expression: 'min(/StoreOnce Health by HTTP/cpu.usage,10m)>95'
+              name: 'StoreOnce Critical CPU Utilization (>95% avg 10m)'
+              priority: HIGH
+              manual_close: 'YES'
+            - uuid: 2cd0d55584ac4ae7aec242ad0e6368c1
+              expression: 'min(/StoreOnce Health by HTTP/cpu.usage,10m)>85'
+              name: 'StoreOnce High CPU Utilization (>85% avg 10m)'
+              priority: HIGH
+              manual_close: 'YES'
+        - uuid: 756a8384480041abb5ff23deaf2d2f71
+          name: 'Memory usage (%)'
+          type: DEPENDENT
+          key: memory.usage
+          delay: '0'
+          value_type: FLOAT
+          units: '%'
+          preprocessing:
+            - type: JAVASCRIPT
+              parameters:
+                - |
+                  var v = (value || '').trim();
+                  if (!v) return null;
+                  
+                  // JSON: {"memoryStats":[...,"memoryUsage":12.3,...]}
+                  if (v[0] === '{' || v[0] === '[') {
+                    try {
+                      var j = JSON.parse(v);
+                      if (j.memoryStats && j.memoryStats.length) {
+                        var last = j.memoryStats[j.memoryStats.length - 1];
+                        if (last.memoryUsage !== undefined) return parseFloat(last.memoryUsage);
+                      }
+                    } catch (e) {}
+                  }
+                  
+                  // XML: <memoryUsage>12.3</memoryUsage>
+                  var m = v.match(/<memoryUsage>\s*([0-9]+(?:\.[0-9]+)?)\s*<\/memoryUsage>/i);
+                  if (m) return parseFloat(m[1]);
+                  
+                  // Plain text fallback: son numeric
+                  var tokens = v.split(/\s+/);
+                  var lastNum = null;
+                  for (var i=0;i<tokens.length;i++){
+                    if (/^[0-9]+(\.[0-9]+)?([eE][-+]?[0-9]+)?$/.test(tokens[i])) lastNum = tokens[i];
+                  }
+                  return lastNum !== null ? parseFloat(lastNum) : null;
+          master_item:
+            key: storeonce.memory.raw
+          triggers:
+            - uuid: 7c6b1f6c5c8345f4ae2c7c55c4634e68
+              expression: 'min(/StoreOnce Health by HTTP/memory.usage,10m)>95'
+              name: 'StoreOnce Critical Memory Utilization (>95% avg 10m)'
+              priority: HIGH
+              manual_close: 'YES'
+            - uuid: f5ce8486f7654f7db211b1effa6effeb
+              expression: 'min(/StoreOnce Health by HTTP/memory.usage,10m)>85'
+              name: 'StoreOnce High Memory Utilization (>90% avg 10m)'
+              priority: HIGH
+              manual_close: 'YES'
+        - uuid: 766e18cd287049baba2cb0e2762cac3d
+          name: 'StoreOnce: Appliance name'
+          type: DEPENDENT
+          key: storeonce.appliance.name
+          delay: '0'
+          history: 15d
+          value_type: TEXT
+          trends: '0'
+          preprocessing:
+            - type: XMLPATH
+              parameters:
+                - string(/document/cluster/properties/applianceName)
+              error_handler: DISCARD_VALUE
+          master_item:
+            key: storeonce.cluster.raw
+        - uuid: c5ea5d3f4b274270b5b78093c653e53f
+          name: 'StoreOnce: Cloud Capacity'
+          type: DEPENDENT
+          key: storeonce.cloud.capacity
+          delay: '0'
+          history: 15d
+          units: B
+          preprocessing:
+            - type: XMLPATH
+              parameters:
+                - number(/document/cluster/properties/cloudCapacityBytes)
+              error_handler: DISCARD_VALUE
+          master_item:
+            key: storeonce.cluster.raw
+        - uuid: 5d2a1580978f4b91996904d6384702d6
+          name: 'StoreOnce: Cloud Disk'
+          type: DEPENDENT
+          key: storeonce.cloud.disk
+          delay: '0'
+          history: 15d
+          units: B
+          preprocessing:
+            - type: XMLPATH
+              parameters:
+                - number(/document/cluster/properties/cloudDiskBytes)
+              error_handler: DISCARD_VALUE
+          master_item:
+            key: storeonce.cluster.raw
+        - uuid: 8f30c6d54b6a47c09b1b25ce11b8f15d
+          name: 'StoreOnce: Cloud Free'
+          type: DEPENDENT
+          key: storeonce.cloud.free
+          delay: '0'
+          history: 15d
+          units: B
+          preprocessing:
+            - type: XMLPATH
+              parameters:
+                - number(/document/cluster/properties/cloudFreeBytes)
+              error_handler: DISCARD_VALUE
+          master_item:
+            key: storeonce.cluster.raw
+        - uuid: c83daeaca82441a5bd57cc87f236083b
+          name: 'StoreOnce: Cloud User'
+          type: DEPENDENT
+          key: storeonce.cloud.user
+          delay: '0'
+          history: 15d
+          units: B
+          preprocessing:
+            - type: XMLPATH
+              parameters:
+                - number(/document/cluster/properties/cloudUserBytes)
+              error_handler: DISCARD_VALUE
+          master_item:
+            key: storeonce.cluster.raw
+        - uuid: d9958b7b071444c39937393231e20aba
+          name: 'StoreOnce: Cluster (raw)'
+          type: HTTP_AGENT
+          key: storeonce.cluster.raw
+          history: 5d
+          value_type: TEXT
+          trends: '0'
+          authtype: BASIC
+          username: '{$STOREONCE.USER}'
+          password: '{$STOREONCE.PASS}'
+          url: 'https://{HOST.CONN}:{$STOREONCE.PORT}/storeonceservices/cluster/'
+          headers:
+            - name: Accept
+              value: text/xml
+            - name: Content-Type
+              value: text/xml
+        - uuid: b74c09bda915426b9c01c0b8d2777ce6
+          name: 'StoreOnce: Combined Capacity'
+          type: DEPENDENT
+          key: storeonce.combined.capacity
+          delay: '0'
+          history: 15d
+          units: B
+          preprocessing:
+            - type: XMLPATH
+              parameters:
+                - number(/document/cluster/properties/combinedCapacityBytes)
+              error_handler: DISCARD_VALUE
+          master_item:
+            key: storeonce.cluster.raw
+        - uuid: d40f5f33a13345dc95406efaa7899f18
+          name: 'StoreOnce: Combined Disk'
+          type: DEPENDENT
+          key: storeonce.combined.disk
+          delay: '0'
+          history: 15d
+          units: B
+          preprocessing:
+            - type: XMLPATH
+              parameters:
+                - number(/document/cluster/properties/combinedDiskBytes)
+              error_handler: DISCARD_VALUE
+          master_item:
+            key: storeonce.cluster.raw
+        - uuid: a523b754176a4b45bbeaa94f82807311
+          name: 'StoreOnce: Combined Free'
+          type: DEPENDENT
+          key: storeonce.combined.free
+          delay: '0'
+          history: 15d
+          units: B
+          preprocessing:
+            - type: XMLPATH
+              parameters:
+                - number(/document/cluster/properties/combinedFreeBytes)
+              error_handler: DISCARD_VALUE
+          master_item:
+            key: storeonce.cluster.raw
+        - uuid: f6b8b1a76dac4a3ebb469c1e4624eaaf
+          name: 'StoreOnce: Combined User'
+          type: DEPENDENT
+          key: storeonce.combined.user
+          delay: '0'
+          history: 15d
+          units: B
+          preprocessing:
+            - type: XMLPATH
+              parameters:
+                - number(/document/cluster/properties/combinedUserBytes)
+              error_handler: DISCARD_VALUE
+          master_item:
+            key: storeonce.cluster.raw
+        - uuid: c0601ae5d5c7488d8912bcda9331827e
+          name: 'StoreOnce CPU Usage raw'
+          type: SCRIPT
+          key: storeonce.cpu.raw
+          history: 5d
+          value_type: TEXT
+          trends: '0'
+          params: |
+            // StoreOnce Gen3 (3.18.x) CPU raw - Zabbix Script item
+            // Macros used:
+            // {$STOREONCE.HOST}, {$STOREONCE.PORT}, {$STOREONCE.USER}, {$STOREONCE.PASS}, {$STOREONCE.NODE}, {$STOREONCE_CPU_WINDOW_MIN}
+            
+            var host  = '{$STOREONCE.HOST}';
+            var port  = '{$STOREONCE.PORT}';
+            var user  = '{$STOREONCE.USER}';
+            var pass  = '{$STOREONCE.PASS}';
+            var node  = '{$STOREONCE.NODE}';
+            var winMin = '{$STOREONCE_CPU_WINDOW_MIN}';
+            
+            function looksUnexpanded(s) {
+              return (!s || s.indexOf('{') !== -1 || s.indexOf('}') !== -1 || s.indexOf('$') !== -1);
+            }
+            
+            if (looksUnexpanded(host))  throw 'STOREONCE host macro boş/expand olmadı. {$STOREONCE.HOST} kontrol et.';
+            if (looksUnexpanded(port))  port = '443';
+            if (looksUnexpanded(node))  node = '1';
+            if (looksUnexpanded(winMin)) winMin = '60';
+            
+            var nodeNum = parseInt(node, 10);
+            if (isNaN(nodeNum) || nodeNum <= 0) nodeNum = 1;
+            
+            var win = parseInt(winMin, 10);
+            if (isNaN(win) || win < 1) win = 60;
+            
+            // /min/ ve /5sec/ için zamanı “dakikaya” hizalamak genelde daha stabil
+            function isoMinuteZ(d) {
+              d.setUTCSeconds(0);
+              d.setUTCMilliseconds(0);
+              return d.toISOString().replace('.000Z', 'Z');
+            }
+            
+            var end = new Date();
+            end.setUTCSeconds(0);
+            end.setUTCMilliseconds(0);
+            
+            var start = new Date(end.getTime() - win * 60 * 1000);
+            
+            var base = 'https://' + host + ':' + port + '/storeonceservices';
+            
+            function fetchCpu(granularity, media) {
+              var url = base
+                + '/cluster/node/' + nodeNum
+                + '/resourceMonitoring/cpu/' + granularity + '/'
+                + '?startTime=' + encodeURIComponent(isoMinuteZ(start))
+                + '&endTime=' + encodeURIComponent(isoMinuteZ(end))
+                + '&media=' + encodeURIComponent(media);
+            
+              var req = new HttpRequest();
+              req.setHttpAuth(HTTPAUTH_BASIC, user, pass);
+              req.addHeader('Accept: */*');
+            
+              var body = req.get(url);
+              var code = req.getStatus();
+            
+              if (code !== 200) {
+                // node=0 gibi durumlarda net hata
+                throw 'HTTP ' + code + ' => ' + body;
+              }
+            
+              return body;
+            }
+            
+            function isEmptyCpu(body) {
+              if (!body) return true;
+              var s = ('' + body).trim();
+            
+              // <cpuStats></cpuStats> boş cevap
+              if (s.indexOf('<cpuStats') !== -1 && s.indexOf('</cpuStats>') !== -1) {
+                var inner = s.replace(/[\s\S]*<cpuStats[^>]*>/i, '')
+                             .replace(/<\/cpuStats>[\s\S]*/i, '')
+                             .trim();
+                if (inner === '') return true;
+              }
+              return false;
+            }
+            
+            // Deneme sırası: 5sec/xml -> min/xml -> min/json -> hour/xml -> hour/json
+            // (Bazı cihazlarda min boş dönüp hour dolu dönebiliyor)
+            var body = '';
+            
+            body = fetchCpu('5sec', 'xml');
+            if (!isEmptyCpu(body)) return body;
+            
+            body = fetchCpu('min', 'xml');
+            if (!isEmptyCpu(body)) return body;
+            
+            body = fetchCpu('min', 'json');
+            if (!isEmptyCpu(body)) return body;
+            
+            // hour için pencereyi 24 saate genişletelim
+            start = new Date(end.getTime() - 24 * 60 * 60 * 1000);
+            
+            body = fetchCpu('hour', 'xml');
+            if (!isEmptyCpu(body)) return body;
+            
+            body = fetchCpu('hour', 'json');
+            return body;
+        - uuid: 7ac6798dd0934750ab9a84b728a87126
+          name: 'StoreOnce: Dedup Ratio'
+          type: DEPENDENT
+          key: storeonce.dedup.ratio
+          delay: '0'
+          history: 15d
+          value_type: FLOAT
+          preprocessing:
+            - type: XMLPATH
+              parameters:
+                - number(/document/cluster/properties/dedupeRatio)
+              error_handler: DISCARD_VALUE
+          master_item:
+            key: storeonce.cluster.raw
+        - uuid: 17fc8d875e77470d8e9cb8deffad9e77
+          name: 'StoreOnce: Health'
+          type: DEPENDENT
+          key: storeonce.health
+          delay: '0'
+          history: 15d
+          value_type: TEXT
+          trends: '0'
+          preprocessing:
+            - type: XMLPATH
+              parameters:
+                - string(/document/cluster/properties/health)
+              error_handler: DISCARD_VALUE
+          master_item:
+            key: storeonce.cluster.raw
+          triggers:
+            - uuid: 43a02c61386748e2b0304f5a0dc0bbf3
+              expression: 'nodata(/StoreOnce Health by HTTP/storeonce.health,30m)=1'
+              name: 'No Data Received from StoreOnce API for 30 Minutes'
+              priority: DISASTER
+              manual_close: 'YES'
+            - uuid: 272618b8e2b24317821f97a6c9c12a89
+              expression: 'last(/StoreOnce Health by HTTP/storeonce.health)<>"OK"'
+              name: 'StoreOnce health is not OK'
+              priority: DISASTER
+              manual_close: 'YES'
+        - uuid: 8fd57d597bd949489e5a09965de2c1b5
+          name: 'StoreOnce: Health level'
+          type: DEPENDENT
+          key: storeonce.health.level
+          delay: '0'
+          history: 15d
+          preprocessing:
+            - type: XMLPATH
+              parameters:
+                - number(/document/cluster/properties/healthLevel)
+              error_handler: DISCARD_VALUE
+          master_item:
+            key: storeonce.cluster.raw
+        - uuid: a781adb9886e4bd8bac281c70dfff247
+          name: 'StoreOnce: HW overall status'
+          type: DEPENDENT
+          key: storeonce.hw.overall.status
+          delay: '0'
+          value_type: CHAR
+          trends: '0'
+          preprocessing:
+            - type: JAVASCRIPT
+              parameters:
+                - |
+                  var root = JSON.parse(value);
+                  var srv = root.servers || {};
+                  for (var k in srv) {
+                    if (k.indexOf("hardwareReport_") === 0 && Array.isArray(srv[k]) && srv[k][0] && srv[k][0].overallStatus) {
+                      return srv[k][0].overallStatus;
+                    }
+                  }
+                  return "UNKNOWN";
+          master_item:
+            key: storeonce.server.hardware.raw
+          triggers:
+            - uuid: 87dec0fba42f4d878ba4335f72513a8b
+              expression: 'last(/StoreOnce Health by HTTP/storeonce.hw.overall.status)<>"OK"'
+              name: 'StoreOnce: HW overall status is not OK'
+              priority: DISASTER
+              manual_close: 'YES'
+        - uuid: 1053223265354ae98a09f3df6caaf975
+          name: 'StoreOnce: Local Capacity'
+          type: DEPENDENT
+          key: storeonce.local.capacity
+          delay: '0'
+          history: 15d
+          value_type: FLOAT
+          units: B
+          preprocessing:
+            - type: XMLPATH
+              parameters:
+                - number(/document/cluster/properties/localCapacityBytes)
+              error_handler: DISCARD_VALUE
+          master_item:
+            key: storeonce.cluster.raw
+        - uuid: 7d7758ce2c2c4759aedd93c5042c612f
+          name: 'StoreOnce: Local Disk'
+          type: DEPENDENT
+          key: storeonce.local.disk
+          delay: '0'
+          history: 15d
+          units: B
+          preprocessing:
+            - type: XMLPATH
+              parameters:
+                - number(/document/cluster/properties/localDiskBytes)
+              error_handler: DISCARD_VALUE
+          master_item:
+            key: storeonce.cluster.raw
+        - uuid: c42df5a8d89e46668e36736a0223aa17
+          name: 'StoreOnce: Local Free'
+          type: DEPENDENT
+          key: storeonce.local.free
+          delay: '0'
+          history: 15d
+          value_type: FLOAT
+          units: B
+          preprocessing:
+            - type: XMLPATH
+              parameters:
+                - number(/document/cluster/properties/localFreeBytes)
+              error_handler: DISCARD_VALUE
+          master_item:
+            key: storeonce.cluster.raw
+        - uuid: d9ba4f81d0344159b937d959727a03d4
+          name: 'StoreOnce: Local Free %'
+          type: CALCULATED
+          key: storeonce.local.free.in.percent
+          history: 15d
+          value_type: FLOAT
+          units: '%'
+          params: '100*(last(//storeonce.local.free)/last(//storeonce.local.capacity))'
+        - uuid: bba6bca02060452faf1bf0354b3ea29a
+          name: 'StoreOnce: Local Used Bytes'
+          type: CALCULATED
+          key: storeonce.local.used.in.bytes
+          history: 15d
+          value_type: FLOAT
+          units: B
+          params: last(//storeonce.local.capacity)-last(//storeonce.local.free)
+        - uuid: 2c728462a382493386b7af7b49b0dfb4
+          name: 'StoreOnce: Local User'
+          type: DEPENDENT
+          key: storeonce.local.user
+          delay: '0'
+          history: 15d
+          units: B
+          preprocessing:
+            - type: XMLPATH
+              parameters:
+                - number(/document/cluster/properties/localUserBytes)
+              error_handler: DISCARD_VALUE
+          master_item:
+            key: storeonce.cluster.raw
+        - uuid: 80e4c91160ae4130bcb30636aa139694
+          name: 'StoreOnce Memory Usage raw'
+          type: SCRIPT
+          key: storeonce.memory.raw
+          history: 5d
+          value_type: TEXT
+          trends: '0'
+          params: |
+            // StoreOnce Gen3 (3.18.x) Memory raw - Zabbix Script item
+            // Macros used:
+            // {$STOREONCE.HOST}, {$STOREONCE.PORT}, {$STOREONCE.USER}, {$STOREONCE.PASS}, {$STOREONCE.NODE}
+            // {$STOREONCE_MEM_WINDOW_MIN} (opsiyonel) yoksa {$STOREONCE_CPU_WINDOW_MIN}
+            
+            var host  = '{$STOREONCE.HOST}';
+            var port  = '{$STOREONCE.PORT}';
+            var user  = '{$STOREONCE.USER}';
+            var pass  = '{$STOREONCE.PASS}';
+            var node  = '{$STOREONCE.NODE}';
+            
+            var winMin = '{$STOREONCE_MEM_WINDOW_MIN}';
+            if (!winMin || winMin.indexOf('{') !== -1) winMin = '{$STOREONCE_CPU_WINDOW_MIN}';
+            
+            function looksUnexpanded(s) {
+              return (!s || s.indexOf('{') !== -1 || s.indexOf('}') !== -1 || s.indexOf('$') !== -1);
+            }
+            if (looksUnexpanded(host)) throw 'STOREONCE host macro boş/expand olmadı. {$STOREONCE.HOST} kontrol et.';
+            if (looksUnexpanded(port)) port = '443';
+            if (looksUnexpanded(node)) node = '1';
+            if (looksUnexpanded(winMin)) winMin = '60';
+            
+            var nodeNum = parseInt(node, 10);
+            if (isNaN(nodeNum) || nodeNum <= 0) nodeNum = 1;
+            
+            var win = parseInt(winMin, 10);
+            if (isNaN(win) || win < 1) win = 60;
+            
+            function isoMinuteZ(d) {
+              d.setUTCSeconds(0);
+              d.setUTCMilliseconds(0);
+              return d.toISOString().replace('.000Z', 'Z');
+            }
+            
+            var end = new Date();
+            end.setUTCSeconds(0);
+            end.setUTCMilliseconds(0);
+            
+            var start = new Date(end.getTime() - win * 60 * 1000);
+            
+            var base = 'https://' + host + ':' + port + '/storeonceservices';
+            
+            function fetchMem(granularity, media) {
+              var url = base
+                + '/cluster/node/' + nodeNum
+                + '/resourceMonitoring/memory/' + granularity + '/'
+                + '?startTime=' + encodeURIComponent(isoMinuteZ(start))
+                + '&endTime=' + encodeURIComponent(isoMinuteZ(end))
+                + '&media=' + encodeURIComponent(media);
+            
+              var req = new HttpRequest();
+              req.setHttpAuth(HTTPAUTH_BASIC, user, pass);
+              req.addHeader('Accept: */*');
+            
+              var body = req.get(url);
+              var code = req.getStatus();
+              if (code !== 200) throw 'HTTP ' + code + ' => ' + body;
+              return body;
+            }
+            
+            function isEmptyMem(body) {
+              if (!body) return true;
+              var s = ('' + body).trim();
+              // Bazı sürümlerde <memoryStats></memoryStats> gibi boş dönebilir
+              if (s.match(/<memoryStats[^>]*>\s*<\/memoryStats>/i)) return true;
+              return false;
+            }
+            
+            // Deneme sırası: 5sec/xml -> min/xml -> min/json -> hour/xml -> hour/json
+            var body = '';
+            
+            body = fetchMem('5sec', 'xml');
+            if (!isEmptyMem(body)) return body;
+            
+            body = fetchMem('min', 'xml');
+            if (!isEmptyMem(body)) return body;
+            
+            body = fetchMem('min', 'json');
+            if (!isEmptyMem(body)) return body;
+            
+            // hour için pencereyi 24 saate genişlet
+            start = new Date(end.getTime() - 24 * 60 * 60 * 1000);
+            
+            body = fetchMem('hour', 'xml');
+            if (!isEmptyMem(body)) return body;
+            
+            body = fetchMem('hour', 'json');
+            return body;
+        - uuid: fe82e27624f84f25a7acf9e5083aa3ea
+          name: 'StoreOnce: Network name - Management IP'
+          type: DEPENDENT
+          key: storeonce.network.name
+          delay: '0'
+          history: 15d
+          value_type: TEXT
+          trends: '0'
+          preprocessing:
+            - type: XMLPATH
+              parameters:
+                - string(/document/cluster/properties/networkName)
+              error_handler: DISCARD_VALUE
+          master_item:
+            key: storeonce.cluster.raw
+        - uuid: 5b89a234abf04bdab60da769ca4e9bad
+          name: 'StoreOnce: Product Class'
+          type: DEPENDENT
+          key: storeonce.product.class
+          delay: '0'
+          history: 15d
+          value_type: TEXT
+          trends: '0'
+          preprocessing:
+            - type: XMLPATH
+              parameters:
+                - string(/document/cluster/properties/productClass)
+              error_handler: DISCARD_VALUE
+          master_item:
+            key: storeonce.cluster.raw
+        - uuid: f28796859856450fadad65ce085dba37
+          name: 'StoreOnce: Cloud Read Write Licensed Disk'
+          type: DEPENDENT
+          key: storeonce.r-w.licensed.disk.capacity
+          delay: '0'
+          history: 15d
+          units: B
+          preprocessing:
+            - type: XMLPATH
+              parameters:
+                - number(/document/cluster/properties/cloudReadWriteLicensedDiskBytes)
+              error_handler: DISCARD_VALUE
+          master_item:
+            key: storeonce.cluster.raw
+        - uuid: 7c44ae0c07884c3482e1c2487593d6c3
+          name: 'StoreOnce: Replication Health'
+          type: DEPENDENT
+          key: storeonce.replication.health
+          delay: '0'
+          history: 15d
+          value_type: TEXT
+          trends: '0'
+          preprocessing:
+            - type: XMLPATH
+              parameters:
+                - string(/document/cluster/properties/repHealth)
+              error_handler: DISCARD_VALUE
+          master_item:
+            key: storeonce.cluster.raw
+          triggers:
+            - uuid: e07738fc40034494a6b9a1f72b47881a
+              expression: 'last(/StoreOnce Health by HTTP/storeonce.replication.health)<>"OK"'
+              name: 'StoreOnce: Replication Health'
+              priority: DISASTER
+              manual_close: 'YES'
+        - uuid: 6418a2f3c25d4d95a9f5c3c0f08c9362
+          name: 'StoreOnce: Replication Health level'
+          type: DEPENDENT
+          key: storeonce.replication.health.level
+          delay: '0'
+          history: 15d
+          preprocessing:
+            - type: XMLPATH
+              parameters:
+                - number(/document/cluster/properties/repHealthLevel)
+              error_handler: DISCARD_VALUE
+          master_item:
+            key: storeonce.cluster.raw
+        - uuid: ecbec049b6c6437fb82af8206cff454e
+          name: 'StoreOnce: Replication Status'
+          type: DEPENDENT
+          key: storeonce.replication.status
+          delay: '0'
+          history: 15d
+          value_type: TEXT
+          trends: '0'
+          preprocessing:
+            - type: XMLPATH
+              parameters:
+                - string(/document/cluster/properties/repStatus)
+              error_handler: DISCARD_VALUE
+          master_item:
+            key: storeonce.cluster.raw
+          triggers:
+            - uuid: 2c002ccdc9f9424091537b4c0795c0f4
+              expression: 'last(/StoreOnce Health by HTTP/storeonce.replication.status)<>"Running"'
+              name: 'Storeonce Replication status not Running'
+              priority: DISASTER
+              manual_close: 'YES'
+        - uuid: 6b4e9fa387e84fb6ac09eee3ef32289a
+          name: 'StoreOnce: Serial Number'
+          type: DEPENDENT
+          key: storeonce.serial.number
+          delay: '0'
+          history: 15d
+          value_type: TEXT
+          trends: '0'
+          preprocessing:
+            - type: XMLPATH
+              parameters:
+                - string(/document/cluster/properties/serialNumber)
+              error_handler: DISCARD_VALUE
+          master_item:
+            key: storeonce.cluster.raw
+        - uuid: ab00509d4fd145299867ea8197524d77
+          name: 'StoreOnce: Server hardware (raw)'
+          type: HTTP_AGENT
+          key: storeonce.server.hardware.raw
+          history: 5d
+          value_type: TEXT
+          trends: '0'
+          authtype: BASIC
+          username: '{$STOREONCE.USER}'
+          password: '{$STOREONCE.PASS}'
+          url: 'https://{HOST.CONN}:{$STOREONCE.PORT}/fusion/chassis/*all*/serverhardware/*all*'
+          query_fields:
+            - name: view
+              value: info
+            - name: media
+              value: json
+            - name: notitle
+              value: 'true'
+          headers:
+            - name: Accept
+              value: application/json
+        - uuid: 62c77b94ad2b4c60a434aac842df91b6
+          name: 'StoreOnce: Size On Disk'
+          type: DEPENDENT
+          key: storeonce.size.on.disk
+          delay: '0'
+          history: 15d
+          value_type: FLOAT
+          units: B
+          preprocessing:
+            - type: XMLPATH
+              parameters:
+                - number(/document/cluster/properties/sizeOnDisk)
+              error_handler: DISCARD_VALUE
+          master_item:
+            key: storeonce.cluster.raw
+        - uuid: 11ba74611efb4a9198db4cdd3d7e1b0f
+          name: 'StoreOnce: Software version'
+          type: DEPENDENT
+          key: storeonce.software.version
+          delay: '0'
+          history: 15d
+          value_type: TEXT
+          trends: '0'
+          preprocessing:
+            - type: XMLPATH
+              parameters:
+                - string(/document/cluster/properties/softwareVersion)
+              error_handler: DISCARD_VALUE
+          master_item:
+            key: storeonce.cluster.raw
+        - uuid: 022cbf177012429aaed2d825f2a4b54a
+          name: 'StoreOnce: Status'
+          type: DEPENDENT
+          key: storeonce.status
+          delay: '0'
+          history: 15d
+          value_type: TEXT
+          trends: '0'
+          preprocessing:
+            - type: XMLPATH
+              parameters:
+                - string(/document/cluster/properties/status)
+              error_handler: DISCARD_VALUE
+          master_item:
+            key: storeonce.cluster.raw
+        - uuid: f5022d167fb44966964ac09572abbd0f
+          name: 'StoreOnce: Uptime'
+          type: DEPENDENT
+          key: storeonce.uptime
+          delay: '0'
+          history: 15d
+          units: s
+          preprocessing:
+            - type: XMLPATH
+              parameters:
+                - number(/document/cluster/properties/uptimeSeconds)
+              error_handler: DISCARD_VALUE
+          master_item:
+            key: storeonce.cluster.raw
+          triggers:
+            - uuid: 21970d7c64bc4a46bc658eb0658fb7df
+              expression: 'last(/StoreOnce Health by HTTP/storeonce.uptime)<10'
+              name: 'Storeonce has been restarted (uptime < 10m)'
+              priority: HIGH
+              manual_close: 'YES'
+        - uuid: ec3f8bfd81b74bd8a5d2cfe614a77edc
+          name: 'StoreOnce: User Data Stored'
+          type: DEPENDENT
+          key: storeonce.user.data.stored
+          delay: '0'
+          history: 15d
+          value_type: FLOAT
+          units: B
+          preprocessing:
+            - type: XMLPATH
+              parameters:
+                - number(/document/cluster/properties/userDataStored)
+              error_handler: DISCARD_VALUE
+          master_item:
+            key: storeonce.cluster.raw
+      discovery_rules:
+        - uuid: 6e99bb1c7428430e97b09fe19d17655b
+          name: 'Discover Drives'
+          type: DEPENDENT
+          key: storeonce.drives.discovery
+          delay: '0'
+          lifetime: 30d
+          item_prototypes:
+            - uuid: 82e3c3343b924e0aaf534c58596e02f8
+              name: 'Drive [{#DRV_NAME}] status'
+              type: DEPENDENT
+              key: 'storeonce.drive.status[{#DRV_UUID}]'
+              delay: '0'
+              history: 15d
+              value_type: CHAR
+              trends: '0'
+              description: '{#DRV_LOC}'
+              preprocessing:
+                - type: JAVASCRIPT
+                  parameters:
+                    - |
+                      var uuid = "{#DRV_UUID}";
+                      var root = JSON.parse(value);
+                      var found = null;
+                      
+                      function walk(o){
+                        if (found) return;
+                        if (Array.isArray(o)) { o.forEach(walk); return; }
+                        if (!o || typeof o !== "object") return;
+                        if (o.type === "drive" && o.uuid === uuid) { found = o; return; }
+                        for (var k in o) walk(o[k]);
+                      }
+                      
+                      walk(root.servers || root);
+                      return found && found.status ? found.status : "UNKNOWN";
+              master_item:
+                key: storeonce.server.hardware.raw
+              trigger_prototypes:
+                - uuid: 0c03f3501ce54a07aa09549b184f570a
+                  expression: 'last(/StoreOnce Health by HTTP/storeonce.drive.status[{#DRV_UUID}])<>"OK"'
+                  name: '[{#DRV_NAME}] status has problem'
+                  priority: DISASTER
+                  manual_close: 'YES'
+          master_item:
+            key: storeonce.server.hardware.raw
+          preprocessing:
+            - type: JAVASCRIPT
+              parameters:
+                - |
+                  var root = JSON.parse(value);
+                  var out = [];
+                  
+                  function walk(o){
+                    if (Array.isArray(o)) { o.forEach(walk); return; }
+                    if (!o || typeof o !== "object") return;
+                    if (o.type === "drive" && o.uuid) {
+                      out.push({
+                        "{#DRV_UUID}": o.uuid,
+                        "{#DRV_NAME}": o.name || o.uuid,
+                        "{#DRV_LOC}": o.location || ""
+                      });
+                    }
+                    for (var k in o) walk(o[k]);
+                  }
+                  walk(root.servers || root);
+                  return JSON.stringify({data: out});
+        - uuid: add82cebedc2470e87ef1c9796b21ee5
+          name: 'Discover Fans'
+          type: DEPENDENT
+          key: storeonce.fan.discovery
+          delay: '0'
+          lifetime: 30d
+          item_prototypes:
+            - uuid: a0d7f9f505f143de9d372ee845865626
+              name: 'Fan [{#FAN_NAME}] speed'
+              type: DEPENDENT
+              key: 'storeonce.fan.speed.pct[{#FAN_UUID}]'
+              delay: '0'
+              history: 15d
+              value_type: FLOAT
+              units: '%'
+              preprocessing:
+                - type: JAVASCRIPT
+                  parameters:
+                    - |
+                      var uuid = "{#FAN_UUID}";
+                      var root = JSON.parse(value);
+                      var props = "";
+                      
+                      function walk(o){
+                        if (Array.isArray(o)) { o.forEach(walk); return; }
+                        if (!o || typeof o !== "object") return;
+                        if (o.type === "fan" && o.uuid === uuid) { props = o.properties || ""; return; }
+                        for (var k in o) walk(o[k]);
+                      }
+                      walk(root.servers || root);
+                      
+                      var m = /speed\s*:\s*([0-9]+(?:\.[0-9]+)?)%/i.exec(props);
+                      return m ? parseFloat(m[1]) : 0;
+              master_item:
+                key: storeonce.server.hardware.raw
+            - uuid: 9111d37a6f584d5eb6a4e921d1c26f63
+              name: 'Fan [{#FAN_NAME}] status'
+              type: DEPENDENT
+              key: 'storeonce.fan.status[{#FAN_UUID}]'
+              delay: '0'
+              history: 15d
+              value_type: CHAR
+              trends: '0'
+              preprocessing:
+                - type: JAVASCRIPT
+                  parameters:
+                    - |
+                      var uuid = "{#FAN_UUID}";
+                      var root = JSON.parse(value);
+                      var found = null;
+                      
+                      function walk(o){
+                        if (found) return;
+                        if (Array.isArray(o)) { o.forEach(walk); return; }
+                        if (!o || typeof o !== "object") return;
+                        if (o.type === "fan" && o.uuid === uuid) { found = o; return; }
+                        for (var k in o) walk(o[k]);
+                      }
+                      
+                      walk(root.servers || root);
+                      return found && found.status ? found.status : "UNKNOWN";
+              master_item:
+                key: storeonce.server.hardware.raw
+              trigger_prototypes:
+                - uuid: 23121347fdf745ae9fcb9f8908c0db74
+                  expression: 'last(/StoreOnce Health by HTTP/storeonce.fan.status[{#FAN_UUID}])<>"OK"'
+                  name: '[{#FAN_NAME}] status has problem'
+                  priority: HIGH
+                  manual_close: 'YES'
+          master_item:
+            key: storeonce.server.hardware.raw
+          preprocessing:
+            - type: JAVASCRIPT
+              parameters:
+                - |
+                  var root = JSON.parse(value);
+                  var out = [];
+                  
+                  function walk(o){
+                    if (Array.isArray(o)) { o.forEach(walk); return; }
+                    if (!o || typeof o !== "object") return;
+                  
+                    // fan list: ... "fan": { "fan": [ {...} ] }
+                    for (var k in o) walk(o[k]);
+                  
+                    // if it's an array container already handled above
+                    if (o.type === "fan" && o.uuid) {
+                      out.push({
+                        "{#FAN_UUID}": o.uuid,
+                        "{#FAN_NAME}": o.name || o.uuid,
+                        "{#FAN_LOC}": o.location || ""
+                      });
+                    }
+                  }
+                  
+                  walk(root.servers || root);
+                  return JSON.stringify({data: out});
+        - uuid: 77704b051fe445adb889abc15dd88145
+          name: 'Discover PowerSupply'
+          type: DEPENDENT
+          key: storeonce.ps.discovery
+          delay: '0'
+          lifetime: 30d
+          item_prototypes:
+            - uuid: 9ec9fa84942d490aa00304b243621d54
+              name: 'Powersupply [{#PSU_NAME}] status'
+              type: DEPENDENT
+              key: 'storeonce.psu.status[{#PSU_UUID}]'
+              delay: '0'
+              history: 15d
+              value_type: CHAR
+              trends: '0'
+              preprocessing:
+                - type: JAVASCRIPT
+                  parameters:
+                    - |
+                      var uuid = "{#PSU_UUID}";
+                      var root = JSON.parse(value);
+                      var found = null;
+                      
+                      function walk(o){
+                        if (found) return;
+                        if (Array.isArray(o)) { o.forEach(walk); return; }
+                        if (!o || typeof o !== "object") return;
+                        if (o.type === "powerSupply" && o.uuid === uuid) { found = o; return; }
+                        for (var k in o) walk(o[k]);
+                      }
+                      
+                      walk(root.servers || root);
+                      return found && found.status ? found.status : "UNKNOWN";
+              master_item:
+                key: storeonce.server.hardware.raw
+              trigger_prototypes:
+                - uuid: 0e7fe31231884e7c87ecd12cee529409
+                  expression: 'last(/StoreOnce Health by HTTP/storeonce.psu.status[{#PSU_UUID}])<>"OK"'
+                  name: '[{#PSU_NAME}] status has problem'
+                  priority: HIGH
+                  manual_close: 'YES'
+          master_item:
+            key: storeonce.server.hardware.raw
+          preprocessing:
+            - type: JAVASCRIPT
+              parameters:
+                - |
+                  var root = JSON.parse(value);
+                  var out = [];
+                  
+                  function walk(o){
+                    if (Array.isArray(o)) { o.forEach(walk); return; }
+                    if (!o || typeof o !== "object") return;
+                    if (o.type === "powerSupply" && o.uuid) {
+                      out.push({
+                        "{#PSU_UUID}": o.uuid,
+                        "{#PSU_NAME}": o.name || o.uuid
+                      });
+                    }
+                    for (var k in o) walk(o[k]);
+                  }
+                  walk(root.servers || root);
+                  return JSON.stringify({data: out});
+        - uuid: e452019d8d0e402a85c73142ca921caa
+          name: 'Discover Temperature Sensor'
+          type: DEPENDENT
+          key: storeonce.temperature.sensor.discovery
+          delay: '0'
+          lifetime: 30d
+          item_prototypes:
+            - uuid: f9aab106679848cbacaece9c0e6d7c65
+              name: 'Temperature {#TS_NAME}'
+              type: DEPENDENT
+              key: 'storeonce.temp.c[{#TS_UUID}]'
+              delay: '0'
+              units: °C
+              description: '{#TS_LOC}'
+              preprocessing:
+                - type: JAVASCRIPT
+                  parameters:
+                    - |
+                      var uuid = "{#TS_UUID}";
+                      var root = JSON.parse(value);
+                      var props = "";
+                      
+                      function walk(o){
+                        if (Array.isArray(o)) { o.forEach(walk); return; }
+                        if (!o || typeof o !== "object") return;
+                        if (o.type === "tempSensor" && o.uuid === uuid) { props = o.properties || ""; return; }
+                        for (var k in o) walk(o[k]);
+                      }
+                      walk(root.servers || root);
+                      
+                      var m = /temperature\s*:\s*([0-9]+(?:\.[0-9]+)?)\s*C/i.exec(props);
+                      return m ? parseFloat(m[1]) : 0;
+              master_item:
+                key: storeonce.server.hardware.raw
+          master_item:
+            key: storeonce.server.hardware.raw
+          preprocessing:
+            - type: JAVASCRIPT
+              parameters:
+                - |
+                  var root = JSON.parse(value);
+                  var out = [];
+                  
+                  function walk(o){
+                    if (Array.isArray(o)) { o.forEach(walk); return; }
+                    if (!o || typeof o !== "object") return;
+                    if (o.type === "tempSensor" && o.uuid) {
+                      out.push({
+                        "{#TS_UUID}": o.uuid,
+                        "{#TS_NAME}": o.name || o.uuid,
+                        "{#TS_LOC}": o.location || ""
+                      });
+                    }
+                    for (var k in o) walk(o[k]);
+                  }
+                  walk(root.servers || root);
+                  return JSON.stringify({data: out});
+      macros:
+        - macro: '{$STOREONCE.HOST}'
+          description: 'StoreOnce appliance management address used for API calls.'
+        - macro: '{$STOREONCE.NODE}'
+          value: '1'
+          description: 'Cluster node index used by resourceMonitoring endpoints (CPU/Memory). Default 1 for most StoreOnce Gen3 (3.x) systems.'
+        - macro: '{$STOREONCE.PASS}'
+          description: 'Password for the StoreOnce API authentication.'
+        - macro: '{$STOREONCE.PORT}'
+          description: 'HTTPS port for the StoreOnce REST API endpoint.'
+        - macro: '{$STOREONCE.USER}'
+          description: 'A StoreOnce user account with sufficient privileges to read cluster status, hardware inventory, and resource monitoring metrics.'
+        - macro: '{$STOREONCE_CPU_WINDOW_MIN}'
+          value: '5'
+          description: 'Time window (in minutes) used to query CPU metrics from the StoreOnce resourceMonitoring API.'
+  triggers:
+    - uuid: b686a658a9ac4a499b9a707ef55e679d
+      expression: 'last(/StoreOnce Health by HTTP/storeonce.local.free.in.percent)<5 and last(/StoreOnce Health by HTTP/storeonce.local.capacity)>0'
+      name: 'StoreOnce Local Free Space Critically Low (less than 5%)'
+      priority: DISASTER
+      manual_close: 'YES'
+    - uuid: 84fc68cdb4c04ab9a2878f987be446a1
+      expression: 'last(/StoreOnce Health by HTTP/storeonce.local.free.in.percent)<10 and last(/StoreOnce Health by HTTP/storeonce.local.capacity)>0'
+      name: 'StoreOnce Local Free Space Low (less than 10%)'
+      priority: HIGH
+      manual_close: 'YES'
