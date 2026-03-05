@@ -192,9 +192,3 @@ Please open an issue with:
 - Zabbix version
 - Sanitized sample API response
 - Expected vs. actual behavior (including any preprocessing errors)
-
----
-
-## License
-
-Add a license file to the repository (e.g., MIT / Apache-2.0 / GPL-3.0) based on your preference.
