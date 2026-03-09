@@ -1,0 +1,207 @@
+zabbix_export:
+  version: '7.0'
+  template_groups:
+    - uuid: 73217672e4fc4c0481a0f717341fa8bd
+      name: Templates/Certificates
+  templates:
+    - uuid: 0f3c2063eab54f94b7c86f6d16400a66
+      template: 'Windows AD CS certificate by Zabbix agent'
+      name: 'Windows AD CS certificate by Zabbix agent'
+      description: |
+        Custom template for monitoring a Microsoft AD CS-issued certificate installed on a Windows host.
+        The template uses a PowerShell user parameter that reads the certificate from the Windows certificate store
+        and returns JSON. Dependent items extract the certificate subject, issuer, expiry date, presence state,
+        and remaining lifetime in days.
+      vendor:
+        name: Custom
+        version: 7.0-1
+      groups:
+        - name: Templates/Certificates
+      items:
+        - uuid: cc083629f3e64cfe8a72f1677f0ba65b
+          name: 'AD CS certificate days remaining'
+          type: DEPENDENT
+          key: adcs.cert.days_remaining
+          delay: '0'
+          history: 90d
+          value_type: FLOAT
+          description: 'Days remaining until certificate expiration.'
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.days_remaining
+          master_item:
+            key: 'cert.info[{$CERT.THUMBPRINT}]'
+          tags:
+            - tag: component
+              value: certificate
+            - tag: source
+              value: adcs
+        - uuid: e0b1bd395501423fab9b241b57d2231f
+          name: 'AD CS certificate found'
+          type: DEPENDENT
+          key: adcs.cert.found
+          delay: '0'
+          history: 30d
+          description: '1 if the certificate is found in the scanned stores, otherwise 0.'
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.found
+          master_item:
+            key: 'cert.info[{$CERT.THUMBPRINT}]'
+          tags:
+            - tag: component
+              value: certificate
+            - tag: source
+              value: adcs
+          triggers:
+            - uuid: 53f566564c0d4394a261520936da533d
+              expression: 'last(/Windows AD CS certificate by Zabbix agent/adcs.cert.found)=0'
+              name: 'AD CS certificate: Certificate not found'
+              event_name: 'AD CS certificate: Certificate not found in Windows certificate stores'
+              priority: DISASTER
+              description: 'The certificate matching {$CERT.THUMBPRINT} was not found in the scanned certificate stores.'
+              tags:
+                - tag: scope
+                  value: availability
+        - uuid: a6a2e4455b954528a7a77f690f89cf60
+          name: 'AD CS certificate issuer'
+          type: DEPENDENT
+          key: adcs.cert.issuer
+          delay: '0'
+          history: 30d
+          value_type: TEXT
+          trends: '0'
+          description: 'Certificate issuer.'
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.issuer
+          master_item:
+            key: 'cert.info[{$CERT.THUMBPRINT}]'
+          tags:
+            - tag: component
+              value: certificate
+            - tag: source
+              value: adcs
+        - uuid: 5f54b31af8d948d7983cb420a2264b9f
+          name: 'AD CS certificate expiry date'
+          type: DEPENDENT
+          key: adcs.cert.not_after
+          delay: '0'
+          history: 30d
+          value_type: TEXT
+          trends: '0'
+          description: 'Certificate expiration date in ISO 8601 format.'
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.not_after
+          master_item:
+            key: 'cert.info[{$CERT.THUMBPRINT}]'
+          tags:
+            - tag: component
+              value: certificate
+            - tag: source
+              value: adcs
+        - uuid: 0d701f2cc4124eec9e395461118950eb
+          name: 'AD CS certificate store'
+          type: DEPENDENT
+          key: adcs.cert.store
+          delay: '0'
+          history: 30d
+          value_type: TEXT
+          trends: '0'
+          description: 'Windows certificate store where the certificate was found.'
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.store
+          master_item:
+            key: 'cert.info[{$CERT.THUMBPRINT}]'
+          tags:
+            - tag: component
+              value: certificate
+            - tag: source
+              value: adcs
+        - uuid: caa2bad9168f4d32946bc1be2712a9cc
+          name: 'AD CS certificate subject'
+          type: DEPENDENT
+          key: adcs.cert.subject
+          delay: '0'
+          history: 30d
+          value_type: TEXT
+          trends: '0'
+          description: 'Certificate subject.'
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.subject
+          master_item:
+            key: 'cert.info[{$CERT.THUMBPRINT}]'
+          tags:
+            - tag: component
+              value: certificate
+            - tag: source
+              value: adcs
+        - uuid: f76a433171a643e5a7319c7804b727c2
+          name: 'AD CS certificate raw info'
+          key: 'cert.info[{$CERT.THUMBPRINT}]'
+          delay: 1h
+          history: 7d
+          value_type: TEXT
+          trends: '0'
+          description: |
+            Master item.
+            Requires the following Zabbix agent UserParameter on the monitored Windows host:
+            cert.info[*]
+          tags:
+            - tag: component
+              value: certificate
+            - tag: source
+              value: adcs
+          triggers:
+            - uuid: 3809bb08917444f5b0d447d5a7da8351
+              expression: 'nodata(/Windows AD CS certificate by Zabbix agent/cert.info[{$CERT.THUMBPRINT}],{$CERT.NODATA})=1'
+              name: 'AD CS certificate: No data received'
+              event_name: 'AD CS certificate: No data received for {$CERT.NODATA}'
+              priority: DISASTER
+              description: 'No data was received from the certificate master item within the configured nodata period.'
+              tags:
+                - tag: scope
+                  value: availability
+      macros:
+        - macro: '{$CERT.CRIT.DAYS}'
+          value: '7'
+          description: 'Critical threshold in days before expiration.'
+        - macro: '{$CERT.NODATA}'
+          value: 12h
+          description: 'No-data period for the master item.'
+        - macro: '{$CERT.THUMBPRINT}'
+          value: CHANGE_ME
+          description: 'Thumbprint of the certificate to monitor.'
+        - macro: '{$CERT.WARN.DAYS}'
+          value: '30'
+          description: 'Warning threshold in days before expiration.'
+  triggers:
+    - uuid: 68d9f132a7674445b5d5f71cc60f2d7d
+      expression: 'last(/Windows AD CS certificate by Zabbix agent/adcs.cert.found)=1 and last(/Windows AD CS certificate by Zabbix agent/adcs.cert.days_remaining)<{$CERT.CRIT.DAYS}'
+      name: 'AD CS certificate: Expiration is critical'
+      event_name: 'AD CS certificate: Expiration is critical (<{$CERT.CRIT.DAYS}d)'
+      opdata: 'Days remaining: {ITEM.LASTVALUE}'
+      priority: DISASTER
+      description: 'The monitored certificate will expire soon.'
+      tags:
+        - tag: scope
+          value: certificate
+    - uuid: 6f0cc95c26f142ee8a0bcab0a5bf3141
+      expression: 'last(/Windows AD CS certificate by Zabbix agent/adcs.cert.found)=1 and last(/Windows AD CS certificate by Zabbix agent/adcs.cert.days_remaining)<{$CERT.WARN.DAYS} and last(/Windows AD CS certificate by Zabbix agent/adcs.cert.days_remaining)>={$CERT.CRIT.DAYS}'
+      name: 'AD CS certificate: Expiration warning'
+      event_name: 'AD CS certificate: Expiration warning (<{$CERT.WARN.DAYS}d)'
+      opdata: 'Days remaining: {ITEM.LASTVALUE}'
+      priority: HIGH
+      description: 'The monitored certificate is approaching its expiration date.'
+      tags:
+        - tag: scope
+          value: certificate
