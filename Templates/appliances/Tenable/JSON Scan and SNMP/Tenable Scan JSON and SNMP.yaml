@@ -1,0 +1,829 @@
+zabbix_export:
+  version: '7.0'
+  template_groups:
+    - uuid: ad01c1e8adba4363bb716d6c4d7492e8
+      name: Templates/Appliances
+  templates:
+    - uuid: ecddc55ebc5844bbbe0ce6879268cfee
+      template: 'Tenable Scan JSON and SNMP'
+      name: 'Tenable Scan JSON and SNMP'
+      groups:
+        - name: Templates/Appliances
+      items:
+        - uuid: d9cbbd6f9c5648f59923a59a6104b880
+          name: 'CPU Idle'
+          type: SNMP_AGENT
+          snmp_oid: .1.3.6.1.4.1.2021.11.11.0
+          key: cpu.idle
+          units: '%'
+        - uuid: d82b3b9959a1452d9d8e2ce4a2587cb8
+          name: 'CPU Utilization'
+          type: CALCULATED
+          key: cpu.utilization
+          units: '%'
+          params: 100-last(//cpu.idle)
+          triggers:
+            - uuid: c86cfd8516214dd79edf8fcfdaee3083
+              expression: 'min(/Tenable Scan JSON and SNMP/cpu.utilization,10m)>={$CPU.UTIL.CRIT}'
+              name: 'Critical CPU utilization (over {$CPU.UTIL.CRIT}% for 10m)'
+              priority: DISASTER
+              manual_close: 'YES'
+            - uuid: aa74cce916cc4edba6ecbf9887fd8e12
+              expression: 'min(/Tenable Scan JSON and SNMP/cpu.utilization,10m)>={$CPU.UTIL.HIGH}'
+              name: 'High CPU utilization (over {$CPU.UTIL.HIGH}% for 10m)'
+              priority: HIGH
+              manual_close: 'YES'
+              dependencies:
+                - name: 'Critical CPU utilization (over {$CPU.UTIL.CRIT}% for 10m)'
+                  expression: 'min(/Tenable Scan JSON and SNMP/cpu.utilization,10m)>={$CPU.UTIL.CRIT}'
+        - uuid: a3866e4f7bae4b8e98edc5d5d6578798
+          name: 'ICMP ping'
+          type: SIMPLE
+          key: icmpping
+          delay: '60'
+          history: 1w
+          valuemap:
+            name: 'Service state'
+          tags:
+            - tag: Application
+              value: Status
+          triggers:
+            - uuid: 5d2af1099b31451781feb790451539a9
+              expression: 'max(/Tenable Scan JSON and SNMP/icmpping,#3)=0'
+              name: 'Unavailable by ICMP ping'
+              priority: DISASTER
+              description: |
+                Last value: {ITEM.LASTVALUE1}.
+                Last three attempts returned timeout.  Please check device connectivity.
+        - uuid: ac1005f04d6642c1a1df420c2935408b
+          name: 'ICMP loss'
+          type: SIMPLE
+          key: icmppingloss
+          delay: '60'
+          history: 1w
+          value_type: FLOAT
+          units: '%'
+          tags:
+            - tag: Application
+              value: Status
+          triggers:
+            - uuid: 599a878242d5482eb8dee297c8005eb5
+              expression: 'min(/Tenable Scan JSON and SNMP/icmppingloss,5m)>{$ICMP_LOSS_WARN} and min(/Tenable Scan JSON and SNMP/icmppingloss,5m)<100'
+              name: 'High ICMP ping loss'
+              priority: WARNING
+              dependencies:
+                - name: 'Unavailable by ICMP ping'
+                  expression: 'max(/Tenable Scan JSON and SNMP/icmpping,#3)=0'
+        - uuid: 7a265ae41a804c0bb6f6aaa25a26a365
+          name: 'ICMP response time'
+          type: SIMPLE
+          key: icmppingsec
+          delay: '60'
+          history: 1w
+          value_type: FLOAT
+          units: s
+          tags:
+            - tag: Application
+              value: Status
+          triggers:
+            - uuid: 8f1ef0a5bd04458d922340e971356ece
+              expression: 'avg(/Tenable Scan JSON and SNMP/icmppingsec,5m)>{$ICMP_RESPONSE_TIME_WARN}'
+              name: 'High ICMP ping response time'
+              priority: WARNING
+              dependencies:
+                - name: 'High ICMP ping loss'
+                  expression: 'min(/Tenable Scan JSON and SNMP/icmppingloss,5m)>{$ICMP_LOSS_WARN} and min(/Tenable Scan JSON and SNMP/icmppingloss,5m)<100'
+                - name: 'Unavailable by ICMP ping'
+                  expression: 'max(/Tenable Scan JSON and SNMP/icmpping,#3)=0'
+        - uuid: 08cfd2b0e92a46d7b39f508bddfe1fc5
+          name: 'Memory Utilization'
+          type: CALCULATED
+          key: memory.utilization
+          units: '%'
+          params: '100*(last(//tenable.hrMemorySize)-last(//tenable.memTotalFree))/last(//tenable.hrMemorySize)'
+          triggers:
+            - uuid: fc068e2f4c35498693e60dc9ef9b42d1
+              expression: 'min(/Tenable Scan JSON and SNMP/memory.utilization,10m)>={$MEMORY.UTIL.CRIT}'
+              name: 'Critical Memory utilization (over {$MEMORY.UTIL.CRIT}% for 10m)'
+              priority: DISASTER
+              manual_close: 'YES'
+            - uuid: 5d676688c9d4416a85d40adea0fb1c85
+              expression: 'min(/Tenable Scan JSON and SNMP/memory.utilization,10m)>={$MEMORY.UTIL.HIGH}'
+              name: 'High Memory utilization (over {$MEMORY.UTIL.HIGH}% for 10m)'
+              priority: HIGH
+              manual_close: 'YES'
+              dependencies:
+                - name: 'Critical Memory utilization (over {$MEMORY.UTIL.CRIT}% for 10m)'
+                  expression: 'min(/Tenable Scan JSON and SNMP/memory.utilization,10m)>={$MEMORY.UTIL.CRIT}'
+        - uuid: 3dc8bf965dae481b8a1bf438771670f7
+          name: 'Memory Utilization (Physical)'
+          type: CALCULATED
+          key: memory.utilization.physical
+          units: '%'
+          params: '100*(last(//tenable.memTotalReal)-last(//tenable.memAvailReal))/last(//tenable.memTotalReal)'
+        - uuid: ad227c70ca374298b8b44ac75e89ab17
+          name: 'System Description'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.2.1.1.1.0
+          key: sysdescr
+          value_type: TEXT
+          trends: '0'
+        - uuid: f13e2d80e1cf4cd08358f064364696b0
+          name: 'System Uptime'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.2.1.1.3.0
+          key: 'system.uptime[sysUpTime.0]'
+          units: uptime
+          triggers:
+            - uuid: cd85b0bce995436ba627eee2b4c73241
+              expression: 'last(/Tenable Scan JSON and SNMP/system.uptime[sysUpTime.0])<10m'
+              name: '{HOST.NAME} has been restarted (uptime < 10m)'
+              priority: HIGH
+              description: 'Uptime is less than 10 minutes'
+              manual_close: 'YES'
+              dependencies:
+                - name: 'No SNMP data collection'
+                  expression: 'max(/Tenable Scan JSON and SNMP/zabbix[host,snmp,available],{$SNMP.TIMEOUT})=0'
+        - uuid: 98c1a9d513a444bfbf0fd30f3a0fb09f
+          name: 'Memory Total'
+          type: SNMP_AGENT
+          snmp_oid: .1.3.6.1.2.1.25.2.2.0
+          key: tenable.hrMemorySize
+          units: B
+          preprocessing:
+            - type: MULTIPLIER
+              parameters:
+                - '1024'
+        - uuid: 8f03fb217c764699b8ca27a3322cc1e8
+          name: 'Logged In Users'
+          type: SNMP_AGENT
+          snmp_oid: .1.3.6.1.2.1.25.1.5.0
+          key: tenable.hrSystemNumUsers
+        - uuid: a876a2abdcde4778912c3ec1c0cdce2b
+          name: 'Process Count'
+          type: SNMP_AGENT
+          snmp_oid: .1.3.6.1.2.1.25.1.6.0
+          key: tenable.hrSystemProcesses
+        - uuid: 277d15ab1b0b4e50bd1ad4ae0d9d4dcb
+          name: 'Host Uptime'
+          type: SNMP_AGENT
+          snmp_oid: .1.3.6.1.2.1.25.1.1.0
+          key: tenable.hrSystemUptime
+          units: uptime
+        - uuid: 25660c59993045e2bca6687afef9c02f
+          name: 'Tenable JSON Bulk item'
+          type: HTTP_AGENT
+          key: tenable.json.bulk.item
+          delay: 1h
+          history: 15d
+          value_type: TEXT
+          trends: '0'
+          timeout: 10s
+          url: '{$TENABLE.URL}'
+          output_format: JSON
+          triggers:
+            - uuid: 2c994adc51ce4544b2fe0a0c8adbe1e0
+              expression: 'nodata(/Tenable Scan JSON and SNMP/tenable.json.bulk.item,30m)=1'
+              name: 'No data from Tenable JSON for 30 minutes'
+              priority: DISASTER
+              manual_close: 'YES'
+        - uuid: 40fa45177c8d4f74b562c121c6b9e3ad
+          name: 'Memory Physical Free'
+          type: SNMP_AGENT
+          snmp_oid: .1.3.6.1.4.1.2021.4.6.0
+          key: tenable.memAvailReal
+          units: B
+          preprocessing:
+            - type: MULTIPLIER
+              parameters:
+                - '1024'
+        - uuid: 071a79b1b47848468ed856c0b7ffd95a
+          name: 'Available Swap'
+          type: SNMP_AGENT
+          snmp_oid: .1.3.6.1.4.1.2021.4.4.0
+          key: tenable.memAvailSwap
+          units: B
+          preprocessing:
+            - type: MULTIPLIER
+              parameters:
+                - '1024'
+        - uuid: 039268a5c982494c9b064563ea93661b
+          name: 'Memory Buffer'
+          type: SNMP_AGENT
+          snmp_oid: .1.3.6.1.4.1.2021.4.14.0
+          key: tenable.memBuffer
+          units: B
+          preprocessing:
+            - type: MULTIPLIER
+              parameters:
+                - '1024'
+        - uuid: adc1060be4944e35b2d3cbb7ab32e6d7
+          name: 'Memory Cached'
+          type: SNMP_AGENT
+          snmp_oid: .1.3.6.1.4.1.2021.4.15.0
+          key: tenable.memCached
+          units: B
+          preprocessing:
+            - type: MULTIPLIER
+              parameters:
+                - '1024'
+        - uuid: 58719b80480b4b4b831f9cbc4b8cd123
+          name: 'Memory Total Free'
+          type: SNMP_AGENT
+          snmp_oid: .1.3.6.1.4.1.2021.4.11.0
+          key: tenable.memTotalFree
+          units: B
+          preprocessing:
+            - type: MULTIPLIER
+              parameters:
+                - '1024'
+        - uuid: b7d93a84b68f4eb1b5e05d55fe84ed0e
+          name: 'Memory Total Physical'
+          type: SNMP_AGENT
+          snmp_oid: .1.3.6.1.4.1.2021.4.5.0
+          key: tenable.memTotalReal
+          units: B
+          preprocessing:
+            - type: MULTIPLIER
+              parameters:
+                - '1024'
+        - uuid: 8b00027a64d94a4d99203fca85793216
+          name: SystemLocation
+          type: SNMP_AGENT
+          snmp_oid: .1.3.6.1.2.1.1.6.0
+          key: tenable.syslocation
+          value_type: CHAR
+          trends: '0'
+        - uuid: 1233a860751d49d3893f3b05ee7a3fd9
+          name: 'System Name'
+          type: SNMP_AGENT
+          snmp_oid: .1.3.6.1.2.1.1.5.0
+          key: tenable.sysname
+          value_type: CHAR
+          trends: '0'
+        - uuid: 9ac13edf2bce48aab03236c7c07b7c5d
+          name: 'SNMP agent availability'
+          type: INTERNAL
+          key: 'zabbix[host,snmp,available]'
+          history: 7d
+          valuemap:
+            name: zabbix.host.available
+          tags:
+            - tag: Application
+              value: Status
+          triggers:
+            - uuid: 09dd14589681437b8340560043c7985e
+              expression: 'max(/Tenable Scan JSON and SNMP/zabbix[host,snmp,available],{$SNMP.TIMEOUT})=0'
+              name: 'No SNMP data collection'
+              opdata: 'Current state: {ITEM.LASTVALUE1}'
+              priority: DISASTER
+              description: 'SNMP is not available for polling. Please check device connectivity and SNMP settings.'
+              dependencies:
+                - name: 'Unavailable by ICMP ping'
+                  expression: 'max(/Tenable Scan JSON and SNMP/icmpping,#3)=0'
+      discovery_rules:
+        - uuid: 424c1fa2442f4a228874791c543a2c30
+          name: 'Network interfaces discovery'
+          type: SNMP_AGENT
+          snmp_oid: 'discovery[{#IFOPERSTATUS},1.3.6.1.2.1.2.2.1.8,{#IFADMINSTATUS},1.3.6.1.2.1.2.2.1.7,{#IFALIAS},1.3.6.1.2.1.31.1.1.1.18,{#IFNAME},1.3.6.1.2.1.31.1.1.1.1,{#IFDESCR},1.3.6.1.2.1.2.2.1.2,{#IFTYPE},1.3.6.1.2.1.2.2.1.3]'
+          key: net.if.discovery
+          delay: 1h
+          filter:
+            evaltype: AND
+            conditions:
+              - macro: '{#IFADMINSTATUS}'
+                value: '{$NET.IF.IFADMINSTATUS.MATCHES}'
+                formulaid: A
+              - macro: '{#IFADMINSTATUS}'
+                value: '{$NET.IF.IFADMINSTATUS.NOT_MATCHES}'
+                operator: NOT_MATCHES_REGEX
+                formulaid: B
+              - macro: '{#IFALIAS}'
+                value: '{$NET.IF.IFALIAS.MATCHES}'
+                formulaid: C
+              - macro: '{#IFALIAS}'
+                value: '{$NET.IF.IFALIAS.NOT_MATCHES}'
+                operator: NOT_MATCHES_REGEX
+                formulaid: D
+              - macro: '{#IFDESCR}'
+                value: '{$NET.IF.IFDESCR.MATCHES}'
+                formulaid: E
+              - macro: '{#IFDESCR}'
+                value: '{$NET.IF.IFDESCR.NOT_MATCHES}'
+                operator: NOT_MATCHES_REGEX
+                formulaid: F
+              - macro: '{#IFNAME}'
+                value: '{$NET.IF.IFNAME.MATCHES}'
+                formulaid: G
+              - macro: '{#IFNAME}'
+                value: '{$NET.IF.IFNAME.NOT_MATCHES}'
+                operator: NOT_MATCHES_REGEX
+                formulaid: H
+              - macro: '{#IFOPERSTATUS}'
+                value: '{$NET.IF.IFOPERSTATUS.MATCHES}'
+                formulaid: I
+              - macro: '{#IFOPERSTATUS}'
+                value: '{$NET.IF.IFOPERSTATUS.NOT_MATCHES}'
+                operator: NOT_MATCHES_REGEX
+                formulaid: J
+              - macro: '{#IFTYPE}'
+                value: '{$NET.IF.IFTYPE.MATCHES}'
+                formulaid: K
+              - macro: '{#IFTYPE}'
+                value: '{$NET.IF.IFTYPE.NOT_MATCHES}'
+                operator: NOT_MATCHES_REGEX
+                formulaid: L
+          lifetime: 30d
+          enabled_lifetime_type: DISABLE_NEVER
+          description: 'Discovering interfaces from IF-MIB.'
+          item_prototypes:
+            - uuid: 044497c10ba74583bf1390f630c6c228
+              name: 'Interface {#IFNAME}({#IFALIAS}): Inbound packets discarded'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.2.1.2.2.1.13.{#SNMPINDEX}'
+              key: 'net.if.in.discards[ifInDiscards.{#SNMPINDEX}]'
+              delay: 3m
+              history: 7d
+              description: |
+                MIB: IF-MIB
+                The number of inbound packets which were chosen to be discarded
+                even though no errors had been detected to prevent their being deliverable to a higher-layer protocol.
+                One possible reason for discarding such a packet could be to free up buffer space.
+                Discontinuities in the value of this counter can occur at re-initialization of the management system,
+                and at other times as indicated by the value of ifCounterDiscontinuityTime.
+              preprocessing:
+                - type: CHANGE_PER_SECOND
+                  parameters:
+                    - ''
+              tags:
+                - tag: Application
+                  value: 'Interface {#IFNAME}({#IFALIAS})'
+            - uuid: 7c317f69cffa4f8a879e52f99f87899f
+              name: 'Interface {#IFNAME}({#IFALIAS}): Inbound packets with errors'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.2.1.2.2.1.14.{#SNMPINDEX}'
+              key: 'net.if.in.errors[ifInErrors.{#SNMPINDEX}]'
+              delay: 3m
+              history: 7d
+              description: |
+                MIB: IF-MIB
+                For packet-oriented interfaces, the number of inbound packets that contained errors preventing them from being deliverable to a higher-layer protocol.  For character-oriented or fixed-length interfaces, the number of inbound transmission units that contained errors preventing them from being deliverable to a higher-layer protocol. Discontinuities in the value of this counter can occur at re-initialization of the management system, and at other times as indicated by the value of ifCounterDiscontinuityTime.
+              preprocessing:
+                - type: CHANGE_PER_SECOND
+                  parameters:
+                    - ''
+              tags:
+                - tag: Application
+                  value: 'Interface {#IFNAME}({#IFALIAS})'
+            - uuid: 82faacc0824d4c859cbefc77bf772a2e
+              name: 'Interface {#IFNAME}({#IFALIAS}): Bits received'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.2.1.31.1.1.1.6.{#SNMPINDEX}'
+              key: 'net.if.in[ifHCInOctets.{#SNMPINDEX}]'
+              delay: 3m
+              history: 7d
+              units: bps
+              description: |
+                MIB: IF-MIB
+                The total number of octets received on the interface, including framing characters. This object is a 64-bit version of ifInOctets. Discontinuities in the value of this counter can occur at re-initialization of the management system, and at other times as indicated by the value of ifCounterDiscontinuityTime.
+              preprocessing:
+                - type: CHANGE_PER_SECOND
+                  parameters:
+                    - ''
+                - type: MULTIPLIER
+                  parameters:
+                    - '8'
+              tags:
+                - tag: Application
+                  value: 'Interface {#IFNAME}({#IFALIAS})'
+            - uuid: cfedf729fa904eb1957813996efceacb
+              name: 'Interface {#IFNAME}({#IFALIAS}): Outbound packets discarded'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.2.1.2.2.1.19.{#SNMPINDEX}'
+              key: 'net.if.out.discards[ifOutDiscards.{#SNMPINDEX}]'
+              delay: 3m
+              history: 7d
+              description: |
+                MIB: IF-MIB
+                The number of outbound packets which were chosen to be discarded
+                even though no errors had been detected to prevent their being deliverable to a higher-layer protocol.
+                One possible reason for discarding such a packet could be to free up buffer space.
+                Discontinuities in the value of this counter can occur at re-initialization of the management system,
+                and at other times as indicated by the value of ifCounterDiscontinuityTime.
+              preprocessing:
+                - type: CHANGE_PER_SECOND
+                  parameters:
+                    - ''
+              tags:
+                - tag: Application
+                  value: 'Interface {#IFNAME}({#IFALIAS})'
+            - uuid: e2d64c93bbfb4836a276a8714ee94bde
+              name: 'Interface {#IFNAME}({#IFALIAS}): Outbound packets with errors'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.2.1.2.2.1.20.{#SNMPINDEX}'
+              key: 'net.if.out.errors[ifOutErrors.{#SNMPINDEX}]'
+              delay: 3m
+              history: 7d
+              description: |
+                MIB: IF-MIB
+                For packet-oriented interfaces, the number of outbound packets that contained errors preventing them from being deliverable to a higher-layer protocol.  For character-oriented or fixed-length interfaces, the number of outbound transmission units that contained errors preventing them from being deliverable to a higher-layer protocol. Discontinuities in the value of this counter can occur at re-initialization of the management system, and at other times as indicated by the value of ifCounterDiscontinuityTime.
+              preprocessing:
+                - type: CHANGE_PER_SECOND
+                  parameters:
+                    - ''
+              tags:
+                - tag: Application
+                  value: 'Interface {#IFNAME}({#IFALIAS})'
+            - uuid: e3cdbf0c5b184e20aebd2904a58e2827
+              name: 'Interface {#IFNAME}({#IFALIAS}): Bits sent'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.2.1.31.1.1.1.10.{#SNMPINDEX}'
+              key: 'net.if.out[ifHCOutOctets.{#SNMPINDEX}]'
+              delay: 3m
+              history: 7d
+              units: bps
+              description: |
+                MIB: IF-MIB
+                The total number of octets transmitted out of the interface, including framing characters. This object is a 64-bit version of ifOutOctets.Discontinuities in the value of this counter can occur at re-initialization of the management system, and at other times as indicated by the value of ifCounterDiscontinuityTime.
+              preprocessing:
+                - type: CHANGE_PER_SECOND
+                  parameters:
+                    - ''
+                - type: MULTIPLIER
+                  parameters:
+                    - '8'
+              tags:
+                - tag: Application
+                  value: 'Interface {#IFNAME}({#IFALIAS})'
+            - uuid: 826491a57f234f63b6435611fa96aa5a
+              name: 'Interface {#IFNAME}({#IFALIAS}): Speed'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.2.1.31.1.1.1.15.{#SNMPINDEX}'
+              key: 'net.if.speed[ifHighSpeed.{#SNMPINDEX}]'
+              delay: 5m
+              history: 7d
+              trends: 0d
+              units: bps
+              description: |
+                MIB: IF-MIB
+                An estimate of the interface's current bandwidth in units of 1,000,000 bits per second. If this object reports a value of `n' then the speed of the interface is somewhere in the range of `n-500,000' to`n+499,999'.  For interfaces which do not vary in bandwidth or for those where no accurate estimation can be made, this object should contain the nominal bandwidth. For a sub-layer which has no concept of bandwidth, this object should be zero.
+              preprocessing:
+                - type: MULTIPLIER
+                  parameters:
+                    - '1000000'
+                - type: DISCARD_UNCHANGED_HEARTBEAT
+                  parameters:
+                    - 1h
+              tags:
+                - tag: Application
+                  value: 'Interface {#IFNAME}({#IFALIAS})'
+            - uuid: 9808200a0dba424c983ec95c4474d255
+              name: 'Interface {#IFNAME}({#IFALIAS}): Operational status'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.2.1.2.2.1.8.{#SNMPINDEX}'
+              key: 'net.if.status[ifOperStatus.{#SNMPINDEX}]'
+              history: 7d
+              trends: '0'
+              description: |
+                MIB: IF-MIB
+                The current operational state of the interface.
+                - The testing(3) state indicates that no operational packet scan be passed
+                - If ifAdminStatus is down(2) then ifOperStatus should be down(2)
+                - If ifAdminStatus is changed to up(1) then ifOperStatus should change to up(1) if the interface is ready to transmit and receive network traffic
+                - It should change todormant(5) if the interface is waiting for external actions (such as a serial line waiting for an incoming connection)
+                - It should remain in the down(2) state if and only if there is a fault that prevents it from going to the up(1) state
+                - It should remain in the notPresent(6) state if the interface has missing(typically, hardware) components.
+              valuemap:
+                name: 'IF-MIB::ifOperStatus'
+              tags:
+                - tag: Application
+                  value: 'Interface {#IFNAME}({#IFALIAS})'
+              trigger_prototypes:
+                - uuid: ff5888b8c002483590a09aaa31265f89
+                  expression: '{$IFCONTROL:"{#IFNAME}"}=1 and last(/Tenable Scan JSON and SNMP/net.if.status[ifOperStatus.{#SNMPINDEX}])=2 and (last(/Tenable Scan JSON and SNMP/net.if.status[ifOperStatus.{#SNMPINDEX}],#1)<>last(/Tenable Scan JSON and SNMP/net.if.status[ifOperStatus.{#SNMPINDEX}],#2))'
+                  recovery_mode: RECOVERY_EXPRESSION
+                  recovery_expression: 'last(/Tenable Scan JSON and SNMP/net.if.status[ifOperStatus.{#SNMPINDEX}])<>2 or {$IFCONTROL:"{#IFNAME}"}=0'
+                  name: 'Interface {#IFNAME}({#IFALIAS}): Link down'
+                  opdata: 'Current state: {ITEM.LASTVALUE1}'
+                  priority: DISASTER
+                  description: |
+                    This trigger expression works as follows:
+                    1. Can be triggered if operations status is down.
+                    2. {$IFCONTROL:"{#IFNAME}"}=1 - user can redefine Context macro to value - 0. That marks this interface as not important. No new trigger will be fired if this interface is down.
+                    3. {TEMPLATE_NAME:METRIC.diff()}=1) - trigger fires only if operational status was up(1) sometime before. (So, do not fire 'ethernal off' interfaces.)
+                    
+                    WARNING: if closed manually - won't fire again on next poll, because of .diff.
+                  manual_close: 'YES'
+            - uuid: cd370f88ebe447caa3fb8cc15535dff3
+              name: 'Interface {#IFNAME}({#IFALIAS}): Interface type'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.2.1.2.2.1.3.{#SNMPINDEX}'
+              key: 'net.if.type[ifType.{#SNMPINDEX}]'
+              delay: 1h
+              history: 7d
+              trends: 0d
+              description: |
+                MIB: IF-MIB
+                The type of interface.
+                Additional values for ifType are assigned by the Internet Assigned NumbersAuthority (IANA),
+                through updating the syntax of the IANAifType textual convention.
+              preprocessing:
+                - type: DISCARD_UNCHANGED_HEARTBEAT
+                  parameters:
+                    - 1d
+              tags:
+                - tag: Application
+                  value: 'Interface {#IFNAME}({#IFALIAS})'
+          trigger_prototypes:
+            - uuid: 4baca41d083c40fda5e8dc76ff5af658
+              expression: |
+                change(/Tenable Scan JSON and SNMP/net.if.speed[ifHighSpeed.{#SNMPINDEX}])<0 and last(/Tenable Scan JSON and SNMP/net.if.speed[ifHighSpeed.{#SNMPINDEX}])>0
+                and (
+                last(/Tenable Scan JSON and SNMP/net.if.type[ifType.{#SNMPINDEX}])=6 or
+                last(/Tenable Scan JSON and SNMP/net.if.type[ifType.{#SNMPINDEX}])=7 or
+                last(/Tenable Scan JSON and SNMP/net.if.type[ifType.{#SNMPINDEX}])=11 or
+                last(/Tenable Scan JSON and SNMP/net.if.type[ifType.{#SNMPINDEX}])=62 or
+                last(/Tenable Scan JSON and SNMP/net.if.type[ifType.{#SNMPINDEX}])=69 or
+                last(/Tenable Scan JSON and SNMP/net.if.type[ifType.{#SNMPINDEX}])=117
+                )
+                and
+                (last(/Tenable Scan JSON and SNMP/net.if.status[ifOperStatus.{#SNMPINDEX}])<>2)
+              recovery_mode: RECOVERY_EXPRESSION
+              recovery_expression: |
+                (change(/Tenable Scan JSON and SNMP/net.if.speed[ifHighSpeed.{#SNMPINDEX}])>0 and last(/Tenable Scan JSON and SNMP/net.if.speed[ifHighSpeed.{#SNMPINDEX}],#2)>0) or
+                (last(/Tenable Scan JSON and SNMP/net.if.status[ifOperStatus.{#SNMPINDEX}])=2)
+              name: 'Interface {#IFNAME}({#IFALIAS}): Ethernet has changed to lower speed than it was before'
+              opdata: 'Current reported speed: {ITEM.LASTVALUE1}'
+              priority: INFO
+              description: 'This Ethernet connection has transitioned down from its known maximum speed. This might be a sign of autonegotiation issues. Ack to close.'
+              manual_close: 'YES'
+              dependencies:
+                - name: 'Interface {#IFNAME}({#IFALIAS}): Link down'
+                  expression: '{$IFCONTROL:"{#IFNAME}"}=1 and last(/Tenable Scan JSON and SNMP/net.if.status[ifOperStatus.{#SNMPINDEX}])=2 and (last(/Tenable Scan JSON and SNMP/net.if.status[ifOperStatus.{#SNMPINDEX}],#1)<>last(/Tenable Scan JSON and SNMP/net.if.status[ifOperStatus.{#SNMPINDEX}],#2))'
+                  recovery_expression: 'last(/Tenable Scan JSON and SNMP/net.if.status[ifOperStatus.{#SNMPINDEX}])<>2 or {$IFCONTROL:"{#IFNAME}"}=0'
+            - uuid: e0ed911f933c41728874a95263f6a369
+              expression: |
+                (avg(/Tenable Scan JSON and SNMP/net.if.in[ifHCInOctets.{#SNMPINDEX}],15m)>({$IF.UTIL.MAX:"{#IFNAME}"}/100)*last(/Tenable Scan JSON and SNMP/net.if.speed[ifHighSpeed.{#SNMPINDEX}]) or
+                avg(/Tenable Scan JSON and SNMP/net.if.out[ifHCOutOctets.{#SNMPINDEX}],15m)>({$IF.UTIL.MAX:"{#IFNAME}"}/100)*last(/Tenable Scan JSON and SNMP/net.if.speed[ifHighSpeed.{#SNMPINDEX}])) and
+                last(/Tenable Scan JSON and SNMP/net.if.speed[ifHighSpeed.{#SNMPINDEX}])>0
+              recovery_mode: RECOVERY_EXPRESSION
+              recovery_expression: |
+                avg(/Tenable Scan JSON and SNMP/net.if.in[ifHCInOctets.{#SNMPINDEX}],15m)<(({$IF.UTIL.MAX:"{#IFNAME}"}-3)/100)*last(/Tenable Scan JSON and SNMP/net.if.speed[ifHighSpeed.{#SNMPINDEX}]) and
+                avg(/Tenable Scan JSON and SNMP/net.if.out[ifHCOutOctets.{#SNMPINDEX}],15m)<(({$IF.UTIL.MAX:"{#IFNAME}"}-3)/100)*last(/Tenable Scan JSON and SNMP/net.if.speed[ifHighSpeed.{#SNMPINDEX}])
+              name: 'Interface {#IFNAME}({#IFALIAS}): High bandwidth usage (>{$IF.UTIL.MAX:"{#IFNAME}"}% )'
+              opdata: 'In: {ITEM.LASTVALUE1}, out: {ITEM.LASTVALUE3}, speed: {ITEM.LASTVALUE2}'
+              priority: WARNING
+              description: 'The network interface utilization is close to its estimated maximum bandwidth.'
+              manual_close: 'YES'
+              dependencies:
+                - name: 'Interface {#IFNAME}({#IFALIAS}): Link down'
+                  expression: '{$IFCONTROL:"{#IFNAME}"}=1 and last(/Tenable Scan JSON and SNMP/net.if.status[ifOperStatus.{#SNMPINDEX}])=2 and (last(/Tenable Scan JSON and SNMP/net.if.status[ifOperStatus.{#SNMPINDEX}],#1)<>last(/Tenable Scan JSON and SNMP/net.if.status[ifOperStatus.{#SNMPINDEX}],#2))'
+                  recovery_expression: 'last(/Tenable Scan JSON and SNMP/net.if.status[ifOperStatus.{#SNMPINDEX}])<>2 or {$IFCONTROL:"{#IFNAME}"}=0'
+            - uuid: b54686a9881440109afc8ec490ce130c
+              expression: |
+                min(/Tenable Scan JSON and SNMP/net.if.in.errors[ifInErrors.{#SNMPINDEX}],5m)>{$IF.ERRORS.WARN:"{#IFNAME}"}
+                or min(/Tenable Scan JSON and SNMP/net.if.out.errors[ifOutErrors.{#SNMPINDEX}],5m)>{$IF.ERRORS.WARN:"{#IFNAME}"}
+              recovery_mode: RECOVERY_EXPRESSION
+              recovery_expression: |
+                max(/Tenable Scan JSON and SNMP/net.if.in.errors[ifInErrors.{#SNMPINDEX}],5m)<{$IF.ERRORS.WARN:"{#IFNAME}"}*0.8
+                and max(/Tenable Scan JSON and SNMP/net.if.out.errors[ifOutErrors.{#SNMPINDEX}],5m)<{$IF.ERRORS.WARN:"{#IFNAME}"}*0.8
+              name: 'Interface {#IFNAME}({#IFALIAS}): High error rate (>{$IF.ERRORS.WARN:"{#IFNAME}"} for 5m)'
+              opdata: 'errors in: {ITEM.LASTVALUE1}, errors out: {ITEM.LASTVALUE2}'
+              priority: WARNING
+              description: 'Recovers when below 80% of {$IF.ERRORS.WARN:"{#IFNAME}"} threshold'
+              manual_close: 'YES'
+              dependencies:
+                - name: 'Interface {#IFNAME}({#IFALIAS}): Link down'
+                  expression: '{$IFCONTROL:"{#IFNAME}"}=1 and last(/Tenable Scan JSON and SNMP/net.if.status[ifOperStatus.{#SNMPINDEX}])=2 and (last(/Tenable Scan JSON and SNMP/net.if.status[ifOperStatus.{#SNMPINDEX}],#1)<>last(/Tenable Scan JSON and SNMP/net.if.status[ifOperStatus.{#SNMPINDEX}],#2))'
+                  recovery_expression: 'last(/Tenable Scan JSON and SNMP/net.if.status[ifOperStatus.{#SNMPINDEX}])<>2 or {$IFCONTROL:"{#IFNAME}"}=0'
+          graph_prototypes:
+            - uuid: 4443a33f87114dbb90df77e4096f4f0e
+              name: 'Interface {#IFNAME}({#IFALIAS}): Network traffic'
+              graph_items:
+                - drawtype: GRADIENT_LINE
+                  color: 1A7C11
+                  item:
+                    host: 'Tenable Scan JSON and SNMP'
+                    key: 'net.if.in[ifHCInOctets.{#SNMPINDEX}]'
+                - sortorder: '1'
+                  drawtype: BOLD_LINE
+                  color: 2774A4
+                  item:
+                    host: 'Tenable Scan JSON and SNMP'
+                    key: 'net.if.out[ifHCOutOctets.{#SNMPINDEX}]'
+                - sortorder: '2'
+                  color: F63100
+                  yaxisside: RIGHT
+                  item:
+                    host: 'Tenable Scan JSON and SNMP'
+                    key: 'net.if.out.errors[ifOutErrors.{#SNMPINDEX}]'
+                - sortorder: '3'
+                  color: A54F10
+                  yaxisside: RIGHT
+                  item:
+                    host: 'Tenable Scan JSON and SNMP'
+                    key: 'net.if.in.errors[ifInErrors.{#SNMPINDEX}]'
+                - sortorder: '4'
+                  color: FC6EA3
+                  yaxisside: RIGHT
+                  item:
+                    host: 'Tenable Scan JSON and SNMP'
+                    key: 'net.if.out.discards[ifOutDiscards.{#SNMPINDEX}]'
+                - sortorder: '5'
+                  color: 6C59DC
+                  yaxisside: RIGHT
+                  item:
+                    host: 'Tenable Scan JSON and SNMP'
+                    key: 'net.if.in.discards[ifInDiscards.{#SNMPINDEX}]'
+        - uuid: d057f41580b248f7a65389dccc2917f0
+          name: 'Tenable Scan Discovery'
+          type: DEPENDENT
+          key: tenable.scan.discovery
+          delay: '0'
+          lifetime: 1h
+          enabled_lifetime_type: DISABLE_NEVER
+          item_prototypes:
+            - uuid: 741287e593aa430b9cb69544aa16fb69
+              name: 'SCAN - {#HOST} - {#RISK} - {#PLUGIN}'
+              type: CALCULATED
+              key: 'scan.[{#SCANID},{#NO}]'
+              delay: 30m
+              value_type: TEXT
+              trends: '0'
+              params: '{#RISK}'
+              description: |
+                Host - ScanID: {#HOST} - {#SCANID}
+                Segment: {#SEGMENT}
+                VLAN: {#VLAN}
+                Plugin: {#PLUGIN}
+                CVEs: {#CVES}
+                Description: {#DESC}
+              tags:
+                - tag: Application
+                  value: 'Tenable Scan'
+              trigger_prototypes:
+                - uuid: d4407038ac4f4194af62baa0bce4c1a8
+                  expression: 'last(/Tenable Scan JSON and SNMP/scan.[{#SCANID},{#NO}])="High" or last(/Tenable Scan JSON and SNMP/scan.[{#SCANID},{#NO}])="Critical"'
+                  name: '{#HOST} - {#RISK} - {#PLUGIN}'
+                  priority: AVERAGE
+                  description: |
+                    Host - ScanID: {#HOST} - {#SCANID}
+                    Segment: {#SEGMENT}
+                    VLAN: {#VLAN}
+                    Plugin: {#PLUGIN}
+                    CVEs: {#CVES}
+                    Description: {#DESC}
+                  manual_close: 'YES'
+          master_item:
+            key: tenable.json.bulk.item
+          lld_macro_paths:
+            - lld_macro: '{#CVES}'
+              path: $.CVEs
+            - lld_macro: '{#DESC}'
+              path: $.Description
+            - lld_macro: '{#HOST}'
+              path: $.Host
+            - lld_macro: '{#NO}'
+              path: $.No
+            - lld_macro: '{#PLUGIN}'
+              path: $.Plugin
+            - lld_macro: '{#RISK}'
+              path: $.Risk
+            - lld_macro: '{#SCANID}'
+              path: $.ScanID
+            - lld_macro: '{#SEGMENT}'
+              path: $.Segment
+            - lld_macro: '{#VLAN}'
+              path: $.Vlan
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.body
+            - type: JAVASCRIPT
+              parameters:
+                - |
+                  var s = (value || "");
+                  // UTF-8 BOM varsa kaldır
+                  s = s.replace(/^\uFEFF/, "");
+                  // JSON başlangıcını bul (başta çöp karakter varsa kes)
+                  var i = s.search(/[\[\{]/);
+                  if (i > 0) s = s.substring(i);
+                  
+                  // Şimdi string JSON'u dizi/obje olarak parse et
+                  var data = JSON.parse(s);
+                  
+                  // Dizi/obje olarak bir SONRAKİ adıma geçmesi için tekrar stringle
+                  return JSON.stringify(data);
+            - type: JSONPATH
+              parameters:
+                - '$[*]'
+      macros:
+        - macro: '{$CPU.UTIL.CRIT}'
+          value: '90'
+        - macro: '{$CPU.UTIL.HIGH}'
+          value: '80'
+        - macro: '{$ICMP_LOSS_WARN}'
+          value: '20'
+        - macro: '{$ICMP_RESPONSE_TIME_WARN}'
+          value: '0.15'
+        - macro: '{$IF.ERRORS.WARN}'
+          value: '2'
+        - macro: '{$IF.UTIL.MAX}'
+          value: '90'
+        - macro: '{$IFCONTROL}'
+          value: '1'
+        - macro: '{$MEMORY.UTIL.CRIT}'
+          value: '90'
+        - macro: '{$MEMORY.UTIL.HIGH}'
+          value: '80'
+        - macro: '{$NET.IF.IFADMINSTATUS.MATCHES}'
+          value: '^.*'
+          description: 'Ignore notPresent(6)'
+        - macro: '{$NET.IF.IFADMINSTATUS.NOT_MATCHES}'
+          value: ^2$
+          description: 'Ignore down(2) administrative status'
+        - macro: '{$NET.IF.IFALIAS.MATCHES}'
+          value: '.*'
+        - macro: '{$NET.IF.IFALIAS.NOT_MATCHES}'
+          value: CHANGE_IF_NEEDED
+        - macro: '{$NET.IF.IFDESCR.MATCHES}'
+          value: '.*'
+        - macro: '{$NET.IF.IFDESCR.NOT_MATCHES}'
+          value: CHANGE_IF_NEEDED
+        - macro: '{$NET.IF.IFNAME.MATCHES}'
+          value: '^.*$'
+        - macro: '{$NET.IF.IFNAME.NOT_MATCHES}'
+          value: '(^Software Loopback Interface|^NULL[0-9.]*$|^[Ll]o[0-9.]*$|^[Ss]ystem$|^Nu[0-9.]*$|^veth[0-9a-z]+$|docker[0-9]+|br-[a-z0-9]{12})'
+          description: 'Filter out loopbacks, nulls, docker veth links and docker0 bridge by default'
+        - macro: '{$NET.IF.IFOPERSTATUS.MATCHES}'
+          value: '^.*$'
+        - macro: '{$NET.IF.IFOPERSTATUS.NOT_MATCHES}'
+          value: ^6$
+          description: 'Ignore notPresent(6)'
+        - macro: '{$NET.IF.IFTYPE.MATCHES}'
+          value: '.*'
+        - macro: '{$NET.IF.IFTYPE.NOT_MATCHES}'
+          value: CHANGE_IF_NEEDED
+        - macro: '{$SNMP.TIMEOUT}'
+          value: 5m
+        - macro: '{$SNMP_COMMUNITY}'
+          value: public
+        - macro: '{$TENABLE.URL}'
+          value: 'https://tenable.company.local/combined_critical_high.json'
+      valuemaps:
+        - uuid: 828f31f54884425e8a8e72e55240321b
+          name: 'IF-MIB::ifOperStatus'
+          mappings:
+            - value: '1'
+              newvalue: up
+            - value: '2'
+              newvalue: down
+            - value: '4'
+              newvalue: unknown
+            - value: '5'
+              newvalue: dormant
+            - value: '6'
+              newvalue: notPresent
+            - value: '7'
+              newvalue: lowerLayerDown
+        - uuid: 76e13ce156814b61a1b175842e1084c7
+          name: 'IF-MIB::ifType'
+          mappings:
+            - value: '1'
+              newvalue: other
+            - value: '2'
+              newvalue: regular1822
+            - value: '3'
+              newvalue: hdh1822
+            - value: '4'
+              newvalue: ddnX25
+            - value: '5'
+              newvalue: rfc877x25
+            - value: '6'
+              newvalue: ethernetCsmacd
+            - value: '26'
+              newvalue: ethernet3Mbit
+            - value: '56'
+              newvalue: fibreChannel
+            - value: '62'
+              newvalue: fastEther
+            - value: '71'
+              newvalue: ieee80211
+            - value: '117'
+              newvalue: gigabitEthernet
+        - uuid: 5cfbe9e615fa47748fe50aed59b7b47d
+          name: 'Service state'
+          mappings:
+            - value: '0'
+              newvalue: Down
+            - value: '1'
+              newvalue: Up
+        - uuid: d4798a230310464fba060b63364a2879
+          name: zabbix.host.available
+          mappings:
+            - value: '0'
+              newvalue: 'not available'
+            - value: '1'
+              newvalue: available
+            - value: '2'
+              newvalue: unknown
