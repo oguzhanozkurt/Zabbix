@@ -1,0 +1,725 @@
+zabbix_export:
+  version: '7.0'
+  template_groups:
+    - uuid: a571c0d144b14fd4a87a9d9b2aa9fcd6
+      name: Templates/Applications
+  templates:
+    - uuid: e8bdafe468cf45fc8fee6d033bcf1db1
+      template: 'Veritas Event ID Monitoring'
+      name: 'Veritas Event ID Monitoring'
+      groups:
+        - name: Templates/Applications
+      items:
+        - uuid: 5085baedce284f319d1ddd399dfa2fc7
+          name: '4146 Out Of Disk Space-2'
+          type: ZABBIX_ACTIVE
+          key: 'eventlog["Arctera Enterprise Vault",,,,(\b4146\b),,skip]'
+          delay: 15m
+          history: 90d
+          value_type: LOG
+          trends: '0'
+          tags:
+            - tag: Monitoring
+              value: EventID
+          triggers:
+            - uuid: 42741ac2a4404ad89b03edc45261edc7
+              expression: 'logeventid(/Veritas Event ID Monitoring/eventlog["Arctera Enterprise Vault",,,,(\b4146\b),,skip])=1'
+              name: '{HOST.NAME} EventID:4146 - Out Of Disk Space'
+              priority: HIGH
+              manual_close: 'YES'
+              tags:
+                - tag: Monitoring
+                  value: EventID
+        - uuid: 7ca14150f6e543e7b129187927734453
+          name: '2209 initialize MAPI sub-system'
+          type: ZABBIX_ACTIVE
+          key: 'eventlog["Arctera Enterprise Vault",,,,2209,,skip]'
+          delay: 15m
+          history: 90d
+          value_type: LOG
+          trends: '0'
+          tags:
+            - tag: Monitoring
+              value: EventID
+          triggers:
+            - uuid: a8f13e1bfcb34643b1634ec8c911c587
+              expression: 'logeventid(/Veritas Event ID Monitoring/eventlog["Arctera Enterprise Vault",,,,2209,,skip])=1'
+              name: '{HOST.NAME} EventID:2209 - Failed to initialize the MAPI sub-system'
+              priority: HIGH
+              manual_close: 'YES'
+              tags:
+                - tag: Monitoring
+                  value: EventID
+        - uuid: 2a156cf9a40f4e7c922e8ee1c245ea34
+          name: '2210 initialize COM sub-system'
+          type: ZABBIX_ACTIVE
+          key: 'eventlog["Arctera Enterprise Vault",,,,2210,,skip]'
+          delay: 15m
+          history: 90d
+          value_type: LOG
+          trends: '0'
+          tags:
+            - tag: Monitoring
+              value: EventID
+          triggers:
+            - uuid: 26b86e4886c94e4892c68dc7f6d4890d
+              expression: 'logeventid(/Veritas Event ID Monitoring/eventlog["Arctera Enterprise Vault",,,,2210,,skip])=1'
+              name: '{HOST.NAME} EventID:2210 - Failed to initialize the COM sub-system'
+              priority: HIGH
+              manual_close: 'YES'
+              tags:
+                - tag: Monitoring
+                  value: EventID
+        - uuid: e3ceaac8fc4d4ccf92a14743590157e8
+          name: '2247 whilst processing the Journal mailbox'
+          type: ZABBIX_ACTIVE
+          key: 'eventlog["Arctera Enterprise Vault",,,,2247,,skip]'
+          delay: 15m
+          history: 90d
+          value_type: LOG
+          trends: '0'
+          tags:
+            - tag: Monitoring
+              value: EventID
+          triggers:
+            - uuid: a6586d0b9c9649f39ae0113bead7968f
+              expression: 'logeventid(/Veritas Event ID Monitoring/eventlog["Arctera Enterprise Vault",,,,2247,,skip])=1'
+              name: '{HOST.NAME} EventID:2247 - An error occurred whilst processing the Journal mailbox , this mailbox is disabled or suspended from archiving, the Journal Task will shut down.'
+              priority: HIGH
+              manual_close: 'YES'
+              tags:
+                - tag: Monitoring
+                  value: EventID
+        - uuid: 7fee4db4ba05439db4573a81da91aaae
+          name: '2257 Retrieval Task'
+          type: ZABBIX_ACTIVE
+          key: 'eventlog["Arctera Enterprise Vault",,,,2257,,skip]'
+          delay: 15m
+          history: 90d
+          value_type: LOG
+          trends: '0'
+          tags:
+            - tag: Monitoring
+              value: EventID
+          triggers:
+            - uuid: 7f7c4b1239b54bffb40e2b0655ce5009
+              expression: 'logeventid(/Veritas Event ID Monitoring/eventlog["Arctera Enterprise Vault",,,,2257,,skip])=1'
+              name: '{HOST.NAME} EventID:2257 - The Retrieval Task could not be started due to startup errors'
+              priority: HIGH
+              manual_close: 'YES'
+              tags:
+                - tag: Monitoring
+                  value: EventID
+        - uuid: da341c3959544e45b895ee6505f8cec8
+          name: '2258 Journal Task'
+          type: ZABBIX_ACTIVE
+          key: 'eventlog["Arctera Enterprise Vault",,,,2258,,skip]'
+          delay: 15m
+          history: 90d
+          value_type: LOG
+          trends: '0'
+          tags:
+            - tag: Monitoring
+              value: EventID
+          triggers:
+            - uuid: 3bc1b0270b8d4e3991074062a943d1a7
+              expression: 'logeventid(/Veritas Event ID Monitoring/eventlog["Arctera Enterprise Vault",,,,2258,,skip])=1'
+              name: '{HOST.NAME} EventID:2258 - The Journal Task could not be started due to startup errors'
+              priority: HIGH
+              manual_close: 'YES'
+              tags:
+                - tag: Monitoring
+                  value: EventID
+        - uuid: a5200569eab0483f9ec140626f8a4206
+          name: '2259 Could not open mailbox'
+          type: ZABBIX_ACTIVE
+          key: 'eventlog["Arctera Enterprise Vault",,,,2259,,skip]'
+          delay: 15m
+          history: 90d
+          value_type: LOG
+          trends: '0'
+          tags:
+            - tag: Monitoring
+              value: EventID
+          triggers:
+            - uuid: 82404fb6ee67498bb9f51e8ce14ebee5
+              expression: 'logeventid(/Veritas Event ID Monitoring/eventlog["Arctera Enterprise Vault",,,,2259,,skip])=1'
+              name: '{HOST.NAME} EventID:2259 - Could not open mailbox, mailbox will not be processed'
+              priority: HIGH
+              manual_close: 'YES'
+              tags:
+                - tag: Monitoring
+                  value: EventID
+        - uuid: 1f21da2dae994a09b3e1d189c99924a7
+          name: '2851 not enough free disk space'
+          type: ZABBIX_ACTIVE
+          key: 'eventlog["Arctera Enterprise Vault",,,,2851,,skip]'
+          delay: 15m
+          history: 90d
+          value_type: LOG
+          trends: '0'
+          tags:
+            - tag: Monitoring
+              value: EventID
+          triggers:
+            - uuid: 9fb898f198164102b6da72eb4376e884
+              expression: 'logeventid(/Veritas Event ID Monitoring/eventlog["Arctera Enterprise Vault",,,,2851,,skip])=1'
+              name: '{HOST.NAME} EventID:2851 - There is not enough free disk space to continue.'
+              priority: HIGH
+              manual_close: 'YES'
+              tags:
+                - tag: Monitoring
+                  value: EventID
+        - uuid: 4f51fc8654c141e98a589601a04a73e2
+          name: '3039 Could not get a MAPI session'
+          type: ZABBIX_ACTIVE
+          key: 'eventlog["Arctera Enterprise Vault",,,,3039,,skip]'
+          delay: 15m
+          history: 90d
+          value_type: LOG
+          trends: '0'
+          tags:
+            - tag: Monitoring
+              value: EventID
+          triggers:
+            - uuid: d7a7fc2dac8849b78928edf9eafdd1af
+              expression: 'logeventid(/Veritas Event ID Monitoring/eventlog["Arctera Enterprise Vault",,,,3039,,skip])=1'
+              name: '{HOST.NAME} EventID:3039 - Could not get a MAPI session from the session pool whilst retrieving an item to a mailbox'
+              priority: HIGH
+              manual_close: 'YES'
+              tags:
+                - tag: Monitoring
+                  value: EventID
+        - uuid: cae653665e1d4a4497346d80d2e56922
+          name: '3087 error during Task Initialization'
+          type: ZABBIX_ACTIVE
+          key: 'eventlog["Arctera Enterprise Vault",,,,3087,,skip]'
+          delay: 15m
+          history: 90d
+          value_type: LOG
+          trends: '0'
+          tags:
+            - tag: Monitoring
+              value: EventID
+          triggers:
+            - uuid: cb2c8a2549844860a464750f6d068687
+              expression: 'logeventid(/Veritas Event ID Monitoring/eventlog["Arctera Enterprise Vault",,,,3087,,skip])=1'
+              name: '{HOST.NAME} EventID:3087 - An error occurred during Task Initialization, the Task has shut down'
+              priority: HIGH
+              manual_close: 'YES'
+              tags:
+                - tag: Monitoring
+                  value: EventID
+        - uuid: 87126ac9ed884006a09922ca3dbcfefa
+          name: '3228 Journal mailbox resolved'
+          type: ZABBIX_ACTIVE
+          key: 'eventlog["Arctera Enterprise Vault",,,,3228,,skip]'
+          delay: 10m
+          history: 90d
+          value_type: LOG
+          trends: '0'
+          tags:
+            - tag: Monitoring
+              value: EventID
+        - uuid: fafe7e66602b41f49fe6fe1f49fc332e
+          name: '3229 Journal mailbox has a backlog'
+          type: ZABBIX_ACTIVE
+          key: 'eventlog["Arctera Enterprise Vault",,,,3229,,skip]'
+          delay: 15m
+          history: 90d
+          value_type: LOG
+          trends: '0'
+          tags:
+            - tag: Monitoring
+              value: EventID
+        - uuid: 41cb96621d14484bbf45bfe57b207cc4
+          name: '3289 Task Controller Service resolved'
+          type: ZABBIX_ACTIVE
+          key: 'eventlog["Arctera Enterprise Vault",,,,3289,,skip]'
+          delay: 10m
+          history: 90d
+          value_type: LOG
+          trends: '0'
+          tags:
+            - tag: Monitoring
+              value: EventID
+        - uuid: 82d0c906470c4591b3af31e550f5417c
+          name: '3290 Task Controller Service stopped'
+          type: ZABBIX_ACTIVE
+          key: 'eventlog["Arctera Enterprise Vault",,,,3290,,skip]'
+          delay: 15m
+          history: 90d
+          value_type: LOG
+          trends: '0'
+          tags:
+            - tag: Monitoring
+              value: EventID
+        - uuid: 4e148979d9434351bf43f0bedb95d8d1
+          name: '3295 Journal Task has stopped'
+          type: ZABBIX_ACTIVE
+          key: 'eventlog["Arctera Enterprise Vault",,,,3295,,skip]'
+          delay: 15m
+          history: 90d
+          value_type: LOG
+          trends: '0'
+          tags:
+            - tag: Monitoring
+              value: EventID
+        - uuid: f1a5d500c1674418bc0034d6ff2904d4
+          name: '3298 Journal Task has resolved'
+          type: ZABBIX_ACTIVE
+          key: 'eventlog["Arctera Enterprise Vault",,,,3298,,skip]'
+          delay: 10m
+          history: 90d
+          value_type: LOG
+          trends: '0'
+          status: DISABLED
+          tags:
+            - tag: Monitoring
+              value: EventID
+        - uuid: b9f2263b59cb4432a59b4765ffde2f48
+          name: '3460 The Task ''taskName'' failed to log on to Exchange server'
+          type: ZABBIX_ACTIVE
+          key: 'eventlog["Arctera Enterprise Vault",,,,3460,,skip]'
+          delay: 15m
+          history: 90d
+          value_type: LOG
+          trends: '0'
+          tags:
+            - tag: Monitoring
+              value: EventID
+          triggers:
+            - uuid: 4464909f0907466fa5b48258534b3cb7
+              expression: 'logeventid(/Veritas Event ID Monitoring/eventlog["Arctera Enterprise Vault",,,,3460,,skip])=1'
+              name: '{HOST.NAME} EventID:3460 - The Task failed to log on to Exchange server using mailbox'
+              priority: HIGH
+              manual_close: 'YES'
+              tags:
+                - tag: Monitoring
+                  value: EventID
+        - uuid: bbc790563b8f4c08b366454a025c4d49
+          name: '4110 The Admin Service resolved'
+          type: ZABBIX_ACTIVE
+          key: 'eventlog["Arctera Enterprise Vault",,,,4110,,skip]'
+          delay: 10m
+          history: 90d
+          value_type: LOG
+          trends: '0'
+          tags:
+            - tag: Monitoring
+              value: EventID
+        - uuid: 4d6473dbf65e4c8e9d355190ecd1c2b2
+          name: '4111 The Admin Service has stopped'
+          type: ZABBIX_ACTIVE
+          key: 'eventlog["Arctera Enterprise Vault",,,,4111,,skip]'
+          delay: 15m
+          history: 90d
+          value_type: LOG
+          trends: '0'
+          tags:
+            - tag: Monitoring
+              value: EventID
+        - uuid: c62ba64a4ac54056abbf1443f469f0ba
+          name: '4141 Insufficient Disk Space-1'
+          type: ZABBIX_ACTIVE
+          key: 'eventlog["Arctera Enterprise Vault",,,,4141,,skip]'
+          delay: 15m
+          history: 90d
+          value_type: LOG
+          trends: '0'
+          tags:
+            - tag: Monitoring
+              value: EventID
+          triggers:
+            - uuid: 2873f51515b04242abfb5c37efd73c28
+              expression: 'logeventid(/Veritas Event ID Monitoring/eventlog["Arctera Enterprise Vault",,,,4141,,skip])=1'
+              name: '{HOST.NAME} EventID:4141 - Insufficient Disk Space'
+              priority: HIGH
+              manual_close: 'YES'
+              tags:
+                - tag: Monitoring
+                  value: EventID
+        - uuid: d2676fcec4894f56a13234f8e03788bc
+          name: '4142 Insufficient Disk Space-2'
+          type: ZABBIX_ACTIVE
+          key: 'eventlog["Arctera Enterprise Vault",,,,4142,,skip]'
+          delay: 15m
+          history: 90d
+          value_type: LOG
+          trends: '0'
+          tags:
+            - tag: Monitoring
+              value: EventID
+          triggers:
+            - uuid: 04b3e10ab89a42c08e4ac723e8bab9e5
+              expression: 'logeventid(/Veritas Event ID Monitoring/eventlog["Arctera Enterprise Vault",,,,4142,,skip])=1'
+              name: '{HOST.NAME} EventID:4142 - Insufficient Disk Space'
+              priority: HIGH
+              manual_close: 'YES'
+              tags:
+                - tag: Monitoring
+                  value: EventID
+        - uuid: 581ad5b24feb4cc4845cac799db62235
+          name: '4143 Insufficient Disk Space-3'
+          type: ZABBIX_ACTIVE
+          key: 'eventlog["Arctera Enterprise Vault",,,,4143,,skip]'
+          delay: 15m
+          history: 90d
+          value_type: LOG
+          trends: '0'
+          tags:
+            - tag: Monitoring
+              value: EventID
+          triggers:
+            - uuid: 45eb35bce0aa40ca8c7896c77be8ac4b
+              expression: 'logeventid(/Veritas Event ID Monitoring/eventlog["Arctera Enterprise Vault",,,,4143,,skip])=1'
+              name: '{HOST.NAME} EventID:4143 - Insufficient Disk Space'
+              priority: HIGH
+              manual_close: 'YES'
+              tags:
+                - tag: Monitoring
+                  value: EventID
+        - uuid: f5f33fd7d7a4474aa636b9ed1f501445
+          name: '4145 Out Of Disk Space-1'
+          type: ZABBIX_ACTIVE
+          key: 'eventlog["Arctera Enterprise Vault",,,,4145,,skip]'
+          delay: 15m
+          history: 90d
+          value_type: LOG
+          trends: '0'
+          tags:
+            - tag: Monitoring
+              value: EventID
+          triggers:
+            - uuid: 4230e710c0e84211bec24305d021bc3c
+              expression: 'logeventid(/Veritas Event ID Monitoring/eventlog["Arctera Enterprise Vault",,,,4145,,skip])=1'
+              name: '{HOST.NAME} EventID:4145 - Out Of Disk Space'
+              priority: HIGH
+              manual_close: 'YES'
+              tags:
+                - tag: Monitoring
+                  value: EventID
+        - uuid: ddac612a26ac46618acd06e2b0f31eb9
+          name: '4147 Out Of Disk Space-3'
+          type: ZABBIX_ACTIVE
+          key: 'eventlog["Arctera Enterprise Vault",,,,4147,,skip]'
+          delay: 15m
+          history: 90d
+          value_type: LOG
+          trends: '0'
+          tags:
+            - tag: Monitoring
+              value: EventID
+        - uuid: 99af9d8b9327463a8ff310ee8e51cdc4
+          name: '6221 Storage Service resolved'
+          type: ZABBIX_ACTIVE
+          key: 'eventlog["Arctera Enterprise Vault",,,,6221,,skip]'
+          delay: 10m
+          history: 90d
+          value_type: LOG
+          trends: '0'
+          status: DISABLED
+          tags:
+            - tag: Monitoring
+              value: EventID
+        - uuid: 4ae91e7faac24272912758e31f185552
+          name: '6222 Storage Service stopped'
+          type: ZABBIX_ACTIVE
+          key: 'eventlog["Arctera Enterprise Vault",,,,6222,,skip]'
+          delay: 15m
+          history: 90d
+          value_type: LOG
+          trends: '0'
+          tags:
+            - tag: Monitoring
+              value: EventID
+        - uuid: b8854e149c624b50a1e3bd138a010741
+          name: '7169 Indexing Service has stopped'
+          type: ZABBIX_ACTIVE
+          key: 'eventlog["Arctera Enterprise Vault",,,,7169,,skip]'
+          delay: 15m
+          history: 90d
+          value_type: LOG
+          trends: '0'
+          tags:
+            - tag: Monitoring
+              value: EventID
+          triggers:
+            - uuid: 090b53ab9d994086826df006796c144b
+              expression: 'logeventid(/Veritas Event ID Monitoring/eventlog["Arctera Enterprise Vault",,,,7169,,skip])=1'
+              name: '{HOST.NAME} EventID:7169 - Indexing Service has stopped'
+              priority: HIGH
+              manual_close: 'YES'
+              tags:
+                - tag: Monitoring
+                  value: EventID
+        - uuid: 957ae79988da49128db5bf9f0e43cf57
+          name: '8192 Directory Service resolved'
+          type: ZABBIX_ACTIVE
+          key: 'eventlog["Arctera Enterprise Vault",,,,8192,,skip]'
+          delay: 10m
+          history: 90d
+          value_type: LOG
+          trends: '0'
+          status: DISABLED
+          tags:
+            - tag: Monitoring
+              value: EventID
+        - uuid: aea9bd9a65584ba48a5a0edc3f2f68a6
+          name: '8193 Directory Service has stopped.'
+          type: ZABBIX_ACTIVE
+          key: 'eventlog["Arctera Enterprise Vault",,,,8193,,skip]'
+          delay: 15m
+          history: 90d
+          value_type: LOG
+          trends: '0'
+          tags:
+            - tag: Monitoring
+              value: EventID
+        - uuid: 8a435fca3f0e4469913b949923183acb
+          name: '13360 error Vault Database'
+          type: ZABBIX_ACTIVE
+          key: 'eventlog["Arctera Enterprise Vault",,,,13360,,skip]'
+          delay: 15m
+          history: 90d
+          value_type: LOG
+          trends: '0'
+          tags:
+            - tag: Monitoring
+              value: EventID
+          triggers:
+            - uuid: 86c91c31359f4f469dd203e9b8bd9449
+              expression: 'logeventid(/Veritas Event ID Monitoring/eventlog["Arctera Enterprise Vault",,,,13360,,skip])=1'
+              name: '{HOST.NAME} EventID:13360 - An error was detected while accessing the Vault Database'
+              priority: HIGH
+              manual_close: 'YES'
+              tags:
+                - tag: Monitoring
+                  value: EventID
+        - uuid: 14d65f5ca93b46bd84f1a5e0db1b856c
+          name: '29005 storage queue location is not accessible.'
+          type: ZABBIX_ACTIVE
+          key: 'eventlog["Arctera Enterprise Vault",,,,29005,,skip]'
+          delay: 15m
+          history: 90d
+          value_type: LOG
+          trends: '0'
+          tags:
+            - tag: Monitoring
+              value: EventID
+          triggers:
+            - uuid: 68a6b468ab56498f85063a81d9ee8082
+              expression: 'logeventid(/Veritas Event ID Monitoring/eventlog["Arctera Enterprise Vault",,,,29005,,skip])=1'
+              name: '{HOST.NAME} EventID:29005 - The storage queue location is not accessible.'
+              priority: HIGH
+              manual_close: 'YES'
+              tags:
+                - tag: Monitoring
+                  value: EventID
+        - uuid: c11a8981b6e94fcab85da592e4b206b3
+          name: '29013 Item has not been added to the storage queue'
+          type: ZABBIX_ACTIVE
+          key: 'eventlog["Arctera Enterprise Vault",,,,29013,,skip]'
+          delay: 15m
+          history: 90d
+          value_type: LOG
+          trends: '0'
+          tags:
+            - tag: Monitoring
+              value: EventID
+          triggers:
+            - uuid: 0fcb2848ac0845279941842d797e7594
+              expression: 'logeventid(/Veritas Event ID Monitoring/eventlog["Arctera Enterprise Vault",,,,29013,,skip])=1'
+              name: '{HOST.NAME} EventID:29013 - Item has not been added to the storage queue because the remaining disk space of the queue has breached its.'
+              priority: HIGH
+              manual_close: 'YES'
+              tags:
+                - tag: Monitoring
+                  value: EventID
+        - uuid: 3aac8fcd32064010bfe2b407cc03dcfb
+          name: '41285 Unscheduled tasks has resolved.'
+          type: ZABBIX_ACTIVE
+          key: 'eventlog["Arctera Enterprise Vault",,,,41285,,skip]'
+          delay: 15m
+          history: 90d
+          value_type: LOG
+          trends: '0'
+          tags:
+            - tag: Monitoring
+              value: EventID
+        - uuid: fd341e2a8a674fb28c8bc29c34b66c73
+          name: '41286 Unscheduled tasks.'
+          type: ZABBIX_ACTIVE
+          key: 'eventlog["Arctera Enterprise Vault",,,,41286,,skip]'
+          delay: 15m
+          history: 90d
+          value_type: LOG
+          trends: '0'
+          tags:
+            - tag: Monitoring
+              value: EventID
+        - uuid: 5a707628118d4ba2b692f380d9fccc01
+          name: '41446 Exchange mailbox synchronization has resolved.'
+          type: ZABBIX_ACTIVE
+          key: 'eventlog["Arctera Enterprise Vault",,,,41446,,skip]'
+          delay: 15m
+          history: 90d
+          value_type: LOG
+          trends: '0'
+          tags:
+            - tag: Monitoring
+              value: EventID
+        - uuid: f06be4a8ccb24663ac76dee7041d1ddb
+          name: '41447 Exchange mailbox sync not working.'
+          type: ZABBIX_ACTIVE
+          key: 'eventlog["Arctera Enterprise Vault",,,,41447,,skip]'
+          delay: 15m
+          history: 90d
+          value_type: LOG
+          trends: '0'
+          tags:
+            - tag: Monitoring
+              value: EventID
+        - uuid: e50e11d324ab49c194f34c3cea7cfe72
+          name: '2256 Archiving Task'
+          type: ZABBIX_ACTIVE
+          key: 'eventlog["Veritas Enterprise Vault",,,,2256,,skip]'
+          delay: 15m
+          history: 90d
+          value_type: LOG
+          trends: '0'
+          tags:
+            - tag: Monitoring
+              value: EventID
+          triggers:
+            - uuid: 67435a7bac6b4622a3110feb9060421b
+              expression: 'logeventid(/Veritas Event ID Monitoring/eventlog["Veritas Enterprise Vault",,,,2256,,skip])=1'
+              name: '{HOST.NAME} EventID:2256 - The Archiving Task could not be started due to startup errors.'
+              priority: HIGH
+              manual_close: 'YES'
+              tags:
+                - tag: Monitoring
+                  value: EventID
+        - uuid: fdf621971a71454b9aca3a073bed33c5
+          name: '2823 Journal mailbox storage quota limits'
+          type: ZABBIX_ACTIVE
+          key: 'eventlog["Veritas Enterprise Vault",,,,2823,,skip]'
+          delay: 15m
+          history: 90d
+          value_type: LOG
+          trends: '0'
+          tags:
+            - tag: Monitoring
+              value: EventID
+          triggers:
+            - uuid: 26501d8680284f94b32390023fe172c3
+              expression: 'logeventid(/Veritas Event ID Monitoring/eventlog["Veritas Enterprise Vault",,,,2823,,skip])=1'
+              name: '{HOST.NAME} EventID:2823 - The Journal mailbox, has exceeded its storage quota limits. The Journal Task will shut down. Please remove all storage quota limits from this mailbox'
+              priority: HIGH
+              manual_close: 'YES'
+              tags:
+                - tag: Monitoring
+                  value: EventID
+        - uuid: abb3973b850d4ed8a762e2b7f3f0df79
+          name: '7168 Indexing Service resolved'
+          type: ZABBIX_ACTIVE
+          key: 'eventlog["Veritas Enterprise Vault",,,,7168,,skip]'
+          delay: 10m
+          history: 90d
+          value_type: LOG
+          trends: '0'
+          status: DISABLED
+          tags:
+            - tag: Monitoring
+              value: EventID
+  triggers:
+    - uuid: 89f6c5cbcaaa434fa2a85282d2dd34f0
+      expression: 'logeventid(/Veritas Event ID Monitoring/eventlog["Arctera Enterprise Vault",,,,3229,,skip])=1'
+      recovery_mode: RECOVERY_EXPRESSION
+      recovery_expression: 'logeventid(/Veritas Event ID Monitoring/eventlog["Arctera Enterprise Vault",,,,3228,,skip])=0'
+      name: '{HOST.NAME} EventID:3229 - A Journal mailbox has a backlog of messages held in its Inbox'
+      priority: HIGH
+      manual_close: 'YES'
+      tags:
+        - tag: Monitoring
+          value: EventID
+    - uuid: f38d79f97bd84dcdb45fdab22eed856c
+      expression: 'logeventid(/Veritas Event ID Monitoring/eventlog["Arctera Enterprise Vault",,,,3290,,skip])=1'
+      recovery_mode: RECOVERY_EXPRESSION
+      recovery_expression: 'logeventid(/Veritas Event ID Monitoring/eventlog["Arctera Enterprise Vault",,,,3289,,skip])=0'
+      name: '{HOST.NAME} EventID:3290 - Task Controller Service stopped'
+      priority: HIGH
+      manual_close: 'YES'
+      tags:
+        - tag: Monitoring
+          value: EventID
+    - uuid: d2232b2b99e94c23bdbb1a4abaa0d2fd
+      expression: 'logeventid(/Veritas Event ID Monitoring/eventlog["Arctera Enterprise Vault",,,,3295,,skip])=1'
+      recovery_mode: RECOVERY_EXPRESSION
+      recovery_expression: 'logeventid(/Veritas Event ID Monitoring/eventlog["Arctera Enterprise Vault",,,,3298,,skip])=0'
+      name: '{HOST.NAME} EventID:3295 - The Journal Task against has stopped'
+      priority: HIGH
+      manual_close: 'YES'
+      tags:
+        - tag: Monitoring
+          value: EventID
+    - uuid: 1395865917e54ab48450ae3f10a19f83
+      expression: 'logeventid(/Veritas Event ID Monitoring/eventlog["Arctera Enterprise Vault",,,,4111,,skip])=1'
+      recovery_mode: RECOVERY_EXPRESSION
+      recovery_expression: 'logeventid(/Veritas Event ID Monitoring/eventlog["Arctera Enterprise Vault",,,,4110,,skip])=0'
+      name: '{HOST.NAME} EventID:4111 - The Admin Service has stopped'
+      priority: HIGH
+      manual_close: 'YES'
+      tags:
+        - tag: Monitoring
+          value: EventID
+    - uuid: c816cc681e0b4222a3f63fa0f3a4f33e
+      expression: 'logeventid(/Veritas Event ID Monitoring/eventlog["Arctera Enterprise Vault",,,,4147,,skip])=1'
+      recovery_mode: RECOVERY_EXPRESSION
+      recovery_expression: 'logeventid(/Veritas Event ID Monitoring/eventlog["Arctera Enterprise Vault",,,,(\b4146\b),,skip])=1'
+      name: '{HOST.NAME} EventID:4147 - Out Of Disk Space'
+      priority: HIGH
+      manual_close: 'YES'
+      tags:
+        - tag: Monitoring
+          value: EventID
+    - uuid: b88a6dc4dd724f84a81649adace42f7d
+      expression: 'logeventid(/Veritas Event ID Monitoring/eventlog["Arctera Enterprise Vault",,,,6222,,skip])=1'
+      recovery_mode: RECOVERY_EXPRESSION
+      recovery_expression: 'logeventid(/Veritas Event ID Monitoring/eventlog["Arctera Enterprise Vault",,,,6221,,skip])=0'
+      name: '{HOST.NAME} EventID:6222 - Storage Service stopped'
+      priority: HIGH
+      manual_close: 'YES'
+      tags:
+        - tag: Monitoring
+          value: EventID
+    - uuid: 3c6367822a1741259032ef9513729061
+      expression: 'logeventid(/Veritas Event ID Monitoring/eventlog["Arctera Enterprise Vault",,,,8193,,skip])=1'
+      recovery_mode: RECOVERY_EXPRESSION
+      recovery_expression: 'logeventid(/Veritas Event ID Monitoring/eventlog["Arctera Enterprise Vault",,,,8192,,skip])=0'
+      name: '{HOST.NAME} EventID:8193 - Directory Service has stopped.'
+      priority: HIGH
+      manual_close: 'YES'
+      tags:
+        - tag: Monitoring
+          value: EventID
+    - uuid: 1fb6b0de42c340579454990ae766f138
+      expression: 'logeventid(/Veritas Event ID Monitoring/eventlog["Arctera Enterprise Vault",,,,41286,,skip])=1'
+      recovery_mode: RECOVERY_EXPRESSION
+      recovery_expression: 'logeventid(/Veritas Event ID Monitoring/eventlog["Arctera Enterprise Vault",,,,41285,,skip])=0'
+      name: '{HOST.NAME} EventID:41286 - Unscheduled tasks.'
+      priority: HIGH
+      manual_close: 'YES'
+      tags:
+        - tag: Monitoring
+          value: EventID
+    - uuid: 36f8165f38834a86b23541b3a95e0104
+      expression: 'logeventid(/Veritas Event ID Monitoring/eventlog["Arctera Enterprise Vault",,,,41447,,skip])=1'
+      recovery_mode: RECOVERY_EXPRESSION
+      recovery_expression: 'logeventid(/Veritas Event ID Monitoring/eventlog["Arctera Enterprise Vault",,,,41446,,skip])=0'
+      name: '{HOST.NAME} EventID:41447 - Exchange mailbox sync not working.'
+      priority: HIGH
+      manual_close: 'YES'
+      tags:
+        - tag: Monitoring
+          value: EventID
