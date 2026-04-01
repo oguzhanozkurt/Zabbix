@@ -1,0 +1,360 @@
+zabbix_export:
+  version: '7.0'
+  template_groups:
+    - uuid: a571c0d144b14fd4a87a9d9b2aa9fcd6
+      name: Templates/Applications
+  templates:
+    - uuid: 649802bb359c4cf980b007c28b59d509
+      template: 'Cisco Appdynamics SLA Monitoring by HTTP'
+      name: 'Cisco Appdynamics SLA Monitoring by HTTP'
+      groups:
+        - name: Templates/Applications
+      items:
+        - uuid: f2c38388f15347b48ddb9aa4c20bcf25
+          name: 'AppDynamics SLA raw ART'
+          type: HTTP_AGENT
+          key: appd.sla.raw.art
+          delay: 60m
+          history: 15d
+          value_type: TEXT
+          trends: '0'
+          authtype: BASIC
+          username: '{$APPD.USER}'
+          password: '{$APPD.PASS}'
+          timeout: '{$APPD.TIMEOUT}'
+          url: '{$APPD.URL}/rest/applications/{$APPD.APP}/metric-data'
+          query_fields:
+            - name: metric-path
+              value: '{$APPD.PATH}'
+            - name: time-range-type
+              value: '{$APPD.TIMERANGETYPE}'
+            - name: duration-in-mins
+              value: '{$APPD.DURATIONINMINUTES}'
+            - name: output
+              value: JSON
+          headers:
+            - name: Accept
+              value: application/json
+        - uuid: 909c106768574e169a5f1ff5e6ca6301
+          name: 'AppDynamics SLA raw CPM'
+          type: HTTP_AGENT
+          key: appd.sla.raw.cpm
+          delay: 60m
+          history: 15d
+          value_type: TEXT
+          trends: '0'
+          authtype: BASIC
+          username: '{$APPD.USER}'
+          password: '{$APPD.PASS}'
+          timeout: '{$APPD.TIMEOUT}'
+          url: '{$APPD.URL}/rest/applications/{$APPD.APP}/metric-data'
+          query_fields:
+            - name: metric-path
+              value: '{$APPD.PATH}'
+            - name: time-range-type
+              value: '{$APPD.TIMERANGETYPE}'
+            - name: duration-in-mins
+              value: '{$APPD.DURATIONINMINUTES}'
+            - name: output
+              value: JSON
+          headers:
+            - name: Accept
+              value: application/json
+        - uuid: 3f6fad8f7cd84d2ebf0a2df06786c88e
+          name: 'AppDynamics SLA raw discovery'
+          type: HTTP_AGENT
+          key: appd.sla.raw.discovery
+          delay: 60m
+          history: 15d
+          value_type: TEXT
+          trends: '0'
+          authtype: BASIC
+          username: '{$APPD.USER}'
+          password: '{$APPD.PASS}'
+          url: '{$APPD.URL}/rest/applications/{$APPD.APP}/metric-data'
+          query_fields:
+            - name: metric-path
+              value: '{$APPD.PATH}'
+            - name: time-range-type
+              value: '{$APPD.TIMERANGETYPE}'
+            - name: duration-in-mins
+              value: '{$APPD.DURATIONINMINUTES}'
+            - name: output
+              value: JSON
+          headers:
+            - name: Accept
+              value: application/json
+        - uuid: 7d3c86d5ffa34642b145d90f5ca68803
+          name: 'AppDynamics SLA raw EPM'
+          type: HTTP_AGENT
+          key: appd.sla.raw.epm
+          delay: 60m
+          history: 15d
+          value_type: TEXT
+          trends: '0'
+          authtype: BASIC
+          username: '{$APPD.USER}'
+          password: '{$APPD.PASS}'
+          timeout: '{$APPD.TIMEOUT}'
+          url: '{$APPD.URL}/rest/applications/{$APPD.APP}/metric-data'
+          query_fields:
+            - name: metric-path
+              value: '{$APPD.PATH}'
+            - name: time-range-type
+              value: '{$APPD.TIMERANGETYPE}'
+            - name: duration-in-mins
+              value: '{$APPD.DURATIONINMINUTES}'
+            - name: output
+              value: JSON
+          headers:
+            - name: Accept
+              value: application/json
+        - uuid: 18290df566fa43999b598b2086a37b0c
+          name: 'AppDynamics SLA raw slow calls'
+          type: HTTP_AGENT
+          key: appd.sla.raw.slowcalls
+          delay: 60m
+          history: 15d
+          value_type: TEXT
+          trends: '0'
+          authtype: BASIC
+          username: '{$APPD.USER}'
+          password: '{$APPD.PASS}'
+          timeout: '{$APPD.TIMEOUT}'
+          url: '{$APPD.URL}/rest/applications/{$APPD.APP}/metric-data'
+          query_fields:
+            - name: metric-path
+              value: '{$APPD.PATH}'
+            - name: time-range-type
+              value: '{$APPD.TIMERANGETYPE}'
+            - name: duration-in-mins
+              value: '{$APPD.DURATIONINMINUTES}'
+            - name: output
+              value: JSON
+          headers:
+            - name: Accept
+              value: application/json
+        - uuid: 9b5c4ddc62f74031ab1c59967b997295
+          name: 'AppDynamics SLA raw very slow calls'
+          type: HTTP_AGENT
+          key: appd.sla.raw.veryslowcalls
+          delay: 60m
+          history: 15d
+          value_type: TEXT
+          trends: '0'
+          authtype: BASIC
+          username: '{$APPD.USER}'
+          password: '{$APPD.PASS}'
+          timeout: '{$APPD.TIMEOUT}'
+          url: '{$APPD.URL}/rest/applications/{$APPD.APP}/metric-data'
+          query_fields:
+            - name: metric-path
+              value: '{$APPD.PATH}'
+            - name: time-range-type
+              value: '{$APPD.TIMERANGETYPE}'
+            - name: duration-in-mins
+              value: '{$APPD.DURATIONINMINUTES}'
+            - name: output
+              value: JSON
+          headers:
+            - name: Accept
+              value: application/json
+      discovery_rules:
+        - uuid: 0aa3cf6e381245be887638df1215dcf5
+          name: 'AppDynamics business transaction discovery'
+          type: DEPENDENT
+          key: appd.sla.discovery
+          delay: '0'
+          item_prototypes:
+            - uuid: bc35b7e00e404c72b58d00cbeefe8eff
+              name: '[{#BT}] Apdex SLA'
+              type: CALCULATED
+              key: 'appd.bt.apdex.sla[{#BT}]'
+              delay: 30m
+              value_type: FLOAT
+              params: '((last(//appd.bt.cpm.sum[{#BT}])>0)*(((last(//appd.bt.cpm.sum[{#BT}])-last(//appd.bt.slowcalls.sum[{#BT}])-last(//appd.bt.veryslowcalls.sum[{#BT}]))+(last(//appd.bt.slowcalls.sum[{#BT}])*0.5))/(last(//appd.bt.cpm.sum[{#BT}])+(last(//appd.bt.cpm.sum[{#BT}])=0))))+((last(//appd.bt.cpm.sum[{#BT}])=0)*1)'
+              description: |
+                0: Bad
+                1: Good
+            - uuid: a3aa226682284e1d868478ef77a72865
+              name: '[{#BT}] Average Response Time'
+              type: DEPENDENT
+              key: 'appd.bt.art.sum[{#BT}]'
+              delay: '0'
+              value_type: FLOAT
+              units: ms
+              preprocessing:
+                - type: JSONPATH
+                  parameters:
+                    - '$[?(@.metricPath == ''{#ARTPATH}'')].metricValues[0].sum.first()'
+                  error_handler: CUSTOM_VALUE
+                  error_handler_params: '0'
+              master_item:
+                key: appd.sla.raw.art
+            - uuid: 0c56e6d46cda4153a1dfb6364d942c71
+              name: '[{#BT}] Availability SLA %'
+              type: CALCULATED
+              key: 'appd.bt.availability.sla.pct[{#BT}]'
+              delay: 30m
+              value_type: FLOAT
+              units: '%'
+              params: '((last(//appd.bt.cpm.sum[{#BT}])>0)*(((last(//appd.bt.cpm.sum[{#BT}])-last(//appd.bt.epm.sum[{#BT}]))/(last(//appd.bt.cpm.sum[{#BT}])+(last(//appd.bt.cpm.sum[{#BT}])=0)))*100))+((last(//appd.bt.cpm.sum[{#BT}])=0)*100)'
+            - uuid: 9150f14c38534440ad0e5ab074d66b20
+              name: '[{#BT}] Calls per Minute'
+              type: DEPENDENT
+              key: 'appd.bt.cpm.sum[{#BT}]'
+              delay: '0'
+              value_type: FLOAT
+              units: rpm
+              preprocessing:
+                - type: JSONPATH
+                  parameters:
+                    - '$[?(@.metricPath == ''{#CPMPATH}'')].metricValues[0].sum.first()'
+                  error_handler: CUSTOM_VALUE
+                  error_handler_params: '0'
+              master_item:
+                key: appd.sla.raw.cpm
+            - uuid: b444698556ce43c397c57884a7aa12b6
+              name: '[{#BT}] Errors per Minute'
+              type: DEPENDENT
+              key: 'appd.bt.epm.sum[{#BT}]'
+              delay: '0'
+              value_type: FLOAT
+              units: rpm
+              preprocessing:
+                - type: JSONPATH
+                  parameters:
+                    - '$[?(@.metricPath == ''{#EPMPATH}'')].metricValues[0].sum.first()'
+                  error_handler: CUSTOM_VALUE
+                  error_handler_params: '0'
+              master_item:
+                key: appd.sla.raw.epm
+            - uuid: 74f0892a29b245a695ba28054de8e385
+              name: '[{#BT}] Error SLA %'
+              type: CALCULATED
+              key: 'appd.bt.error.sla.pct[{#BT}]'
+              delay: 30m
+              value_type: FLOAT
+              units: '%'
+              params: '((last(//appd.bt.cpm.sum[{#BT}])>0)*((last(//appd.bt.epm.sum[{#BT}])/(last(//appd.bt.cpm.sum[{#BT}])+(last(//appd.bt.cpm.sum[{#BT}])=0)))*100))+((last(//appd.bt.cpm.sum[{#BT}])=0)*0)'
+            - uuid: 0212af3a19d742dd888cf4c052e87d7c
+              name: '[{#BT}] Performance SLA %'
+              type: CALCULATED
+              key: 'appd.bt.performance.sla.pct[{#BT}]'
+              delay: 30m
+              value_type: FLOAT
+              units: '%'
+              params: '((last(//appd.bt.cpm.sum[{#BT}])>0)*(((last(//appd.bt.cpm.sum[{#BT}])-last(//appd.bt.slowcalls.sum[{#BT}])-last(//appd.bt.veryslowcalls.sum[{#BT}]))/(last(//appd.bt.cpm.sum[{#BT}])+(last(//appd.bt.cpm.sum[{#BT}])=0)))*100))+((last(//appd.bt.cpm.sum[{#BT}])=0)*100)'
+            - uuid: bcec8aac3e794847935dc067b6c3a01d
+              name: '[{#BT}] Slow Transaction SLA %'
+              type: CALCULATED
+              key: 'appd.bt.slow.transaction.sla.pct[{#BT}]'
+              delay: 30m
+              value_type: FLOAT
+              units: '%'
+              params: '((last(//appd.bt.cpm.sum[{#BT}])>0)*((last(//appd.bt.slowcalls.sum[{#BT}])/(last(//appd.bt.cpm.sum[{#BT}])+(last(//appd.bt.cpm.sum[{#BT}])=0)))*100))+((last(//appd.bt.cpm.sum[{#BT}])=0)*0)'
+            - uuid: 618443c30ca04f7394d3b6cf7a31d7f7
+              name: '[{#BT}] Number of Slow Calls'
+              type: DEPENDENT
+              key: 'appd.bt.slowcalls.sum[{#BT}]'
+              delay: '0'
+              value_type: FLOAT
+              units: ms
+              preprocessing:
+                - type: JSONPATH
+                  parameters:
+                    - '$[?(@.metricPath == ''Business Transaction Performance|Business Transactions|{#TIER}|{#BT}|Number of Slow Calls'')].metricValues[0].sum.first()'
+                  error_handler: CUSTOM_VALUE
+                  error_handler_params: '0'
+              master_item:
+                key: appd.sla.raw.slowcalls
+            - uuid: e9509aaedf954cd2a2bfa24da37d7f4e
+              name: '[{#BT}] Number of Very Slow Calls'
+              type: DEPENDENT
+              key: 'appd.bt.veryslowcalls.sum[{#BT}]'
+              delay: '0'
+              value_type: FLOAT
+              units: ms
+              preprocessing:
+                - type: JSONPATH
+                  parameters:
+                    - '$[?(@.metricPath == ''Business Transaction Performance|Business Transactions|{#TIER}|{#BT}|Number of Very Slow Calls'')].metricValues[0].sum.first()'
+                  error_handler: CUSTOM_VALUE
+                  error_handler_params: '0'
+              master_item:
+                key: appd.sla.raw.veryslowcalls
+          master_item:
+            key: appd.sla.raw.discovery
+          preprocessing:
+            - type: JAVASCRIPT
+              parameters:
+                - |
+                  try {
+                      var src = JSON.parse(value);
+                      var out = [];
+                      var seen = {};
+                  
+                      for (var i = 0; i < src.length; i++) {
+                          var mp = src[i].metricPath || "";
+                          var parts = mp.split("|");
+                  
+                          if (parts.length < 5) {
+                              continue;
+                          }
+                  
+                          if (parts[0] !== "Business Transaction Performance") {
+                              continue;
+                          }
+                  
+                          if (parts[1] !== "Business Transactions") {
+                              continue;
+                          }
+                  
+                          var tier = parts[2];
+                          var bt   = parts[3];
+                          var key  = tier + "|" + bt;
+                  
+                          if (seen[key]) {
+                              continue;
+                          }
+                          seen[key] = 1;
+                  
+                          out.push({
+                              "{#TIER}": tier,
+                              "{#BT}": bt,
+                              "{#ARTPATH}": "Business Transaction Performance|Business Transactions|" + tier + "|" + bt + "|Average Response Time (ms)",
+                              "{#CPMPATH}": "Business Transaction Performance|Business Transactions|" + tier + "|" + bt + "|Calls per Minute",
+                              "{#EPMPATH}": "Business Transaction Performance|Business Transactions|" + tier + "|" + bt + "|Errors per Minute"
+                          });
+                      }
+                  
+                      return JSON.stringify(out);
+                  }
+                  catch (e) {
+                      return JSON.stringify([]);
+                  }
+      macros:
+        - macro: '{$APPD.APP}'
+          value: MyApplication
+          description: 'Application name (as in AppDynamics)'
+        - macro: '{$APPD.DURATIONINMINUTES}'
+          value: '60'
+          description: 'Time window size (minutes)'
+        - macro: '{$APPD.PASS}'
+          value: (secret)
+          description: 'Appdynamics password'
+        - macro: '{$APPD.PATH}'
+          value: 'Business Transaction Performance|Business Transactions|mobileapp.company.local|*|*'
+          description: 'App path (e.g. Business Transaction Performance|Business Transactions|mobileapp.company.local|*|*'
+        - macro: '{$APPD.TIMEOUT}'
+          value: 30s
+          description: 'HTTP timeout'
+        - macro: '{$APPD.TIMERANGETYPE}'
+          value: BEFORE_NOW
+          description: 'Time range mode'
+        - macro: '{$APPD.URL}'
+          value: 'https://apm.company.local/controller'
+          description: 'AppDynamics Controller base URL (e.g. https://apm.company.local/controller)'
+        - macro: '{$APPD.USER}'
+          value: api-user
+          description: 'AppDynamics username'
