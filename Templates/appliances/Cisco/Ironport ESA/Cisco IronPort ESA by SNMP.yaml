@@ -1,0 +1,673 @@
+zabbix_export:
+  version: '7.0'
+  template_groups:
+    - uuid: 51e0ab2102104153b1bc789931e579bb
+      name: 'Templates/Network devices'
+  templates:
+    - uuid: 6f35da7f032c4ab6a41ae69d1ad815c4
+      template: 'Cisco IronPort ESA by SNMP'
+      name: 'Cisco IronPort ESA by SNMP'
+      description: 'SNMP template for Cisco IronPort / Cisco Secure Email Gateway (ESA/MGA) via ASYNCOS-MAIL-MIB. Base OID 1.3.6.1.4.1.15497.1.1.'
+      groups:
+        - name: 'Templates/Network devices'
+      items:
+        - uuid: c06c88f078e540d7832b4fe2977c77b4
+          name: 'ICMP ping'
+          type: SIMPLE
+          key: icmpping
+          tags:
+            - tag: component
+              value: health
+            - tag: component
+              value: network
+          triggers:
+            - uuid: 1f0bd57b250c4aee99de90f171acb2fc
+              expression: 'max(/Cisco IronPort ESA by SNMP/icmpping,{$PING.THRESOLD})=0'
+              name: 'Unavailable by ICMP ping'
+              priority: DISASTER
+              description: 'Last three attempts returned timeout.  Please check device connectivity.'
+              tags:
+                - tag: scope
+                  value: availability
+        - uuid: 72d4819541964f0284bbce4b1146e017
+          name: 'ICMP loss'
+          type: SIMPLE
+          key: icmppingloss
+          value_type: FLOAT
+          units: '%'
+          tags:
+            - tag: component
+              value: health
+            - tag: component
+              value: network
+          triggers:
+            - uuid: 076081b748cf47d8a9b682d1f9d87d9a
+              expression: 'min(/Cisco IronPort ESA by SNMP/icmppingloss,5m)>{$ICMP_LOSS_WARN} and min(/Cisco IronPort ESA by SNMP/icmppingloss,5m)<100'
+              name: 'High ICMP ping loss'
+              opdata: 'Loss: {ITEM.LASTVALUE1}'
+              priority: WARNING
+              dependencies:
+                - name: 'Unavailable by ICMP ping'
+                  expression: 'max(/Cisco IronPort ESA by SNMP/icmpping,{$PING.THRESOLD})=0'
+              tags:
+                - tag: scope
+                  value: availability
+                - tag: scope
+                  value: performance
+        - uuid: 6780ac6407374697ba7fc25fa107d6ad
+          name: 'ICMP response time'
+          type: SIMPLE
+          key: icmppingsec
+          value_type: FLOAT
+          units: s
+          tags:
+            - tag: component
+              value: health
+            - tag: component
+              value: network
+          triggers:
+            - uuid: 2ce9a7784daa48ee96b0895c4f26166d
+              expression: 'avg(/Cisco IronPort ESA by SNMP/icmppingsec,5m)>{$ICMP_RESPONSE_TIME_WARN}'
+              name: 'High ICMP ping response time'
+              opdata: 'Value: {ITEM.LASTVALUE1}'
+              priority: WARNING
+              description: 'Average ICMP response time is too high.'
+              dependencies:
+                - name: 'High ICMP ping loss'
+                  expression: 'min(/Cisco IronPort ESA by SNMP/icmppingloss,5m)>{$ICMP_LOSS_WARN} and min(/Cisco IronPort ESA by SNMP/icmppingloss,5m)<100'
+                - name: 'Unavailable by ICMP ping'
+                  expression: 'max(/Cisco IronPort ESA by SNMP/icmpping,{$PING.THRESOLD})=0'
+              tags:
+                - tag: scope
+                  value: availability
+                - tag: scope
+                  value: performance
+        - uuid: d1f8e24e2f3d478ea8a01e459206ee77
+          name: 'CPU utilization'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.4.1.15497.1.1.1.2.0
+          key: ironport.cpu.util
+          delay: 30s
+          history: 7d
+          units: '%'
+          tags:
+            - tag: component
+              value: cpu
+          triggers:
+            - uuid: 1880fdb12eb54e7ebaa6c27a4cbf6779
+              expression: 'max(/Cisco IronPort ESA by SNMP/ironport.cpu.util,5m)>{$CPU.UTIL.MAX}'
+              name: 'High CPU utilization'
+              priority: DISASTER
+              tags:
+                - tag: component
+                  value: cpu
+        - uuid: 77ccc0f48db543978b05ff67bc62c719
+          name: 'Disk I/O utilization'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.4.1.15497.1.1.1.3.0
+          key: ironport.diskio.util
+          delay: 30s
+          history: 7d
+          units: '%'
+          tags:
+            - tag: component
+              value: disk
+        - uuid: 308eb31d1de5473f80adaa8e7754652e
+          name: 'Outstanding DNS requests'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.4.1.15497.1.1.1.15.0
+          key: ironport.dns.outstanding
+          delay: 60s
+          history: 7d
+          tags:
+            - tag: component
+              value: dns
+        - uuid: cedde05864e34cc286c2b32fa389fcd7
+          name: 'Pending DNS requests'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.4.1.15497.1.1.1.16.0
+          key: ironport.dns.pending
+          delay: 60s
+          history: 7d
+          tags:
+            - tag: component
+              value: dns
+        - uuid: bdbb437d3bb146f38f35c12a16600560
+          name: 'Mail transfer threads'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.4.1.15497.1.1.1.20.0
+          key: ironport.mail.transfer.threads
+          delay: 60s
+          history: 7d
+          tags:
+            - tag: component
+              value: mta
+        - uuid: 1f4482fef9e546b69292c6c5d0825c9b
+          name: 'Memory utilization'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.4.1.15497.1.1.1.1.0
+          key: ironport.mem.util
+          delay: 30s
+          history: 7d
+          units: '%'
+          tags:
+            - tag: component
+              value: memory
+          triggers:
+            - uuid: aaee37d132d04827801841a08ab5d00a
+              expression: 'max(/Cisco IronPort ESA by SNMP/ironport.mem.util,5m)>{$MEM.UTIL.MAX}'
+              name: 'High memory utilization'
+              priority: DISASTER
+              tags:
+                - tag: component
+                  value: memory
+        - uuid: 57dc2487e4604162b31b347ae9cc5dbb
+          name: 'Memory availability status (MTA enum)'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.4.1.15497.1.1.1.7.0
+          key: ironport.mta.memory.status
+          delay: 30s
+          history: 7d
+          tags:
+            - tag: component
+              value: mta
+        - uuid: 10be5434b64947f58f1912ebe9ae3eec
+          name: 'Open files or sockets'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.4.1.15497.1.1.1.19.0
+          key: ironport.open.files.sockets
+          delay: 60s
+          history: 7d
+          tags:
+            - tag: component
+              value: system
+        - uuid: 9ebfa60e2b954166a779e9ee63a7b9b7
+          name: 'Queue availability status (enum)'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.4.1.15497.1.1.1.5.0
+          key: ironport.queue.availability
+          delay: 30s
+          history: 7d
+          tags:
+            - tag: component
+              value: mail-queue
+          triggers:
+            - uuid: 4ed2da2da7ac44f481221375e5df6444
+              expression: 'last(/Cisco IronPort ESA by SNMP/ironport.queue.availability)=3'
+              name: 'Mail queue is full'
+              priority: DISASTER
+              tags:
+                - tag: component
+                  value: mail-queue
+        - uuid: 09bcd898b6ae42aba705a204f39e31e7
+          name: 'Oldest message age'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.4.1.15497.1.1.1.14.0
+          key: ironport.queue.oldest.age
+          delay: 60s
+          history: 7d
+          units: s
+          tags:
+            - tag: component
+              value: mail-queue
+        - uuid: 1ab412e926714851a38de6c62bdbbf71
+          name: 'Queue utilization'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.4.1.15497.1.1.1.4.0
+          key: ironport.queue.util
+          delay: 30s
+          history: 7d
+          units: '%'
+          tags:
+            - tag: component
+              value: mail-queue
+          triggers:
+            - uuid: d3dd5b7629504192849ec6c151ecdcc1
+              expression: 'max(/Cisco IronPort ESA by SNMP/ironport.queue.util,5m)>{$QUEUE.UTIL.MAX}'
+              name: 'High queue utilization'
+              priority: DISASTER
+              manual_close: 'YES'
+              tags:
+                - tag: component
+                  value: mail-queue
+        - uuid: 160400eca47f494faefd9aad15e2d6d2
+          name: 'Resource conservation reason (enum)'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.4.1.15497.1.1.1.6.0
+          key: ironport.resource.conservation.reason
+          delay: 30s
+          history: 7d
+          tags:
+            - tag: component
+              value: system
+          triggers:
+            - uuid: 0a80f16324994c819cd81f16cac00506
+              expression: 'last(/Cisco IronPort ESA by SNMP/ironport.resource.conservation.reason)<>1'
+              name: 'Resource conservation mode active'
+              priority: HIGH
+              tags:
+                - tag: component
+                  value: system
+        - uuid: edb4e2d1090244fdb40b6d8c85316af4
+          name: 'Work queue messages'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.4.1.15497.1.1.1.11.0
+          key: ironport.workqueue.messages
+          delay: 30s
+          history: 7d
+          tags:
+            - tag: component
+              value: mail-queue
+        - uuid: 2c13c2da941a475f9379a4a0f83fe84d
+          name: 'System contact details'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.2.1.1.4.0
+          key: 'system.contact[sysContact.0]'
+          delay: 15m
+          value_type: CHAR
+          trends: '0'
+          description: |
+            MIB: SNMPv2-MIB
+            The textual identification of the contact person for this managed node, together with information on how to contact this person.  If no contact information is known, the value is the zero-length string.
+          inventory_link: CONTACT
+          preprocessing:
+            - type: DISCARD_UNCHANGED_HEARTBEAT
+              parameters:
+                - 12h
+          tags:
+            - tag: component
+              value: system
+        - uuid: aa6fd6caa162468c9f96f9e84646e819
+          name: 'System description'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.2.1.1.1.0
+          key: 'system.descr[sysDescr.0]'
+          delay: 15m
+          value_type: CHAR
+          trends: '0'
+          description: |
+            MIB: SNMPv2-MIB
+            A textual description of the entity. This value should
+            include the full name and version identification of the system's hardware type, software operating-system, and
+            networking software.
+          preprocessing:
+            - type: DISCARD_UNCHANGED_HEARTBEAT
+              parameters:
+                - 12h
+          tags:
+            - tag: component
+              value: system
+        - uuid: fa3a76679a944bf7983b97de4b56d011
+          name: 'Uptime (hardware)'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.2.1.25.1.1.0
+          key: 'system.hw.uptime[hrSystemUptime.0]'
+          delay: 30s
+          trends: '0'
+          units: uptime
+          description: |
+            MIB: HOST-RESOURCES-MIB
+            The amount of time since this host was last initialized. Note that this is different from sysUpTime in the SNMPv2-MIB [RFC1907] because sysUpTime is the uptime of the network management portion of the system.
+          preprocessing:
+            - type: CHECK_NOT_SUPPORTED
+              parameters:
+                - '-1'
+              error_handler: CUSTOM_VALUE
+              error_handler_params: '0'
+            - type: MULTIPLIER
+              parameters:
+                - '0.01'
+          tags:
+            - tag: component
+              value: system
+        - uuid: fa6549c25f29434ea471831fab48a856
+          name: 'System location'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.2.1.1.6.0
+          key: 'system.location[sysLocation.0]'
+          delay: 15m
+          value_type: CHAR
+          trends: '0'
+          description: |
+            MIB: SNMPv2-MIB
+            Physical location of the node (e.g., `equipment room`, `3rd floor`). If not provided, the value is a zero-length string.
+          inventory_link: LOCATION
+          preprocessing:
+            - type: DISCARD_UNCHANGED_HEARTBEAT
+              parameters:
+                - 12h
+          tags:
+            - tag: component
+              value: system
+        - uuid: fc3c1dc23ded471fa174d88cf4615c96
+          name: 'System name'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.2.1.1.5.0
+          key: system.name
+          delay: 15m
+          value_type: CHAR
+          trends: '0'
+          description: |
+            MIB: SNMPv2-MIB
+            An administratively-assigned name for this managed node.By convention, this is the node's fully-qualified domain name.  If the name is unknown, the value is the zero-length string.
+          inventory_link: NAME
+          preprocessing:
+            - type: DISCARD_UNCHANGED_HEARTBEAT
+              parameters:
+                - 12h
+          tags:
+            - tag: component
+              value: system
+        - uuid: 3b6542f5c7144079abfdc37a79c9dbe3
+          name: 'Uptime (network)'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.2.1.1.3.0
+          key: 'system.net.uptime[sysUpTime.0]'
+          delay: 30s
+          trends: '0'
+          units: uptime
+          description: |
+            MIB: SNMPv2-MIB
+            Time (in hundredths of a second) since the network management portion of the system was last re-initialized.
+          preprocessing:
+            - type: MULTIPLIER
+              parameters:
+                - '0.01'
+          tags:
+            - tag: component
+              value: system
+        - uuid: c14f24a295794a34a80715fa6b09868b
+          name: 'SNMP agent availability'
+          type: INTERNAL
+          key: 'zabbix[host,snmp,available]'
+          description: |
+            Availability of SNMP checks on the host. The value of this item corresponds to availability icons in the host list.
+            Possible values:
+            0 - not available
+            1 - available
+            2 - unknown
+          tags:
+            - tag: component
+              value: health
+            - tag: component
+              value: network
+          triggers:
+            - uuid: 80359b8a51cb4828ad93e1afc1cf5bd1
+              expression: 'max(/Cisco IronPort ESA by SNMP/zabbix[host,snmp,available],{$SNMP.TIMEOUT})=0'
+              name: 'No SNMP data collection'
+              opdata: 'Current state: {ITEM.LASTVALUE1}'
+              priority: DISASTER
+              description: 'SNMP is not available for polling. Please check device connectivity and SNMP settings.'
+              manual_close: 'YES'
+              tags:
+                - tag: scope
+                  value: availability
+      discovery_rules:
+        - uuid: 7e506b29bee14650993b2f52fec104fb
+          name: 'Discover fans'
+          type: SNMP_AGENT
+          snmp_oid: 'discovery[{#FAN_NAME},1.3.6.1.4.1.15497.1.1.1.10.1.3]'
+          key: ironport.fan.discovery
+          delay: 1h
+          description: 'Sanal cihazlarda ilgili veri olmadigi icin [] cevabi doner ve izlenmez.'
+          item_prototypes:
+            - uuid: 2884830e961d413ba317237c4e40760f
+              name: 'Fan [{#FAN_NAME}] RPM'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.15497.1.1.1.10.1.2.{#SNMPINDEX}'
+              key: 'ironport.fan.rpm[{#SNMPINDEX}]'
+              delay: 2m
+              history: 30d
+              units: rpm
+              tags:
+                - tag: component
+                  value: fan
+                - tag: fan
+                  value: '{#FAN_NAME}'
+              trigger_prototypes:
+                - uuid: ba255b6e6e48422aa054f9416130eb9d
+                  expression: 'min(/Cisco IronPort ESA by SNMP/ironport.fan.rpm[{#SNMPINDEX}],5m)=0'
+                  name: 'Fan [{#FAN_NAME}] failure'
+                  priority: HIGH
+                  tags:
+                    - tag: component
+                      value: fan
+        - uuid: e289fd1ae6984000b3903078e56c3546
+          name: 'Discover feature keys'
+          type: SNMP_AGENT
+          snmp_oid: 'discovery[{#KEY_DESC},1.3.6.1.4.1.15497.1.1.1.12.1.2,{#KEY_PERP},1.3.6.1.4.1.15497.1.1.1.12.1.3]'
+          key: ironport.keys.discovery
+          delay: 6h
+          item_prototypes:
+            - uuid: cf9ddd559f7c46d587a92a4bbefd7011
+              name: 'Key [{#KEY_DESC}] perpetual (TruthValue)'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.15497.1.1.1.12.1.3.{#SNMPINDEX}'
+              key: 'ironport.key.perpetual[{#SNMPINDEX}]'
+              delay: 6h
+              history: 90d
+              tags:
+                - tag: component
+                  value: license
+                - tag: key
+                  value: '{#KEY_DESC}'
+            - uuid: aaa330932d7a4085aef7003f6e027c9e
+              name: 'Key [{#KEY_DESC}] seconds to expire'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.15497.1.1.1.12.1.4.{#SNMPINDEX}'
+              key: 'ironport.key.seconds_to_expire[{#SNMPINDEX}]'
+              delay: 6h
+              history: 90d
+              units: s
+              tags:
+                - tag: component
+                  value: license
+                - tag: key
+                  value: '{#KEY_DESC}'
+          trigger_prototypes:
+            - uuid: d36be7f87c4e4b69a25f32c5a36476d3
+              expression: 'last(/Cisco IronPort ESA by SNMP/ironport.key.perpetual[{#SNMPINDEX}])=2 and last(/Cisco IronPort ESA by SNMP/ironport.key.seconds_to_expire[{#SNMPINDEX}])>0 and last(/Cisco IronPort ESA by SNMP/ironport.key.seconds_to_expire[{#SNMPINDEX}])<{$KEY.EXPIRE.WARN}'
+              name: 'Feature key [{#KEY_DESC}] expires soon'
+              priority: HIGH
+              tags:
+                - tag: component
+                  value: license
+        - uuid: 1d0c89039731486d9d1e6be5d58f98fc
+          name: 'Discover power supplies'
+          type: SNMP_AGENT
+          snmp_oid: 'discovery[{#PS_NAME},1.3.6.1.4.1.15497.1.1.1.8.1.4]'
+          key: ironport.psu.discovery
+          delay: 1h
+          description: 'Sanal cihazlarda ilgili veri olmadigi icin [] cevabi doner ve izlenmez.'
+          item_prototypes:
+            - uuid: 24a33292814d4d9bae2cd41c3f877fc0
+              name: 'Power supply [{#PS_NAME}] redundancy (enum)'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.15497.1.1.1.8.1.3.{#SNMPINDEX}'
+              key: 'ironport.psu.redundancy[{#SNMPINDEX}]'
+              delay: 5m
+              history: 30d
+              tags:
+                - tag: component
+                  value: power
+                - tag: psu
+                  value: '{#PS_NAME}'
+              trigger_prototypes:
+                - uuid: ae0593c2141c445d8ee1e55a8c75ec7d
+                  expression: 'last(/Cisco IronPort ESA by SNMP/ironport.psu.redundancy[{#SNMPINDEX}])=2'
+                  name: 'Power redundancy lost for [{#PS_NAME}]'
+                  priority: AVERAGE
+                  tags:
+                    - tag: component
+                      value: power
+            - uuid: ad51cd42fd1e424b955e1468d456fd22
+              name: 'Power supply [{#PS_NAME}] status (enum)'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.15497.1.1.1.8.1.2.{#SNMPINDEX}'
+              key: 'ironport.psu.status[{#SNMPINDEX}]'
+              delay: 5m
+              history: 30d
+              tags:
+                - tag: component
+                  value: power
+                - tag: psu
+                  value: '{#PS_NAME}'
+              trigger_prototypes:
+                - uuid: 55e10c2d846e477f8774dec9a6c9ec3c
+                  expression: 'last(/Cisco IronPort ESA by SNMP/ironport.psu.status[{#SNMPINDEX}])<>2'
+                  name: 'Power supply [{#PS_NAME}] not healthy'
+                  priority: HIGH
+                  tags:
+                    - tag: component
+                      value: power
+        - uuid: 21e0c050ffa845d1a50246f628f7deed
+          name: 'Discover RAID drives'
+          type: SNMP_AGENT
+          snmp_oid: 'discovery[{#RAID_ID},1.3.6.1.4.1.15497.1.1.1.18.1.3]'
+          key: ironport.raid.discovery
+          delay: 1h
+          description: 'Sanal cihazlarda ilgili veri olmadigi icin [] cevabi doner ve izlenmez.'
+          item_prototypes:
+            - uuid: 6fdb7de82f9d4af5b06af0509ca23f1c
+              name: 'RAID drive [{#RAID_ID}] last error'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.15497.1.1.1.18.1.4.{#SNMPINDEX}'
+              key: 'ironport.raid.last_error[{#SNMPINDEX}]'
+              delay: 5m
+              history: 30d
+              value_type: TEXT
+              trends: '0'
+              tags:
+                - tag: component
+                  value: raid
+                - tag: drive
+                  value: '{#RAID_ID}'
+            - uuid: 3439056b33da44a5a48d16ba6893d6d0
+              name: 'RAID drive [{#RAID_ID}] status (enum)'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.15497.1.1.1.18.1.2.{#SNMPINDEX}'
+              key: 'ironport.raid.status[{#SNMPINDEX}]'
+              delay: 5m
+              history: 30d
+              tags:
+                - tag: component
+                  value: raid
+                - tag: drive
+                  value: '{#RAID_ID}'
+              trigger_prototypes:
+                - uuid: dd5c1c09abb4402c9f7024b969bb046d
+                  expression: 'last(/Cisco IronPort ESA by SNMP/ironport.raid.status[{#SNMPINDEX}])<>1'
+                  name: 'RAID drive [{#RAID_ID}] not healthy'
+                  priority: HIGH
+                  tags:
+                    - tag: component
+                      value: raid
+        - uuid: f92f12dbd2e64eddb31499d4b55d0ff8
+          name: 'Discover temperature sensors'
+          type: SNMP_AGENT
+          snmp_oid: 'discovery[{#TEMP_NAME},1.3.6.1.4.1.15497.1.1.1.9.1.3]'
+          key: ironport.temp.discovery
+          delay: 1h
+          description: 'Sanal cihazlarda ilgili veri olmadigi icin [] cevabi doner ve izlenmez.'
+          item_prototypes:
+            - uuid: a8e9375064d448f699c84e2bd005ff88
+              name: 'Temperature [{#TEMP_NAME}]'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.15497.1.1.1.9.1.2.{#SNMPINDEX}'
+              key: 'ironport.temp.c[{#SNMPINDEX}]'
+              delay: 2m
+              history: 30d
+              value_type: FLOAT
+              units: C
+              tags:
+                - tag: component
+                  value: temperature
+                - tag: sensor
+                  value: '{#TEMP_NAME}'
+              trigger_prototypes:
+                - uuid: 8426ab7c086245dcbd5d4cc1b387d04b
+                  expression: 'max(/Cisco IronPort ESA by SNMP/ironport.temp.c[{#SNMPINDEX}],5m)>{$TEMP.MAX}'
+                  name: 'High temperature on [{#TEMP_NAME}]'
+                  priority: HIGH
+                  tags:
+                    - tag: component
+                      value: temperature
+        - uuid: c1372a3e934c43baaa98ae30ba87cda5
+          name: 'Discover update services'
+          type: SNMP_AGENT
+          snmp_oid: 'discovery[{#UPD_NAME},1.3.6.1.4.1.15497.1.1.1.13.1.2]'
+          key: ironport.updates.discovery
+          delay: 1h
+          item_prototypes:
+            - uuid: 3b18b46ce5d244dda9ecc656894450e2
+              name: 'Update [{#UPD_NAME}] failures'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.15497.1.1.1.13.1.4.{#SNMPINDEX}'
+              key: 'ironport.update.fail[{#SNMPINDEX}]'
+              delay: 10m
+              history: 30d
+              tags:
+                - tag: component
+                  value: updates
+                - tag: service
+                  value: '{#UPD_NAME}'
+              trigger_prototypes:
+                - uuid: 52503aeefe8246d39349f6caba72e51e
+                  expression: 'change(/Cisco IronPort ESA by SNMP/ironport.update.fail[{#SNMPINDEX}])>0'
+                  name: 'Update failures increased for [{#UPD_NAME}]'
+                  priority: HIGH
+                  tags:
+                    - tag: component
+                      value: updates
+            - uuid: 2c73ef16fd4e4a02bbcac9bacded5c00
+              name: 'Update [{#UPD_NAME}] successes'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.15497.1.1.1.13.1.3.{#SNMPINDEX}'
+              key: 'ironport.update.ok[{#SNMPINDEX}]'
+              delay: 10m
+              history: 30d
+              tags:
+                - tag: component
+                  value: updates
+                - tag: service
+                  value: '{#UPD_NAME}'
+      macros:
+        - macro: '{$CPU.UTIL.MAX}'
+          value: '90'
+          description: 'CPU percent threshold'
+        - macro: '{$ICMP_LOSS_WARN}'
+          value: '20'
+          description: 'Warning threshold of ICMP packet loss in %.'
+        - macro: '{$ICMP_RESPONSE_TIME_WARN}'
+          value: '0.15'
+          description: 'Warning threshold of the average ICMP response time in seconds.'
+        - macro: '{$KEY.EXPIRE.WARN}'
+          value: '2592000'
+          description: 'Warn if key expires within this many seconds. Default 2592000 is for 30days.'
+        - macro: '{$MEM.UTIL.MAX}'
+          value: '90'
+          description: 'Memory percent threshold'
+        - macro: '{$PING.THRESOLD}'
+          value: 3m
+        - macro: '{$QUEUE.UTIL.MAX}'
+          value: '90'
+          description: 'Queue percent threshold'
+        - macro: '{$SNMP.TIMEOUT}'
+          value: 5m
+        - macro: '{$TEMP.MAX}'
+          value: '70'
+          description: 'Temperature C threshold'
+  triggers:
+    - uuid: ffe06c1aded44c26912980a111e641e4
+      expression: '(last(/Cisco IronPort ESA by SNMP/system.hw.uptime[hrSystemUptime.0])>0 and last(/Cisco IronPort ESA by SNMP/system.hw.uptime[hrSystemUptime.0])<10m) or (last(/Cisco IronPort ESA by SNMP/system.hw.uptime[hrSystemUptime.0])=0 and last(/Cisco IronPort ESA by SNMP/system.net.uptime[sysUpTime.0])<10m)'
+      name: 'Host has been restarted'
+      event_name: '{HOST.NAME} has been restarted (uptime < 10m)'
+      priority: HIGH
+      description: 'Uptime is less than 10 minutes.'
+      manual_close: 'YES'
+      dependencies:
+        - name: 'No SNMP data collection'
+          expression: 'max(/Cisco IronPort ESA by SNMP/zabbix[host,snmp,available],{$SNMP.TIMEOUT})=0'
+      tags:
+        - tag: scope
+          value: notice
