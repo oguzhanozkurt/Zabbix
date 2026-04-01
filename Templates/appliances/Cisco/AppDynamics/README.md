@@ -202,7 +202,7 @@ Please open an issue with:
 
 ## License
 
-Add a `LICENSE` file to define reuse/redistribution rights (e.g., MIT / Apache-2.0 / GPL-3.0).
+Licensed under the MIT License. See the `LICENSE` file for details.
 
 ## Trademarks
 
