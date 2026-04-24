@@ -1,0 +1,1559 @@
+zabbix_export:
+  version: '7.0'
+  template_groups:
+  - uuid: a3a6bf2a57b040cc93178310e5e8d1f2
+    name: Templates/Network devices
+  templates:
+  - uuid: b6d9f7a6c4c94c2f8c5a0e6c8f4b9a21
+    template: Template Ruijie Reyee SNMP Unified
+    name: Template Ruijie Reyee SNMP Unified
+    description: 'Unified Ruijie Reyee SNMP template for Zabbix 7.0. Combines Base + Standard Health and removes duplicate
+      system/entity items. Uses standard SNMP MIBs only: SNMPv2-MIB, IF-MIB, IF-MIB HC counters, HOST-RESOURCES-MIB and ENTITY-MIB.
+      Designed for Reyee switches exposing Net-SNMP sysObjectID 1.3.6.1.4.1.8072.3.2.10. Private Ruijie OID tree 1.3.6.1.4.1.4881
+      is intentionally not used. HR device status is intentionally excluded because this model exposes interface rows as down,
+      causing false positives.'
+    groups:
+    - name: Templates/Network devices
+    items:
+    - uuid: 2465b8b41d9640f19eacec07b7f14ab4
+      name: Interface count
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.2.1.2.1.0
+      key: net.if.number
+      delay: 5m
+      history: 30d
+      tags:
+      - tag: component
+        value: network
+    - uuid: 5dd69a8ab9bf46ccba9b9632f22125e9
+      name: System description
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.2.1.1.1.0
+      key: system.descr
+      delay: 1h
+      history: 30d
+      value_type: CHAR
+      trends: '0'
+      description: 'SNMPv2-MIB sysDescr. MIB reference: .1.3.6.1.2.1.1.1.0'
+      tags:
+      - tag: component
+        value: system
+    - uuid: e7874c2dcd54413ebb1965eced74b935
+      name: System location
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.2.1.1.6.0
+      key: system.location
+      delay: 1h
+      history: 30d
+      value_type: CHAR
+      trends: '0'
+      tags:
+      - tag: component
+        value: system
+    - uuid: 7c599f03f6374504856ec2f7ea288640
+      name: System name
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.2.1.1.5.0
+      key: system.name
+      delay: 1h
+      history: 30d
+      value_type: CHAR
+      trends: '0'
+      tags:
+      - tag: component
+        value: system
+    - uuid: 3cc5fca1a735441c86a2b49a79602a2d
+      name: System object ID
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.2.1.1.2.0
+      key: system.objectid
+      delay: 1h
+      history: 30d
+      value_type: CHAR
+      trends: '0'
+      description: SNMPv2-MIB sysObjectID.
+      tags:
+      - tag: component
+        value: system
+    - uuid: 34c70bba00df4e8e96a2a8dc1c6c55a1
+      name: System uptime
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.2.1.1.3.0
+      key: system.uptime
+      history: 30d
+      units: uptime
+      description: SNMPv2-MIB sysUpTime converted from TimeTicks to seconds.
+      preprocessing:
+      - type: MULTIPLIER
+        parameters:
+        - '0.01'
+      tags:
+      - tag: component
+        value: system
+    - uuid: a485e71f277d4d50a63a3f416cb05dd0
+      name: Physical memory total
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.2.1.25.2.2.0
+      key: vm.memory.total[hrMemorySize]
+      delay: 5m
+      history: 30d
+      units: B
+      description: HOST-RESOURCES-MIB hrMemorySize is reported in KBytes.
+      preprocessing:
+      - type: MULTIPLIER
+        parameters:
+        - '1024'
+      tags:
+      - tag: component
+        value: memory
+    - uuid: 91683775e44f4ebda3fd2ee29c641afe
+      name: Running software/process count
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.2.1.25.1.6.0
+      key: reyee.hr.processes[hrSystemProcesses]
+      delay: 5m
+      history: 30d
+      trends: 365d
+      value_type: UNSIGNED
+      tags:
+      - tag: component
+        value: system
+    discovery_rules:
+    - uuid: f96080fbe2e14c629890e9bd5e8f6b85
+      name: Physical entity discovery
+      type: SNMP_AGENT
+      snmp_oid: discovery[{#ENTINDEX},1.3.6.1.2.1.47.1.1.1.1.1,{#ENTNAME},1.3.6.1.2.1.47.1.1.1.1.7,{#ENTCLASS},1.3.6.1.2.1.47.1.1.1.1.5]
+      key: entity.discovery
+      delay: 6h
+      item_prototypes:
+      - uuid: 785aef7ec8cb46148202b48f5681357d
+        name: 'Entity {#ENTINDEX}: Class'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.2.1.47.1.1.1.1.5.{#SNMPINDEX}
+        key: entity.class[entPhysicalClass.{#SNMPINDEX}]
+        history: 7d
+        tags:
+        - tag: component
+          value: inventory
+      - uuid: 963d0c6b28bd43a9a0231de7b0fb61d4
+        name: 'Entity {#ENTINDEX}: Description'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.2.1.47.1.1.1.1.2.{#SNMPINDEX}
+        key: entity.descr[entPhysicalDescr.{#SNMPINDEX}]
+        history: 7d
+        value_type: CHAR
+        trends: '0'
+        tags:
+        - tag: component
+          value: inventory
+      - uuid: 49b19d9e924240f3809eef5cad65a0d2
+        name: 'Entity {#ENTINDEX}: Firmware revision'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.2.1.47.1.1.1.1.9.{#SNMPINDEX}
+        key: entity.fwrev[entPhysicalFirmwareRev.{#SNMPINDEX}]
+        history: 7d
+        value_type: CHAR
+        trends: '0'
+        tags:
+        - tag: component
+          value: inventory
+      - uuid: 63a9646ba1f34b73a484f706ab8673da
+        name: 'Entity {#ENTINDEX}: Hardware revision'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.2.1.47.1.1.1.1.8.{#SNMPINDEX}
+        key: entity.hwrev[entPhysicalHardwareRev.{#SNMPINDEX}]
+        history: 7d
+        value_type: CHAR
+        trends: '0'
+        tags:
+        - tag: component
+          value: inventory
+      - uuid: a2da3303dbb845cb9f949d8cfb697884
+        name: 'Entity {#ENTINDEX}: Name'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.2.1.47.1.1.1.1.7.{#SNMPINDEX}
+        key: entity.name[entPhysicalName.{#SNMPINDEX}]
+        history: 7d
+        value_type: CHAR
+        trends: '0'
+        tags:
+        - tag: component
+          value: inventory
+      - uuid: 506480f62a7e45e8a11c963df0e83229
+        name: 'Entity {#ENTINDEX}: Serial number'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.2.1.47.1.1.1.1.11.{#SNMPINDEX}
+        key: entity.serial[entPhysicalSerialNum.{#SNMPINDEX}]
+        history: 7d
+        value_type: CHAR
+        trends: '0'
+        tags:
+        - tag: component
+          value: inventory
+      - uuid: f50db5e119aa4cee81088e7ec10ce0e9
+        name: 'Entity {#ENTINDEX}: Software revision'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.2.1.47.1.1.1.1.10.{#SNMPINDEX}
+        key: entity.swrev[entPhysicalSoftwareRev.{#SNMPINDEX}]
+        history: 7d
+        value_type: CHAR
+        trends: '0'
+        tags:
+        - tag: component
+          value: inventory
+      - uuid: 6c5ee6a653564d88b168783fce2a5387
+        name: 'Entity {#ENTINDEX}: Manufacturer'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.2.1.47.1.1.1.1.12.{#SNMPINDEX}
+        key: entity.mfg[entPhysicalMfgName.{#SNMPINDEX}]
+        delay: 1h
+        history: 30d
+        trends: '0'
+        value_type: CHAR
+        tags:
+        - tag: component
+          value: inventory
+      - uuid: f8ff5c9c781043d6bf4d49cce066d13a
+        name: 'Entity {#ENTINDEX}: Model'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.2.1.47.1.1.1.1.13.{#SNMPINDEX}
+        key: entity.model[entPhysicalModelName.{#SNMPINDEX}]
+        delay: 1h
+        history: 30d
+        trends: '0'
+        value_type: CHAR
+        tags:
+        - tag: component
+          value: inventory
+      - uuid: e94514f7813c4b6a8e7014b6ec7d482c
+        name: 'Entity {#ENTINDEX}: Is FRU'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.2.1.47.1.1.1.1.16.{#SNMPINDEX}
+        key: entity.isfru[entPhysicalIsFRU.{#SNMPINDEX}]
+        delay: 1h
+        history: 30d
+        trends: 365d
+        value_type: UNSIGNED
+        description: 'ENTITY-MIB entPhysicalIsFRU: true(1), false(2).'
+        tags:
+        - tag: component
+          value: inventory
+      trigger_prototypes:
+      - uuid: 26043f31ef5c4bd683493bd885e3a10d
+        expression: change(/Template Ruijie Reyee SNMP Unified/entity.fwrev[entPhysicalFirmwareRev.{#SNMPINDEX}])=1 and length(last(/Template
+          Ruijie Reyee SNMP Unified/entity.fwrev[entPhysicalFirmwareRev.{#SNMPINDEX}]))>0
+        name: 'Entity {#ENTINDEX}: Firmware revision changed'
+        priority: INFO
+      - uuid: 7dbbd7ea8a92479e972bca726cdf1275
+        expression: change(/Template Ruijie Reyee SNMP Unified/entity.swrev[entPhysicalSoftwareRev.{#SNMPINDEX}])=1 and length(last(/Template
+          Ruijie Reyee SNMP Unified/entity.swrev[entPhysicalSoftwareRev.{#SNMPINDEX}]))>0
+        name: 'Entity {#ENTINDEX}: Software revision changed'
+        priority: INFO
+    - uuid: 260c91e24e9944e2b499ae00cafeb08a
+      name: Network interfaces discovery
+      type: SNMP_AGENT
+      snmp_oid: discovery[{#IFINDEX},1.3.6.1.2.1.2.2.1.1,{#IFDESCR},1.3.6.1.2.1.2.2.1.2,{#IFNAME},1.3.6.1.2.1.31.1.1.1.1,{#IFALIAS},1.3.6.1.2.1.31.1.1.1.18,{#IFTYPE},1.3.6.1.2.1.2.2.1.3]
+      key: net.if.discovery
+      delay: 1h
+      item_prototypes:
+      - uuid: 5030e28499244c13812da86645b60d12
+        name: 'Interface {#IFNAME}: Admin status'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.2.1.2.2.1.7.{#SNMPINDEX}
+        key: net.if.adminstatus[ifAdminStatus.{#SNMPINDEX}]
+        history: 7d
+        tags:
+        - tag: component
+          value: network
+      - uuid: 2acd1d539acc4f4885a72d22fa948284
+        name: 'Interface {#IFNAME}: Alias'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.2.1.31.1.1.1.18.{#SNMPINDEX}
+        key: net.if.alias[ifAlias.{#SNMPINDEX}]
+        history: 7d
+        value_type: CHAR
+        trends: '0'
+        tags:
+        - tag: component
+          value: network
+      - uuid: bfce4018c17e4666a225738c5842218d
+        name: 'Interface {#IFNAME}: Description'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.2.1.2.2.1.2.{#SNMPINDEX}
+        key: net.if.descr[ifDescr.{#SNMPINDEX}]
+        history: 7d
+        value_type: CHAR
+        trends: '0'
+        tags:
+        - tag: component
+          value: network
+      - uuid: 987d25199b054dd4a21dfd703188629c
+        name: 'Interface {#IFNAME}: Inbound discards'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.2.1.2.2.1.13.{#SNMPINDEX}
+        key: net.if.in.discards[ifInDiscards.{#SNMPINDEX}]
+        history: 7d
+        units: pps
+        preprocessing:
+        - type: CHANGE_PER_SECOND
+          parameters:
+          - ''
+        tags:
+        - tag: component
+          value: network
+      - uuid: f79c2366dc6045baad9c6b54ce57cf08
+        name: 'Interface {#IFNAME}: Inbound errors'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.2.1.2.2.1.14.{#SNMPINDEX}
+        key: net.if.in.errors[ifInErrors.{#SNMPINDEX}]
+        history: 7d
+        units: pps
+        preprocessing:
+        - type: CHANGE_PER_SECOND
+          parameters:
+          - ''
+        tags:
+        - tag: component
+          value: network
+        trigger_prototypes:
+        - uuid: 249955f79501480bbf55c4e91c83e0c2
+          expression: min(/Template Ruijie Reyee SNMP Unified/net.if.in.errors[ifInErrors.{#SNMPINDEX}],5m)>0
+          name: 'Interface {#IFNAME}: Inbound errors detected'
+          priority: WARNING
+      - uuid: b074f32334844043a6258c38b0dc7cbb
+        name: 'Interface {#IFNAME}: Bits received'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.2.1.31.1.1.1.6.{#SNMPINDEX}
+        key: net.if.in[ifHCInOctets.{#SNMPINDEX}]
+        history: 7d
+        units: bps
+        preprocessing:
+        - type: CHANGE_PER_SECOND
+          parameters:
+          - ''
+        - type: MULTIPLIER
+          parameters:
+          - '8'
+        tags:
+        - tag: component
+          value: network
+      - uuid: 17e31d0df347455aaf95eeaa94af573e
+        name: 'Interface {#IFNAME}: Operational status'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.2.1.2.2.1.8.{#SNMPINDEX}
+        key: net.if.operstatus[ifOperStatus.{#SNMPINDEX}]
+        history: 7d
+        tags:
+        - tag: component
+          value: network
+      - uuid: 3f0e517f3daa4ce8a7326f370b83ecf8
+        name: 'Interface {#IFNAME}: Outbound discards'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.2.1.2.2.1.19.{#SNMPINDEX}
+        key: net.if.out.discards[ifOutDiscards.{#SNMPINDEX}]
+        history: 7d
+        units: pps
+        preprocessing:
+        - type: CHANGE_PER_SECOND
+          parameters:
+          - ''
+        tags:
+        - tag: component
+          value: network
+      - uuid: 8c9efeeb466a4cd5b87fd2b17ef3a35c
+        name: 'Interface {#IFNAME}: Outbound errors'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.2.1.2.2.1.20.{#SNMPINDEX}
+        key: net.if.out.errors[ifOutErrors.{#SNMPINDEX}]
+        history: 7d
+        units: pps
+        preprocessing:
+        - type: CHANGE_PER_SECOND
+          parameters:
+          - ''
+        tags:
+        - tag: component
+          value: network
+        trigger_prototypes:
+        - uuid: c59eae960e454b13b057882d2a997724
+          expression: min(/Template Ruijie Reyee SNMP Unified/net.if.out.errors[ifOutErrors.{#SNMPINDEX}],5m)>0
+          name: 'Interface {#IFNAME}: Outbound errors detected'
+          priority: WARNING
+      - uuid: 1fa1c74c69a7438795546494256fb924
+        name: 'Interface {#IFNAME}: Bits sent'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.2.1.31.1.1.1.10.{#SNMPINDEX}
+        key: net.if.out[ifHCOutOctets.{#SNMPINDEX}]
+        history: 7d
+        units: bps
+        preprocessing:
+        - type: CHANGE_PER_SECOND
+          parameters:
+          - ''
+        - type: MULTIPLIER
+          parameters:
+          - '8'
+        tags:
+        - tag: component
+          value: network
+      - uuid: cf590685ad3b4ecfbe76955c82e3bbf5
+        name: 'Interface {#IFNAME}: Speed'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.2.1.31.1.1.1.15.{#SNMPINDEX}
+        key: net.if.speed[ifHighSpeed.{#SNMPINDEX}]
+        history: 7d
+        units: bps
+        description: IF-MIB ifHighSpeed is reported in Mbit/s; converted to bit/s.
+        preprocessing:
+        - type: MULTIPLIER
+          parameters:
+          - '1000000'
+        tags:
+        - tag: component
+          value: network
+      - uuid: 5ca970bb65c84e92944b4f8508ad4668
+        name: 'Interface {#IFNAME}: Type'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.2.1.2.2.1.3.{#SNMPINDEX}
+        key: net.if.type[ifType.{#SNMPINDEX}]
+        history: 7d
+        tags:
+        - tag: component
+          value: network
+      trigger_prototypes:
+      - uuid: 4edda62b15734a378d439896d3e5147b
+        expression: last(/Template Ruijie Reyee SNMP Unified/net.if.operstatus[ifOperStatus.{#SNMPINDEX}])<>1 and last(/Template
+          Ruijie Reyee SNMP Unified/net.if.adminstatus[ifAdminStatus.{#SNMPINDEX}])=1
+        name: 'Interface {#IFNAME}: Link down'
+        priority: AVERAGE
+        description: Operational status is not up while administrative status is up.
+    - uuid: e4f0b9ed3d2c4ac0ab06c279f71f4f62
+      name: HR processor discovery
+      type: SNMP_AGENT
+      snmp_oid: discovery[{#CPU_LOAD},1.3.6.1.2.1.25.3.3.1.2]
+      key: reyee.hr.processor.discovery
+      delay: 1h
+      item_prototypes:
+      - uuid: 3d5304d5800d4ec5acfd836d1a91a00d
+        name: 'CPU {#SNMPINDEX}: utilization'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.2.1.25.3.3.1.2.{#SNMPINDEX}
+        key: reyee.cpu.util[hrProcessorLoad.{#SNMPINDEX}]
+        delay: 1m
+        history: 30d
+        trends: 365d
+        value_type: UNSIGNED
+        units: '%'
+        description: HOST-RESOURCES-MIB hrProcessorLoad.
+        tags:
+        - tag: component
+          value: cpu
+      trigger_prototypes:
+      - uuid: 78b8b42eadf3437c915648cc6ff5dfae
+        expression: min(/Template Ruijie Reyee SNMP Unified/reyee.cpu.util[hrProcessorLoad.{#SNMPINDEX}],5m)>{$REYEE.CPU.UTIL.MAX}
+        name: 'CPU {#SNMPINDEX}: High utilization'
+        priority: WARNING
+        description: CPU utilization has been above threshold for 5 minutes.
+    - uuid: 93a902ed6ad74a2c8fd6c778e48e3e9d
+      name: HR storage discovery
+      type: SNMP_AGENT
+      snmp_oid: discovery[{#STORAGE_DESCR},1.3.6.1.2.1.25.2.3.1.3,{#STORAGE_TYPE},1.3.6.1.2.1.25.2.3.1.2]
+      key: reyee.hr.storage.discovery
+      delay: 1h
+      item_prototypes:
+      - uuid: f4a86dbf711b4cfc9303dc5df86b8837
+        name: 'Storage {#STORAGE_DESCR}: type'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.2.1.25.2.3.1.2.{#SNMPINDEX}
+        key: reyee.storage.type[hrStorageType.{#SNMPINDEX}]
+        delay: 1h
+        history: 30d
+        trends: '0'
+        value_type: CHAR
+        tags:
+        - tag: component
+          value: storage
+      - uuid: 7b73764681c84bc09da18a9b2acf03d3
+        name: 'Storage {#STORAGE_DESCR}: allocation unit'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.2.1.25.2.3.1.4.{#SNMPINDEX}
+        key: reyee.storage.alloc_units[hrStorageAllocationUnits.{#SNMPINDEX}]
+        delay: 5m
+        history: 30d
+        trends: 365d
+        value_type: UNSIGNED
+        units: B
+        tags:
+        - tag: component
+          value: storage
+      - uuid: 51702c4c60d14eb29d3f217dc8a8caae
+        name: 'Storage {#STORAGE_DESCR}: size raw'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.2.1.25.2.3.1.5.{#SNMPINDEX}
+        key: reyee.storage.size.raw[hrStorageSize.{#SNMPINDEX}]
+        delay: 5m
+        history: 30d
+        trends: 365d
+        value_type: UNSIGNED
+        tags:
+        - tag: component
+          value: storage
+      - uuid: 95316ba69ca342c18ff86ee8f5f49ff0
+        name: 'Storage {#STORAGE_DESCR}: used raw'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.2.1.25.2.3.1.6.{#SNMPINDEX}
+        key: reyee.storage.used.raw[hrStorageUsed.{#SNMPINDEX}]
+        delay: 5m
+        history: 30d
+        trends: 365d
+        value_type: UNSIGNED
+        tags:
+        - tag: component
+          value: storage
+      - uuid: 9f2044693fb04be2bfcd3d605ae6f6ab
+        name: 'Storage {#STORAGE_DESCR}: size'
+        type: CALCULATED
+        key: reyee.storage.size[hrStorageSize.{#SNMPINDEX}]
+        delay: 5m
+        history: 30d
+        trends: 365d
+        value_type: UNSIGNED
+        units: B
+        params: last(//reyee.storage.size.raw[hrStorageSize.{#SNMPINDEX}])*last(//reyee.storage.alloc_units[hrStorageAllocationUnits.{#SNMPINDEX}])
+        tags:
+        - tag: component
+          value: storage
+      - uuid: d51733d69a4642e986c6af2607f21cd2
+        name: 'Storage {#STORAGE_DESCR}: used'
+        type: CALCULATED
+        key: reyee.storage.used[hrStorageUsed.{#SNMPINDEX}]
+        delay: 5m
+        history: 30d
+        trends: 365d
+        value_type: UNSIGNED
+        units: B
+        params: last(//reyee.storage.used.raw[hrStorageUsed.{#SNMPINDEX}])*last(//reyee.storage.alloc_units[hrStorageAllocationUnits.{#SNMPINDEX}])
+        tags:
+        - tag: component
+          value: storage
+      - uuid: 4f9847f36e9742bea7c6c591d689b117
+        name: 'Storage {#STORAGE_DESCR}: used percentage'
+        type: CALCULATED
+        key: reyee.storage.used_pct[hrStorageUsedPct.{#SNMPINDEX}]
+        delay: 5m
+        history: 30d
+        trends: 365d
+        value_type: FLOAT
+        units: '%'
+        params: 100*last(//reyee.storage.used.raw[hrStorageUsed.{#SNMPINDEX}])/last(//reyee.storage.size.raw[hrStorageSize.{#SNMPINDEX}])
+        tags:
+        - tag: component
+          value: storage
+      trigger_prototypes:
+      - uuid: 85cabd1592d949d29f4ac7ab92f52ac4
+        expression: min(/Template Ruijie Reyee SNMP Unified/reyee.storage.used_pct[hrStorageUsedPct.{#SNMPINDEX}],10m)>{$REYEE.STORAGE.UTIL.MAX}
+        name: 'Storage {#STORAGE_DESCR}: High utilization'
+        priority: WARNING
+        description: Storage or memory area utilization is above threshold.
+      filter:
+        evaltype: AND
+        conditions:
+        - macro: '{#STORAGE_DESCR}'
+          value: '{$REYEE.STORAGE.MATCHES}'
+          operator: MATCHES_REGEX
+        - macro: '{#STORAGE_DESCR}'
+          value: '{$REYEE.STORAGE.NOT_MATCHES}'
+          operator: NOT_MATCHES_REGEX
+    macros:
+    - macro: '{$RUIJIE.IF.ERROR.TRIGGER}'
+      value: '1'
+      description: Reserved macro for interface error trigger tuning.
+    - macro: '{$REYEE.CPU.UTIL.MAX}'
+      value: '85'
+      description: CPU utilization threshold in percent.
+    - macro: '{$REYEE.STORAGE.UTIL.MAX}'
+      value: '85'
+      description: Selected storage/memory utilization threshold in percent.
+    - macro: '{$REYEE.STORAGE.MATCHES}'
+      value: ^(Physical memory|/tmp|/overlay)$
+      description: Only discover useful storage rows returned by this Reyee Net-SNMP agent.
+    - macro: '{$REYEE.STORAGE.NOT_MATCHES}'
+      value: (^Virtual memory$|^Memory buffers$|^Cached memory$|^Shared memory$|^Swap space$|^/dev$|.*firmware\.bin.*|^/tmp/tftpd.*)
+      description: Exclude derivative memory rows, tmpfs/device rows and temporary firmware transfer paths.
+  - uuid: 25c007cdd8d54a26a938484640cae8e9
+    template: Template Ruijie Reyee SNMP PoE
+    name: Template Ruijie Reyee SNMP PoE
+    description: Optional Ruijie Reyee PoE monitoring based on POWER-ETHERNET-MIB OIDs in standard_mib sheet. Link this template
+      only to PoE-capable NBS/NBF/APF models.
+    groups:
+    - name: Templates/Network devices
+    items:
+    - uuid: 0085213a9bf746faa5b23a3642e0dbd2
+      name: PoE main PSE nominal power
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.2.1.105.1.3.1.1.2.1
+      key: poe.main.power[pethMainPsePower.1]
+      delay: 5m
+      history: 30d
+      trends: 365d
+      value_type: UNSIGNED
+      units: W
+      tags:
+      - tag: component
+        value: poe
+    - uuid: efea42dd9f5d492ca883b3d8cc4bf609
+      name: PoE main PSE operational status
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.2.1.105.1.3.1.1.3.1
+      key: poe.main.status[pethMainPseOperStatus.1]
+      delay: 1m
+      history: 30d
+      trends: 365d
+      value_type: UNSIGNED
+      tags:
+      - tag: component
+        value: poe
+    - uuid: a84f168996f04546ba2b2d27561f3a0c
+      name: PoE main PSE consumption power
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.2.1.105.1.3.1.1.4.1
+      key: poe.main.consumption[pethMainPseConsumptionPower.1]
+      delay: 5m
+      history: 30d
+      trends: 365d
+      value_type: UNSIGNED
+      units: W
+      tags:
+      - tag: component
+        value: poe
+    discovery_rules:
+    - uuid: 962c4980c27d4e3788ea602e4aa171f8
+      name: PoE PSE port discovery
+      type: SNMP_AGENT
+      snmp_oid: discovery[{#POEINDEX},1.3.6.1.2.1.105.1.1.1.6,{#POECLASS},1.3.6.1.2.1.105.1.1.1.10]
+      key: poe.port.discovery
+      delay: 1h
+      item_prototypes:
+      - uuid: ab1319c649fe49e8a96765faec05cbdf
+        name: 'PoE port {#SNMPINDEX}: Detection status'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.2.1.105.1.1.1.6.{#SNMPINDEX}
+        key: poe.port.detection[pethPsePortDetectionStatus.{#SNMPINDEX}]
+        delay: 1m
+        history: 7d
+        trends: 365d
+        value_type: UNSIGNED
+        tags:
+        - tag: component
+          value: poe
+      - uuid: cc7d30f6532643cd9421341f199d1924
+        name: 'PoE port {#SNMPINDEX}: Power class'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.2.1.105.1.1.1.10.{#SNMPINDEX}
+        key: poe.port.class[pethPsePortPowerClassifications.{#SNMPINDEX}]
+        delay: 1m
+        history: 7d
+        trends: 365d
+        value_type: UNSIGNED
+        tags:
+        - tag: component
+          value: poe
+      - uuid: a440c209c1e7455c81f142a292f421cf
+        name: 'PoE port {#SNMPINDEX}: MPS absent counter'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.2.1.105.1.1.1.8.{#SNMPINDEX}
+        key: poe.port.mps_absent[pethPsePortMPSAbsentCounter.{#SNMPINDEX}]
+        delay: 1m
+        history: 7d
+        trends: 365d
+        value_type: UNSIGNED
+        preprocessing:
+        - type: CHANGE_PER_SECOND
+        tags:
+        - tag: component
+          value: poe
+      - uuid: 54696de234324a58a33c91650114d812
+        name: 'PoE port {#SNMPINDEX}: Invalid signature counter'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.2.1.105.1.1.1.11.{#SNMPINDEX}
+        key: poe.port.invalid_signature[pethPsePortInvalidSignatureCounter.{#SNMPINDEX}]
+        delay: 1m
+        history: 7d
+        trends: 365d
+        value_type: UNSIGNED
+        preprocessing:
+        - type: CHANGE_PER_SECOND
+        tags:
+        - tag: component
+          value: poe
+      - uuid: 05dbd4212dd64bdd9738a3f4c2f2a845
+        name: 'PoE port {#SNMPINDEX}: Power denied counter'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.2.1.105.1.1.1.12.{#SNMPINDEX}
+        key: poe.port.power_denied[pethPsePortPowerDeniedCounter.{#SNMPINDEX}]
+        delay: 1m
+        history: 7d
+        trends: 365d
+        value_type: UNSIGNED
+        preprocessing:
+        - type: CHANGE_PER_SECOND
+        tags:
+        - tag: component
+          value: poe
+      - uuid: 4ad8242ba1a045a993158720da1cbdd2
+        name: 'PoE port {#SNMPINDEX}: Overload counter'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.2.1.105.1.1.1.13.{#SNMPINDEX}
+        key: poe.port.overload[pethPsePortOverLoadCounter.{#SNMPINDEX}]
+        delay: 1m
+        history: 7d
+        trends: 365d
+        value_type: UNSIGNED
+        preprocessing:
+        - type: CHANGE_PER_SECOND
+        tags:
+        - tag: component
+          value: poe
+      - uuid: dc68162733d242fbb23216b843bda0af
+        name: 'PoE port {#SNMPINDEX}: Short counter'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.2.1.105.1.1.1.14.{#SNMPINDEX}
+        key: poe.port.short[pethPsePortShortCounter.{#SNMPINDEX}]
+        delay: 1m
+        history: 7d
+        trends: 365d
+        value_type: UNSIGNED
+        preprocessing:
+        - type: CHANGE_PER_SECOND
+        tags:
+        - tag: component
+          value: poe
+      trigger_prototypes:
+      - uuid: 10c8f4d319774ecdaf25d8746704c6ea
+        expression: last(/Template Ruijie Reyee SNMP PoE/poe.port.detection[pethPsePortDetectionStatus.{#SNMPINDEX}])<>3 and
+          last(/Template Ruijie Reyee SNMP PoE/poe.port.detection[pethPsePortDetectionStatus.{#SNMPINDEX}])<>1
+        name: 'PoE port {#SNMPINDEX}: Fault detected'
+        priority: WARNING
+        description: POWER-ETHERNET-MIB pethPsePortDetectionStatus is not deliveringPower(3) or disabled(1).
+  - uuid: 113e3c1568a249fdb653d7df90e7a710
+    template: Template Ruijie Reyee SNMP AP WLAN
+    name: Template Ruijie Reyee SNMP AP WLAN
+    description: Optional Ruijie Reyee AP WLAN radio template based on RUIJIE-REYEE-AP-WLAN-MIB private_mib OIDs. Link this
+      template to RG-RAP/RG-EW/AP WLAN models that expose these OIDs.
+    groups:
+    - name: Templates/Network devices
+    items:
+    - uuid: 9777657f64034f019320230890e9a919
+      name: 'AP radio 2.4G: Channel'
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.4.1.4881.1.1.10.2.196.1.1.0
+      key: ap.radio.channel[24g]
+      delay: 5m
+      history: 30d
+      trends: 365d
+      value_type: UNSIGNED
+      tags:
+      - tag: component
+        value: wireless
+    - uuid: 4bb960d7013148939c6fd2bf9ba47f43
+      name: 'AP radio 2.4G: Power'
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.4.1.4881.1.1.10.2.196.1.5.0
+      key: ap.radio.power[24g]
+      delay: 5m
+      history: 30d
+      trends: 365d
+      value_type: UNSIGNED
+      units: '%'
+      tags:
+      - tag: component
+        value: wireless
+    - uuid: 7fd23b9184f8489c9900279376c880ac
+      name: 'AP radio 2.4G: Bandwidth'
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.4.1.4881.1.1.10.2.196.1.9.0
+      key: ap.radio.bandwidth[24g]
+      delay: 5m
+      history: 30d
+      trends: 365d
+      value_type: UNSIGNED
+      units: MHz
+      tags:
+      - tag: component
+        value: wireless
+    - uuid: 624173a0976349ad831802d6328989d9
+      name: 'AP radio 2.4G: Frequency'
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.4.1.4881.1.1.10.2.196.1.13.0
+      key: ap.radio.frequency[24g]
+      delay: 5m
+      history: 30d
+      trends: 365d
+      value_type: UNSIGNED
+      units: MHz
+      tags:
+      - tag: component
+        value: wireless
+    - uuid: 45799662faea4eb8b8ccf179a1601159
+      name: 'AP radio 2.4G: TX traffic'
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.4.1.4881.1.1.10.2.196.2.1.0
+      key: ap.radio.tx[24g]
+      delay: 1m
+      history: 30d
+      trends: 365d
+      value_type: UNSIGNED
+      units: Bps
+      preprocessing:
+      - type: CHANGE_PER_SECOND
+      tags:
+      - tag: component
+        value: wireless
+    - uuid: 894c7e79a4b94a8caf1180713621eeaf
+      name: 'AP radio 2.4G: RX traffic'
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.4.1.4881.1.1.10.2.196.2.2.0
+      key: ap.radio.rx[24g]
+      delay: 1m
+      history: 30d
+      trends: 365d
+      value_type: UNSIGNED
+      units: Bps
+      preprocessing:
+      - type: CHANGE_PER_SECOND
+      tags:
+      - tag: component
+        value: wireless
+    - uuid: 9796cf7b1eb140aeabd3642039f7e877
+      name: 'AP radio 5G: Channel'
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.4.1.4881.1.1.10.2.196.1.2.0
+      key: ap.radio.channel[5g]
+      delay: 5m
+      history: 30d
+      trends: 365d
+      value_type: UNSIGNED
+      tags:
+      - tag: component
+        value: wireless
+    - uuid: 7bcd781b86204793af331b9e571bcb62
+      name: 'AP radio 5G: Power'
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.4.1.4881.1.1.10.2.196.1.6.0
+      key: ap.radio.power[5g]
+      delay: 5m
+      history: 30d
+      trends: 365d
+      value_type: UNSIGNED
+      units: '%'
+      tags:
+      - tag: component
+        value: wireless
+    - uuid: a74aa3c8539248759e4f229404fe3b45
+      name: 'AP radio 5G: Bandwidth'
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.4.1.4881.1.1.10.2.196.1.10.0
+      key: ap.radio.bandwidth[5g]
+      delay: 5m
+      history: 30d
+      trends: 365d
+      value_type: UNSIGNED
+      units: MHz
+      tags:
+      - tag: component
+        value: wireless
+    - uuid: 5c2d12bcfc744b45b28ba7002bf51f32
+      name: 'AP radio 5G: Frequency'
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.4.1.4881.1.1.10.2.196.1.14.0
+      key: ap.radio.frequency[5g]
+      delay: 5m
+      history: 30d
+      trends: 365d
+      value_type: UNSIGNED
+      units: MHz
+      tags:
+      - tag: component
+        value: wireless
+    - uuid: 673d737c3d7e43b09961f5fe2c6a2ba7
+      name: 'AP radio 5G: TX traffic'
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.4.1.4881.1.1.10.2.196.2.3.0
+      key: ap.radio.tx[5g]
+      delay: 1m
+      history: 30d
+      trends: 365d
+      value_type: UNSIGNED
+      units: Bps
+      preprocessing:
+      - type: CHANGE_PER_SECOND
+      tags:
+      - tag: component
+        value: wireless
+    - uuid: 8fb1d0a2a7854d2181d46e8348411f6e
+      name: 'AP radio 5G: RX traffic'
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.4.1.4881.1.1.10.2.196.2.4.0
+      key: ap.radio.rx[5g]
+      delay: 1m
+      history: 30d
+      trends: 365d
+      value_type: UNSIGNED
+      units: Bps
+      preprocessing:
+      - type: CHANGE_PER_SECOND
+      tags:
+      - tag: component
+        value: wireless
+    - uuid: 6df633d8d7b04d559a56c86c4a650d1d
+      name: 'AP radio 5G-2: Channel'
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.4.1.4881.1.1.10.2.196.1.3.0
+      key: ap.radio.channel[5g2]
+      delay: 5m
+      history: 30d
+      trends: 365d
+      value_type: UNSIGNED
+      tags:
+      - tag: component
+        value: wireless
+    - uuid: 372694e2901942c6a9aafdd134d841b3
+      name: 'AP radio 5G-2: Power'
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.4.1.4881.1.1.10.2.196.1.7.0
+      key: ap.radio.power[5g2]
+      delay: 5m
+      history: 30d
+      trends: 365d
+      value_type: UNSIGNED
+      units: '%'
+      tags:
+      - tag: component
+        value: wireless
+    - uuid: 90abddb1f68a461fb17c08bca4d37ce9
+      name: 'AP radio 5G-2: Bandwidth'
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.4.1.4881.1.1.10.2.196.1.11.0
+      key: ap.radio.bandwidth[5g2]
+      delay: 5m
+      history: 30d
+      trends: 365d
+      value_type: UNSIGNED
+      units: MHz
+      tags:
+      - tag: component
+        value: wireless
+    - uuid: da39c17812b94a8bb405a98f083c58df
+      name: 'AP radio 5G-2: Frequency'
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.4.1.4881.1.1.10.2.196.1.15.0
+      key: ap.radio.frequency[5g2]
+      delay: 5m
+      history: 30d
+      trends: 365d
+      value_type: UNSIGNED
+      units: MHz
+      tags:
+      - tag: component
+        value: wireless
+    - uuid: e005f7c0d7f54f40a2d8d015a36f6e2f
+      name: 'AP radio 5G-2: TX traffic'
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.4.1.4881.1.1.10.2.196.2.5.0
+      key: ap.radio.tx[5g2]
+      delay: 1m
+      history: 30d
+      trends: 365d
+      value_type: UNSIGNED
+      units: Bps
+      preprocessing:
+      - type: CHANGE_PER_SECOND
+      tags:
+      - tag: component
+        value: wireless
+    - uuid: bec977765800438e9014ac5f271903db
+      name: 'AP radio 5G-2: RX traffic'
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.4.1.4881.1.1.10.2.196.2.6.0
+      key: ap.radio.rx[5g2]
+      delay: 1m
+      history: 30d
+      trends: 365d
+      value_type: UNSIGNED
+      units: Bps
+      preprocessing:
+      - type: CHANGE_PER_SECOND
+      tags:
+      - tag: component
+        value: wireless
+    - uuid: c464e05541af4e6990b8d166b3e23d55
+      name: 'AP radio 6G: Channel'
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.4.1.4881.1.1.10.2.196.1.4.0
+      key: ap.radio.channel[6g]
+      delay: 5m
+      history: 30d
+      trends: 365d
+      value_type: UNSIGNED
+      tags:
+      - tag: component
+        value: wireless
+    - uuid: 98470c060adb4f96a77cbbbbed76d975
+      name: 'AP radio 6G: Power'
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.4.1.4881.1.1.10.2.196.1.8.0
+      key: ap.radio.power[6g]
+      delay: 5m
+      history: 30d
+      trends: 365d
+      value_type: UNSIGNED
+      units: '%'
+      tags:
+      - tag: component
+        value: wireless
+    - uuid: 48f05a98c56d4513ae576dec3e7abc20
+      name: 'AP radio 6G: Bandwidth'
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.4.1.4881.1.1.10.2.196.1.12.0
+      key: ap.radio.bandwidth[6g]
+      delay: 5m
+      history: 30d
+      trends: 365d
+      value_type: UNSIGNED
+      units: MHz
+      tags:
+      - tag: component
+        value: wireless
+    - uuid: 4aa19249fae74754a6543ebed3e6033f
+      name: 'AP radio 6G: Frequency'
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.4.1.4881.1.1.10.2.196.1.16.0
+      key: ap.radio.frequency[6g]
+      delay: 5m
+      history: 30d
+      trends: 365d
+      value_type: UNSIGNED
+      units: MHz
+      tags:
+      - tag: component
+        value: wireless
+    - uuid: 09a26a39579344c1a7357e65119e118a
+      name: 'AP radio 6G: TX traffic'
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.4.1.4881.1.1.10.2.196.2.7.0
+      key: ap.radio.tx[6g]
+      delay: 1m
+      history: 30d
+      trends: 365d
+      value_type: UNSIGNED
+      units: Bps
+      preprocessing:
+      - type: CHANGE_PER_SECOND
+      tags:
+      - tag: component
+        value: wireless
+    - uuid: 07ae379ef6124a13a429ed9857263b96
+      name: 'AP radio 6G: RX traffic'
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.4.1.4881.1.1.10.2.196.2.8.0
+      key: ap.radio.rx[6g]
+      delay: 1m
+      history: 30d
+      trends: 365d
+      value_type: UNSIGNED
+      units: Bps
+      preprocessing:
+      - type: CHANGE_PER_SECOND
+      tags:
+      - tag: component
+        value: wireless
+  - uuid: 932887cc58bd4ca683774010c97f105b
+    template: Template Ruijie Reyee SNMP EST Bridge
+    name: Template Ruijie Reyee SNMP EST Bridge
+    description: Optional Reyee EST/AirMetro wireless bridge template based on RUIJIE-EST-WIRELESS-MIB private_mib OIDs.
+    groups:
+    - name: Templates/Network devices
+    items:
+    - uuid: 4687f5e8b0e04938987c1fcced635db0
+      name: EST bridge role
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.4.1.4881.1.1.10.2.195.1.1.0
+      key: est.role
+      delay: 5m
+      history: 30d
+      trends: '0'
+      value_type: CHAR
+      tags:
+      - tag: component
+        value: wireless
+    - uuid: 4fc31878953847c68f789d5e16801a14
+      name: EST associated device count
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.4.1.4881.1.1.10.2.195.2.1.0
+      key: est.associated.count
+      delay: 5m
+      history: 30d
+      trends: 365d
+      value_type: UNSIGNED
+      tags:
+      - tag: component
+        value: wireless
+    discovery_rules:
+    - uuid: 56377f8b3aed4444b73b9153b800a8e4
+      name: EST associated device discovery
+      type: SNMP_AGENT
+      snmp_oid: discovery[{#ASSOCMAC},1.3.6.1.4.1.4881.1.1.10.2.195.2.2.1.1,{#ASSOCSN},1.3.6.1.4.1.4881.1.1.10.2.195.2.2.1.2,{#ASSOCHOST},1.3.6.1.4.1.4881.1.1.10.2.195.2.2.1.4]
+      key: est.assoc.discovery
+      delay: 5m
+      item_prototypes:
+      - uuid: 68b37f2f6caf4fbd81bcd047794c1a9b
+        name: 'Associated device {#ASSOCMAC}: Serial number'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.4.1.4881.1.1.10.2.195.2.2.1.2.{#SNMPINDEX}
+        key: est.assoc.sn[associatedDeviceSN.{#SNMPINDEX}]
+        delay: 1m
+        history: 7d
+        trends: 365d
+        value_type: CHAR
+        tags:
+        - tag: component
+          value: wireless
+      - uuid: 1af4f91f179f47cbb6153612a9298c3d
+        name: 'Associated device {#ASSOCMAC}: IP address'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.4.1.4881.1.1.10.2.195.2.2.1.3.{#SNMPINDEX}
+        key: est.assoc.ip[associatedDeviceIPAddress.{#SNMPINDEX}]
+        delay: 1m
+        history: 7d
+        trends: 365d
+        value_type: CHAR
+        tags:
+        - tag: component
+          value: wireless
+      - uuid: 90d38e56a1e64780b542780110ab1020
+        name: 'Associated device {#ASSOCMAC}: Host name'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.4.1.4881.1.1.10.2.195.2.2.1.4.{#SNMPINDEX}
+        key: est.assoc.hostname[associatedDeviceHostName.{#SNMPINDEX}]
+        delay: 1m
+        history: 7d
+        trends: 365d
+        value_type: CHAR
+        tags:
+        - tag: component
+          value: wireless
+      - uuid: ad0c501aa99141ec8a09af5b64d13aea
+        name: 'Associated device {#ASSOCMAC}: Type'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.4.1.4881.1.1.10.2.195.2.2.1.5.{#SNMPINDEX}
+        key: est.assoc.type[associatedDeviceType.{#SNMPINDEX}]
+        delay: 1m
+        history: 7d
+        trends: 365d
+        value_type: CHAR
+        tags:
+        - tag: component
+          value: wireless
+      - uuid: a40a177cc160432cb6c3e98748f327b3
+        name: 'Associated device {#ASSOCMAC}: Link count'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.4.1.4881.1.1.10.2.195.2.2.1.6.{#SNMPINDEX}
+        key: est.assoc.linknum[associatedDeviceLinkNum.{#SNMPINDEX}]
+        delay: 1m
+        history: 7d
+        trends: 365d
+        value_type: UNSIGNED
+        tags:
+        - tag: component
+          value: wireless
+    - uuid: 98c7783440f747a09709442823ed970d
+      name: EST bridge link discovery
+      type: SNMP_AGENT
+      snmp_oid: discovery[{#LINKMAC},1.3.6.1.4.1.4881.1.1.10.2.195.2.3.1.1,{#LINKSN},1.3.6.1.4.1.4881.1.1.10.2.195.2.3.1.2,{#LINKSSID},1.3.6.1.4.1.4881.1.1.10.2.195.2.3.1.4]
+      key: est.link.discovery
+      delay: 5m
+      item_prototypes:
+      - uuid: 8a3030e6aab74050bce5fe98e77d7c2c
+        name: 'Bridge link {#LINKMAC}: Peer serial'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.4.1.4881.1.1.10.2.195.2.3.1.2.{#SNMPINDEX}
+        key: est.link.peer_sn[linkPeerSn.{#SNMPINDEX}]
+        delay: 1m
+        history: 7d
+        trends: 365d
+        value_type: CHAR
+        tags:
+        - tag: component
+          value: wireless
+      - uuid: 37fe2ea7b24c4cdcbc72e66fcc219997
+        name: 'Bridge link {#LINKMAC}: Radio'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.4.1.4881.1.1.10.2.195.2.3.1.3.{#SNMPINDEX}
+        key: est.link.radio[linkRadio.{#SNMPINDEX}]
+        delay: 1m
+        history: 7d
+        trends: 365d
+        value_type: CHAR
+        tags:
+        - tag: component
+          value: wireless
+      - uuid: 25592ed440ab493b811f4ddd3405e5d4
+        name: 'Bridge link {#LINKMAC}: SSID'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.4.1.4881.1.1.10.2.195.2.3.1.4.{#SNMPINDEX}
+        key: est.link.ssid[linkSSID.{#SNMPINDEX}]
+        delay: 1m
+        history: 7d
+        trends: 365d
+        value_type: CHAR
+        tags:
+        - tag: component
+          value: wireless
+      - uuid: 2ffc731a8e6948a68d14b222e6498ccf
+        name: 'Bridge link {#LINKMAC}: Channel utilization'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.4.1.4881.1.1.10.2.195.2.3.1.5.{#SNMPINDEX}
+        key: est.link.channel_utilization[linkChannelUtilization.{#SNMPINDEX}]
+        delay: 1m
+        history: 7d
+        trends: 365d
+        value_type: UNSIGNED
+        units: '%'
+        tags:
+        - tag: component
+          value: wireless
+      - uuid: 5619f2511f414207a904888603845748
+        name: 'Bridge link {#LINKMAC}: Noise floor'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.4.1.4881.1.1.10.2.195.2.3.1.6.{#SNMPINDEX}
+        key: est.link.noise[linkFloorNoise.{#SNMPINDEX}]
+        delay: 1m
+        history: 7d
+        trends: 365d
+        value_type: FLOAT
+        units: dBm
+        tags:
+        - tag: component
+          value: wireless
+      - uuid: d869962920ff40239b3f0c75ff2d82d6
+        name: 'Bridge link {#LINKMAC}: RSSI'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.4.1.4881.1.1.10.2.195.2.3.1.7.{#SNMPINDEX}
+        key: est.link.rssi[linkRSSI.{#SNMPINDEX}]
+        delay: 1m
+        history: 7d
+        trends: 365d
+        value_type: FLOAT
+        units: dBm
+        tags:
+        - tag: component
+          value: wireless
+      - uuid: 1ce75a79851242c5a69feecc45dd1648
+        name: 'Bridge link {#LINKMAC}: Association time'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.4.1.4881.1.1.10.2.195.2.3.1.8.{#SNMPINDEX}
+        key: est.link.assoc_time[linkAssocTime.{#SNMPINDEX}]
+        delay: 1m
+        history: 7d
+        trends: 365d
+        value_type: UNSIGNED
+        units: s
+        tags:
+        - tag: component
+          value: wireless
+      - uuid: e0d35b375dbb4f0b9ec1b906f027c108
+        name: 'Bridge link {#LINKMAC}: Negotiated TX rate'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.4.1.4881.1.1.10.2.195.2.3.1.9.{#SNMPINDEX}
+        key: est.link.negotiation_tx[linkNegotiationTxRate.{#SNMPINDEX}]
+        delay: 1m
+        history: 7d
+        trends: 365d
+        value_type: UNSIGNED
+        units: Mbps
+        tags:
+        - tag: component
+          value: wireless
+      - uuid: e9cfba73529649a38dd81e9b66c867df
+        name: 'Bridge link {#LINKMAC}: Negotiated RX rate'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.4.1.4881.1.1.10.2.195.2.3.1.10.{#SNMPINDEX}
+        key: est.link.negotiation_rx[linkNegotiationRxRate.{#SNMPINDEX}]
+        delay: 1m
+        history: 7d
+        trends: 365d
+        value_type: UNSIGNED
+        units: Mbps
+        tags:
+        - tag: component
+          value: wireless
+      - uuid: a153c4519fd743b498e1f9b448e48f24
+        name: 'Bridge link {#LINKMAC}: TX rate'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.4.1.4881.1.1.10.2.195.2.3.1.11.{#SNMPINDEX}
+        key: est.link.tx_rate[linkTxRate.{#SNMPINDEX}]
+        delay: 1m
+        history: 7d
+        trends: 365d
+        value_type: UNSIGNED
+        units: Bps
+        tags:
+        - tag: component
+          value: wireless
+      - uuid: c207d93e970d42b39bed97d2aee216b2
+        name: 'Bridge link {#LINKMAC}: RX rate'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.4.1.4881.1.1.10.2.195.2.3.1.12.{#SNMPINDEX}
+        key: est.link.rx_rate[linkRxRate.{#SNMPINDEX}]
+        delay: 1m
+        history: 7d
+        trends: 365d
+        value_type: UNSIGNED
+        units: Bps
+        tags:
+        - tag: component
+          value: wireless
+      - uuid: d1036bdc31bd4260adbf0e25f4caf938
+        name: 'Bridge link {#LINKMAC}: Distance'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.4.1.4881.1.1.10.2.195.2.3.1.13.{#SNMPINDEX}
+        key: est.link.distance[linkDistance.{#SNMPINDEX}]
+        delay: 1m
+        history: 7d
+        trends: 365d
+        value_type: UNSIGNED
+        units: m
+        tags:
+        - tag: component
+          value: wireless
+      - uuid: 4da3628cf8234e1d84ac59227d5d4d9a
+        name: 'Bridge link {#LINKMAC}: Channel'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.4.1.4881.1.1.10.2.195.2.3.1.14.{#SNMPINDEX}
+        key: est.link.channel[linkChannel.{#SNMPINDEX}]
+        delay: 1m
+        history: 7d
+        trends: 365d
+        value_type: UNSIGNED
+        tags:
+        - tag: component
+          value: wireless
+      - uuid: a828f277b2c74c79a5d325bd78fc3528
+        name: 'Bridge link {#LINKMAC}: Center frequency'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.4.1.4881.1.1.10.2.195.2.3.1.15.{#SNMPINDEX}
+        key: est.link.center_freq[linkCenterFreq.{#SNMPINDEX}]
+        delay: 1m
+        history: 7d
+        trends: 365d
+        value_type: UNSIGNED
+        units: MHz
+        tags:
+        - tag: component
+          value: wireless
+      - uuid: e5fc649a73604d5e97ea9ff7c485f0b4
+        name: 'Bridge link {#LINKMAC}: Control frequency'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.4.1.4881.1.1.10.2.195.2.3.1.16.{#SNMPINDEX}
+        key: est.link.control_freq[linkControlFreq.{#SNMPINDEX}]
+        delay: 1m
+        history: 7d
+        trends: 365d
+        value_type: UNSIGNED
+        units: MHz
+        tags:
+        - tag: component
+          value: wireless
+      trigger_prototypes:
+      - uuid: d6f37834a1594f59bcb13f86d8a3a9d6
+        expression: last(/Template Ruijie Reyee SNMP EST Bridge/est.link.rssi[linkRSSI.{#SNMPINDEX}])<{$RUIJIE.EST.RSSI.MIN}
+        name: 'Bridge link {#LINKMAC}: Weak RSSI'
+        priority: WARNING
+      - uuid: b562a6b50ff74fbbb9460551a21a2126
+        expression: last(/Template Ruijie Reyee SNMP EST Bridge/est.link.channel_utilization[linkChannelUtilization.{#SNMPINDEX}])>{$RUIJIE.EST.CHANNEL.UTIL.MAX}
+        name: 'Bridge link {#LINKMAC}: High channel utilization'
+        priority: WARNING
+    macros:
+    - macro: '{$RUIJIE.EST.RSSI.MIN}'
+      value: '-75'
+      description: Minimum acceptable RSSI in dBm for bridge links.
+    - macro: '{$RUIJIE.EST.CHANNEL.UTIL.MAX}'
+      value: '80'
+      description: Maximum acceptable channel utilization percentage.
+  - uuid: 7a4f028392b44d978b69eb0087364014
+    template: Template Ruijie Reyee SNMP PON
+    name: Template Ruijie Reyee SNMP PON
+    description: Optional Ruijie Elighten PON template based on RUIJIE-ELIGHTEN-PON-MIB private_mib OIDs. The uploaded MIB
+      reference marks these OIDs as unsupported for many gateway/AP/switch models; use only on devices that expose the PON
+      subtree.
+    groups:
+    - name: Templates/Network devices
+    items:
+    - uuid: fe667b32ff1a4db19aa0c629af21c6c3
+      name: PON device type
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.4.1.4881.1.1.10.2.194.1.1
+      key: pon.device.type
+      delay: 5m
+      history: 30d
+      trends: 365d
+      value_type: UNSIGNED
+      tags:
+      - tag: component
+        value: pon
+    - uuid: 4d1268202e5143d7b9b4ee74d86dfc8b
+      name: PON interface count
+      type: SNMP_AGENT
+      snmp_oid: 1.3.6.1.4.1.4881.1.1.10.2.194.1.2
+      key: pon.if.count
+      delay: 5m
+      history: 30d
+      trends: 365d
+      value_type: UNSIGNED
+      tags:
+      - tag: component
+        value: pon
+    discovery_rules:
+    - uuid: 7bfc22e975f84cb49a8d419431620937
+      name: PON interface discovery
+      type: SNMP_AGENT
+      snmp_oid: discovery[{#PONINDEX},1.3.6.1.4.1.4881.1.1.10.2.194.1.3.1.1,{#PONNAME},1.3.6.1.4.1.4881.1.1.10.2.194.1.3.1.2]
+      key: pon.if.discovery
+      delay: 5m
+      item_prototypes:
+      - uuid: 5190df67e30f457ba7b70acd9f67cfc9
+        name: 'PON {#PONNAME}: Mode'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.4.1.4881.1.1.10.2.194.1.3.1.3.{#SNMPINDEX}
+        key: pon.if.mode[ruijieElightenPonIFMode.{#SNMPINDEX}]
+        delay: 1m
+        history: 7d
+        trends: 365d
+        value_type: UNSIGNED
+        tags:
+        - tag: component
+          value: pon
+      - uuid: 1f22d1c2e77643efb38a7baa43875e07
+        name: 'PON {#PONNAME}: Max splits'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.4.1.4881.1.1.10.2.194.1.3.1.4.{#SNMPINDEX}
+        key: pon.if.spmax[ruijieElightenPonIFSpMax.{#SNMPINDEX}]
+        delay: 1m
+        history: 7d
+        trends: 365d
+        value_type: UNSIGNED
+        tags:
+        - tag: component
+          value: pon
+      - uuid: 065d5c379b1d474eaf20478550ce9b90
+        name: 'PON {#PONNAME}: Temperature'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.4.1.4881.1.1.10.2.194.1.3.1.5.{#SNMPINDEX}
+        key: pon.if.temp[ruijieElightenPonIFTemp.{#SNMPINDEX}]
+        delay: 1m
+        history: 7d
+        trends: 365d
+        value_type: FLOAT
+        units: °C
+        tags:
+        - tag: component
+          value: pon
+      - uuid: 9914070dc6cd41b3b5f8ef8ddd1dce98
+        name: 'PON {#PONNAME}: Voltage'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.4.1.4881.1.1.10.2.194.1.3.1.6.{#SNMPINDEX}
+        key: pon.if.vcc[ruijieElightenPonIFVcc.{#SNMPINDEX}]
+        delay: 1m
+        history: 7d
+        trends: 365d
+        value_type: FLOAT
+        units: V
+        tags:
+        - tag: component
+          value: pon
+      - uuid: a952b7fdc2224f0ab40e34d2f59631f9
+        name: 'PON {#PONNAME}: Bias current'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.4.1.4881.1.1.10.2.194.1.3.1.7.{#SNMPINDEX}
+        key: pon.if.bias[ruijieElightenPonIFBalt.{#SNMPINDEX}]
+        delay: 1m
+        history: 7d
+        trends: 365d
+        value_type: FLOAT
+        units: mA
+        tags:
+        - tag: component
+          value: pon
+      - uuid: e2b69194a18e4bcf84cd372b374cc859
+        name: 'PON {#PONNAME}: ONU count'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.4.1.4881.1.1.10.2.194.1.3.1.8.{#SNMPINDEX}
+        key: pon.if.onu.count[ruijieElightenPonIFOnuNums.{#SNMPINDEX}]
+        delay: 1m
+        history: 7d
+        trends: 365d
+        value_type: UNSIGNED
+        tags:
+        - tag: component
+          value: pon
+      - uuid: 9b20866376e3461bb872bf345d63c3bc
+        name: 'PON {#PONNAME}: ONU serial list'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.4.1.4881.1.1.10.2.194.1.3.1.9.{#SNMPINDEX}
+        key: pon.if.onu.sn[ruijieElightenPonIFOnuSn.{#SNMPINDEX}]
+        delay: 1m
+        history: 7d
+        trends: 365d
+        value_type: TEXT
+        tags:
+        - tag: component
+          value: pon
+      - uuid: a825c7fc24624c32bb16a11fb8afd34d
+        name: 'PON {#PONNAME}: RTT distance'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.4.1.4881.1.1.10.2.194.1.3.1.10.{#SNMPINDEX}
+        key: pon.if.rtt[ruijieElightenPonIFRttDis.{#SNMPINDEX}]
+        delay: 1m
+        history: 7d
+        trends: 365d
+        value_type: TEXT
+        tags:
+        - tag: component
+          value: pon
+      - uuid: 2269f9da5ea84a36ba4c3a00b2e42530
+        name: 'PON {#PONNAME}: RX optical power'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.4.1.4881.1.1.10.2.194.1.3.1.11.{#SNMPINDEX}
+        key: pon.if.rxpower[ruijieElightenPonIFRxP.{#SNMPINDEX}]
+        delay: 1m
+        history: 7d
+        trends: 365d
+        value_type: TEXT
+        tags:
+        - tag: component
+          value: pon
+      - uuid: 99d9c9b7162f4dbd84fdf4f998e3c7e5
+        name: 'PON {#PONNAME}: TX optical power'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.4.1.4881.1.1.10.2.194.1.3.1.12.{#SNMPINDEX}
+        key: pon.if.txpower[ruijieElightenPonIFTxP.{#SNMPINDEX}]
+        delay: 1m
+        history: 7d
+        trends: 365d
+        value_type: FLOAT
+        units: dBm
+        tags:
+        - tag: component
+          value: pon
+      - uuid: 9ba6e1950d7541c98c6818cc3a5b9f1d
+        name: 'PON {#PONNAME}: DBA mode'
+        type: SNMP_AGENT
+        snmp_oid: 1.3.6.1.4.1.4881.1.1.10.2.194.1.3.1.13.{#SNMPINDEX}
+        key: pon.if.dba[ruijieElightenPonIFDbaMode.{#SNMPINDEX}]
+        delay: 1m
+        history: 7d
+        trends: 365d
+        value_type: FLOAT
+        tags:
+        - tag: component
+          value: pon
