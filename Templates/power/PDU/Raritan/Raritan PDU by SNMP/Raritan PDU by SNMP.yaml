@@ -1,0 +1,972 @@
+zabbix_export:
+  version: '7.0'
+  template_groups:
+    - uuid: ba97e174c9e044f2b499cc435ff17587
+      name: Templates/Power
+  templates:
+    - uuid: c736cd8f373d423282f577229833af1d
+      template: 'Raritan PDU by SNMP'
+      name: 'Raritan PDU by SNMP'
+      description: |
+        Generic Zabbix 7.0 starter template for Raritan intelligent PDUs using numeric OIDs from the official PDU2-MIB.
+        
+        Scope:
+        - PDU unit inventory
+        - Outlet inventory and switching state
+        - Inlet current / voltage / active power
+        - Outlet current / active power
+        - External temperature / humidity / airflow / air pressure
+        - External water leak and smoke detection
+        
+        Notes:
+        - Numeric OIDs are used; importing vendor MIB files into Zabbix is not required.
+        - Alarm logic is primarily based on device-reported sensor state, so thresholding should be configured on the Raritan side.
+        - Measurement values are scaled with the sensor decimal-digits field by JavaScript preprocessing.
+        - Sensor coverage varies by PDU family, installed sensors and firmware.
+      groups:
+        - name: Templates/Power
+      items:
+        - uuid: 047aba7f389d45bca7578193e2dd7272
+          name: 'PDU count'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.4.1.13742.6.3.1
+          key: raritan.pdu.count
+          delay: '{$RARITAN.PDU.INVENTORY}'
+          history: 30d
+          trends: 90d
+      discovery_rules:
+        - uuid: 30da3be85c6644989d942c0393700ace
+          name: 'External airflow discovery'
+          type: SNMP_AGENT
+          snmp_oid: 'discovery[{#NAME},1.3.6.1.4.1.13742.6.3.6.3.1.4,{#TYPE},1.3.6.1.4.1.13742.6.3.6.3.1.2,{#DIGITS},1.3.6.1.4.1.13742.6.3.6.3.1.17]'
+          key: raritan.pdu.ext.airflow.discovery
+          delay: '{$RARITAN.PDU.DISCOVERY}'
+          filter:
+            evaltype: AND
+            conditions:
+              - macro: '{#TYPE}'
+                value: ^12$
+                formulaid: A
+          lifetime: 30d
+          item_prototypes:
+            - uuid: 8f1ad7310457430786f3203e2cd478de
+              name: 'External airflow decimal digits {#NAME}'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.13742.6.3.6.3.1.17.{#SNMPINDEX}'
+              key: 'raritan.pdu.ext.airflow.digits[{#SNMPINDEX}]'
+              delay: '{$RARITAN.PDU.INVENTORY}'
+              history: 30d
+              value_type: TEXT
+              trends: '0'
+            - uuid: 8d1ce92003644f0a9bc157527f8072b6
+              name: 'External airflow name {#NAME}'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.13742.6.3.6.3.1.4.{#SNMPINDEX}'
+              key: 'raritan.pdu.ext.airflow.name[{#SNMPINDEX}]'
+              delay: '{$RARITAN.PDU.INVENTORY}'
+              history: 30d
+              value_type: TEXT
+              trends: '0'
+            - uuid: cbf959cd681d452fad2f9eb7e59712dc
+              name: 'External airflow state [{#NAME}]'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.13742.6.5.5.3.1.3.{#SNMPINDEX}'
+              key: 'raritan.pdu.ext.airflow.state[{#SNMPINDEX}]'
+              delay: '{$RARITAN.PDU.POLL}'
+              history: 30d
+              trends: 90d
+              valuemap:
+                name: 'Raritan sensor state'
+              trigger_prototypes:
+                - uuid: 7c78809b212e47e4854324e542d15dc1
+                  expression: 'last(/Raritan PDU by SNMP/raritan.pdu.ext.airflow.state[{#SNMPINDEX}])=2 or last(/Raritan PDU by SNMP/raritan.pdu.ext.airflow.state[{#SNMPINDEX}])=6 or last(/Raritan PDU by SNMP/raritan.pdu.ext.airflow.state[{#SNMPINDEX}])=14 or last(/Raritan PDU by SNMP/raritan.pdu.ext.airflow.state[{#SNMPINDEX}])=26 or last(/Raritan PDU by SNMP/raritan.pdu.ext.airflow.state[{#SNMPINDEX}])=28'
+                  name: 'External airflow [{#NAME}] is in critical state'
+                  priority: HIGH
+                - uuid: b3e95c84f61f4d47bc7ca0980e0656ea
+                  expression: 'last(/Raritan PDU by SNMP/raritan.pdu.ext.airflow.state[{#SNMPINDEX}])=3 or last(/Raritan PDU by SNMP/raritan.pdu.ext.airflow.state[{#SNMPINDEX}])=5 or last(/Raritan PDU by SNMP/raritan.pdu.ext.airflow.state[{#SNMPINDEX}])=27'
+                  name: 'External airflow [{#NAME}] is in warning state'
+                  priority: WARNING
+            - uuid: afe87453d22c42549059549cda8460a2
+              name: 'External airflow sensor type {#NAME}'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.13742.6.3.6.3.1.2.{#SNMPINDEX}'
+              key: 'raritan.pdu.ext.airflow.type[{#SNMPINDEX}]'
+              delay: '{$RARITAN.PDU.INVENTORY}'
+              history: 30d
+              value_type: TEXT
+              trends: '0'
+            - uuid: 92fb686dbabe464dbc3e8966cb4fff18
+              name: 'External airflow value [{#NAME}]'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.13742.6.5.5.3.1.4.{#SNMPINDEX}'
+              key: 'raritan.pdu.ext.airflow.value[{#SNMPINDEX}]'
+              delay: '{$RARITAN.PDU.POLL}'
+              history: 30d
+              value_type: FLOAT
+              trends: 90d
+              preprocessing:
+                - type: JAVASCRIPT
+                  parameters:
+                    - 'var d = Number(''{#DIGITS}''); if (isNaN(d) || d < 0) d = 0; var n = Number(value); if (isNaN(n)) throw ''NaN''; return n / Math.pow(10, d);'
+        - uuid: f7f84832e18d46c98a4dceb606e9e6d7
+          name: 'External air pressure discovery'
+          type: SNMP_AGENT
+          snmp_oid: 'discovery[{#NAME},1.3.6.1.4.1.13742.6.3.6.3.1.4,{#TYPE},1.3.6.1.4.1.13742.6.3.6.3.1.2,{#DIGITS},1.3.6.1.4.1.13742.6.3.6.3.1.17]'
+          key: raritan.pdu.ext.airpressure.discovery
+          delay: '{$RARITAN.PDU.DISCOVERY}'
+          filter:
+            evaltype: AND
+            conditions:
+              - macro: '{#TYPE}'
+                value: ^13$
+                formulaid: A
+          lifetime: 30d
+          item_prototypes:
+            - uuid: 2acca9035b3f442c9d52446b3e7f44c9
+              name: 'External air pressure decimal digits {#NAME}'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.13742.6.3.6.3.1.17.{#SNMPINDEX}'
+              key: 'raritan.pdu.ext.airpressure.digits[{#SNMPINDEX}]'
+              delay: '{$RARITAN.PDU.INVENTORY}'
+              history: 30d
+              value_type: TEXT
+              trends: '0'
+            - uuid: 7a7146883e6b47438c9212605fa644a6
+              name: 'External air pressure name {#NAME}'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.13742.6.3.6.3.1.4.{#SNMPINDEX}'
+              key: 'raritan.pdu.ext.airpressure.name[{#SNMPINDEX}]'
+              delay: '{$RARITAN.PDU.INVENTORY}'
+              history: 30d
+              value_type: TEXT
+              trends: '0'
+            - uuid: 1dc5af61ddbe4a08a9f5f4636ed60449
+              name: 'External air pressure state [{#NAME}]'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.13742.6.5.5.3.1.3.{#SNMPINDEX}'
+              key: 'raritan.pdu.ext.airpressure.state[{#SNMPINDEX}]'
+              delay: '{$RARITAN.PDU.POLL}'
+              history: 30d
+              trends: 90d
+              valuemap:
+                name: 'Raritan sensor state'
+              trigger_prototypes:
+                - uuid: f4ef157c0f8849a684b05da0afdad79a
+                  expression: 'last(/Raritan PDU by SNMP/raritan.pdu.ext.airpressure.state[{#SNMPINDEX}])=2 or last(/Raritan PDU by SNMP/raritan.pdu.ext.airpressure.state[{#SNMPINDEX}])=6 or last(/Raritan PDU by SNMP/raritan.pdu.ext.airpressure.state[{#SNMPINDEX}])=14 or last(/Raritan PDU by SNMP/raritan.pdu.ext.airpressure.state[{#SNMPINDEX}])=26 or last(/Raritan PDU by SNMP/raritan.pdu.ext.airpressure.state[{#SNMPINDEX}])=28'
+                  name: 'External air pressure [{#NAME}] is in critical state'
+                  priority: HIGH
+                - uuid: 24cf103e21eb4fdabdd3fb29a4cab84e
+                  expression: 'last(/Raritan PDU by SNMP/raritan.pdu.ext.airpressure.state[{#SNMPINDEX}])=3 or last(/Raritan PDU by SNMP/raritan.pdu.ext.airpressure.state[{#SNMPINDEX}])=5 or last(/Raritan PDU by SNMP/raritan.pdu.ext.airpressure.state[{#SNMPINDEX}])=27'
+                  name: 'External air pressure [{#NAME}] is in warning state'
+                  priority: WARNING
+            - uuid: 34c5f5d3c8c44998bb7ab91999613708
+              name: 'External air pressure sensor type {#NAME}'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.13742.6.3.6.3.1.2.{#SNMPINDEX}'
+              key: 'raritan.pdu.ext.airpressure.type[{#SNMPINDEX}]'
+              delay: '{$RARITAN.PDU.INVENTORY}'
+              history: 30d
+              value_type: TEXT
+              trends: '0'
+            - uuid: 80ccef97b2c442e8b06ccf67ffa650bb
+              name: 'External air pressure value [{#NAME}]'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.13742.6.5.5.3.1.4.{#SNMPINDEX}'
+              key: 'raritan.pdu.ext.airpressure.value[{#SNMPINDEX}]'
+              delay: '{$RARITAN.PDU.POLL}'
+              history: 30d
+              value_type: FLOAT
+              trends: 90d
+              preprocessing:
+                - type: JAVASCRIPT
+                  parameters:
+                    - 'var d = Number(''{#DIGITS}''); if (isNaN(d) || d < 0) d = 0; var n = Number(value); if (isNaN(n)) throw ''NaN''; return n / Math.pow(10, d);'
+        - uuid: 6dea961b5f6845aab3252c1406b040aa
+          name: 'External humidity discovery'
+          type: SNMP_AGENT
+          snmp_oid: 'discovery[{#NAME},1.3.6.1.4.1.13742.6.3.6.3.1.4,{#TYPE},1.3.6.1.4.1.13742.6.3.6.3.1.2,{#DIGITS},1.3.6.1.4.1.13742.6.3.6.3.1.17]'
+          key: raritan.pdu.ext.humidity.discovery
+          delay: '{$RARITAN.PDU.DISCOVERY}'
+          filter:
+            evaltype: AND
+            conditions:
+              - macro: '{#TYPE}'
+                value: ^11$
+                formulaid: A
+          lifetime: 30d
+          item_prototypes:
+            - uuid: 23350253ed974d1bbeb01c01ac45c4ea
+              name: 'External humidity decimal digits {#NAME}'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.13742.6.3.6.3.1.17.{#SNMPINDEX}'
+              key: 'raritan.pdu.ext.humidity.digits[{#SNMPINDEX}]'
+              delay: '{$RARITAN.PDU.INVENTORY}'
+              history: 30d
+              value_type: TEXT
+              trends: '0'
+            - uuid: 6924333764e7458da4167b56861a8bbe
+              name: 'External humidity name {#NAME}'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.13742.6.3.6.3.1.4.{#SNMPINDEX}'
+              key: 'raritan.pdu.ext.humidity.name[{#SNMPINDEX}]'
+              delay: '{$RARITAN.PDU.INVENTORY}'
+              history: 30d
+              value_type: TEXT
+              trends: '0'
+            - uuid: 182c1883e45f4f10a8fc815353ba5149
+              name: 'External humidity state [{#NAME}]'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.13742.6.5.5.3.1.3.{#SNMPINDEX}'
+              key: 'raritan.pdu.ext.humidity.state[{#SNMPINDEX}]'
+              delay: '{$RARITAN.PDU.POLL}'
+              history: 30d
+              trends: 90d
+              valuemap:
+                name: 'Raritan sensor state'
+              trigger_prototypes:
+                - uuid: f0ebc90299014539b2f2b8303f037009
+                  expression: 'last(/Raritan PDU by SNMP/raritan.pdu.ext.humidity.state[{#SNMPINDEX}])=2 or last(/Raritan PDU by SNMP/raritan.pdu.ext.humidity.state[{#SNMPINDEX}])=6 or last(/Raritan PDU by SNMP/raritan.pdu.ext.humidity.state[{#SNMPINDEX}])=14 or last(/Raritan PDU by SNMP/raritan.pdu.ext.humidity.state[{#SNMPINDEX}])=26 or last(/Raritan PDU by SNMP/raritan.pdu.ext.humidity.state[{#SNMPINDEX}])=28'
+                  name: 'External humidity [{#NAME}] is in critical state'
+                  priority: HIGH
+                - uuid: 18f789b0fd354812a00705409d6b90e1
+                  expression: 'last(/Raritan PDU by SNMP/raritan.pdu.ext.humidity.state[{#SNMPINDEX}])=3 or last(/Raritan PDU by SNMP/raritan.pdu.ext.humidity.state[{#SNMPINDEX}])=5 or last(/Raritan PDU by SNMP/raritan.pdu.ext.humidity.state[{#SNMPINDEX}])=27'
+                  name: 'External humidity [{#NAME}] is in warning state'
+                  priority: WARNING
+            - uuid: da0a0bf56ff04ade80ebcef467fe69d1
+              name: 'External humidity sensor type {#NAME}'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.13742.6.3.6.3.1.2.{#SNMPINDEX}'
+              key: 'raritan.pdu.ext.humidity.type[{#SNMPINDEX}]'
+              delay: '{$RARITAN.PDU.INVENTORY}'
+              history: 30d
+              value_type: TEXT
+              trends: '0'
+            - uuid: b98a44be121f412d8b85d453cb9c4e10
+              name: 'External humidity value [{#NAME}]'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.13742.6.5.5.3.1.4.{#SNMPINDEX}'
+              key: 'raritan.pdu.ext.humidity.value[{#SNMPINDEX}]'
+              delay: '{$RARITAN.PDU.POLL}'
+              history: 30d
+              value_type: FLOAT
+              trends: 90d
+              units: '%'
+              preprocessing:
+                - type: JAVASCRIPT
+                  parameters:
+                    - 'var d = Number(''{#DIGITS}''); if (isNaN(d) || d < 0) d = 0; var n = Number(value); if (isNaN(n)) throw ''NaN''; return n / Math.pow(10, d);'
+        - uuid: 7291b51815b741a5a1321b7d895d7647
+          name: 'External smoke discovery'
+          type: SNMP_AGENT
+          snmp_oid: 'discovery[{#NAME},1.3.6.1.4.1.13742.6.3.6.3.1.4,{#TYPE},1.3.6.1.4.1.13742.6.3.6.3.1.2]'
+          key: raritan.pdu.ext.smoke.discovery
+          delay: '{$RARITAN.PDU.DISCOVERY}'
+          filter:
+            evaltype: AND
+            conditions:
+              - macro: '{#TYPE}'
+                value: ^18$
+                formulaid: A
+          lifetime: 30d
+          item_prototypes:
+            - uuid: 7e01ca5f63e140f585bc0876be211707
+              name: 'External smoke name {#NAME}'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.13742.6.3.6.3.1.4.{#SNMPINDEX}'
+              key: 'raritan.pdu.ext.smoke.name[{#SNMPINDEX}]'
+              delay: '{$RARITAN.PDU.INVENTORY}'
+              history: 30d
+              value_type: TEXT
+              trends: '0'
+            - uuid: e9ef90457d354ebfba1151db5215f336
+              name: 'External smoke state [{#NAME}]'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.13742.6.5.5.3.1.3.{#SNMPINDEX}'
+              key: 'raritan.pdu.ext.smoke.state[{#SNMPINDEX}]'
+              delay: '{$RARITAN.PDU.POLL}'
+              history: 30d
+              trends: 90d
+              valuemap:
+                name: 'Raritan sensor state'
+              trigger_prototypes:
+                - uuid: b04a2e4e9a014e0cb5973f222e2f2855
+                  expression: 'last(/Raritan PDU by SNMP/raritan.pdu.ext.smoke.state[{#SNMPINDEX}])=9 or last(/Raritan PDU by SNMP/raritan.pdu.ext.smoke.state[{#SNMPINDEX}])=11'
+                  name: 'External smoke alarm [{#NAME}]'
+                  priority: HIGH
+            - uuid: 24645d7ad1aa42a295a26feda622f6d1
+              name: 'External smoke sensor type {#NAME}'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.13742.6.3.6.3.1.2.{#SNMPINDEX}'
+              key: 'raritan.pdu.ext.smoke.type[{#SNMPINDEX}]'
+              delay: '{$RARITAN.PDU.INVENTORY}'
+              history: 30d
+              value_type: TEXT
+              trends: '0'
+        - uuid: 6db4c81f10124ff9bef81b6961f0f43f
+          name: 'External temperature discovery'
+          type: SNMP_AGENT
+          snmp_oid: 'discovery[{#NAME},1.3.6.1.4.1.13742.6.3.6.3.1.4,{#TYPE},1.3.6.1.4.1.13742.6.3.6.3.1.2,{#DIGITS},1.3.6.1.4.1.13742.6.3.6.3.1.17]'
+          key: raritan.pdu.ext.temperature.discovery
+          delay: '{$RARITAN.PDU.DISCOVERY}'
+          filter:
+            evaltype: AND
+            conditions:
+              - macro: '{#TYPE}'
+                value: ^10$
+                formulaid: A
+          lifetime: 30d
+          item_prototypes:
+            - uuid: cced57e0e75842f6b5ff6a0cb14d284a
+              name: 'External temperature decimal digits {#NAME}'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.13742.6.3.6.3.1.17.{#SNMPINDEX}'
+              key: 'raritan.pdu.ext.temperature.digits[{#SNMPINDEX}]'
+              delay: '{$RARITAN.PDU.INVENTORY}'
+              history: 30d
+              value_type: TEXT
+              trends: '0'
+            - uuid: 3435e0466d6c4b1f93cc7b90ceaa93a9
+              name: 'External temperature name {#NAME}'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.13742.6.3.6.3.1.4.{#SNMPINDEX}'
+              key: 'raritan.pdu.ext.temperature.name[{#SNMPINDEX}]'
+              delay: '{$RARITAN.PDU.INVENTORY}'
+              history: 30d
+              value_type: TEXT
+              trends: '0'
+            - uuid: 5bd09bd476e040d69e50efdfbe26076d
+              name: 'External temperature state [{#NAME}]'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.13742.6.5.5.3.1.3.{#SNMPINDEX}'
+              key: 'raritan.pdu.ext.temperature.state[{#SNMPINDEX}]'
+              delay: '{$RARITAN.PDU.POLL}'
+              history: 30d
+              trends: 90d
+              valuemap:
+                name: 'Raritan sensor state'
+              trigger_prototypes:
+                - uuid: 5ee47cf08ef0438fb63f91a5bdecb468
+                  expression: 'last(/Raritan PDU by SNMP/raritan.pdu.ext.temperature.state[{#SNMPINDEX}])=2 or last(/Raritan PDU by SNMP/raritan.pdu.ext.temperature.state[{#SNMPINDEX}])=6 or last(/Raritan PDU by SNMP/raritan.pdu.ext.temperature.state[{#SNMPINDEX}])=14 or last(/Raritan PDU by SNMP/raritan.pdu.ext.temperature.state[{#SNMPINDEX}])=26 or last(/Raritan PDU by SNMP/raritan.pdu.ext.temperature.state[{#SNMPINDEX}])=28'
+                  name: 'External temperature [{#NAME}] is in critical state'
+                  priority: HIGH
+                - uuid: 358e1035913a4400ab750fec5cc16cf2
+                  expression: 'last(/Raritan PDU by SNMP/raritan.pdu.ext.temperature.state[{#SNMPINDEX}])=3 or last(/Raritan PDU by SNMP/raritan.pdu.ext.temperature.state[{#SNMPINDEX}])=5 or last(/Raritan PDU by SNMP/raritan.pdu.ext.temperature.state[{#SNMPINDEX}])=27'
+                  name: 'External temperature [{#NAME}] is in warning state'
+                  priority: WARNING
+            - uuid: 358aff7f82e24c9e8ea546eb2cc33d9c
+              name: 'External temperature sensor type {#NAME}'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.13742.6.3.6.3.1.2.{#SNMPINDEX}'
+              key: 'raritan.pdu.ext.temperature.type[{#SNMPINDEX}]'
+              delay: '{$RARITAN.PDU.INVENTORY}'
+              history: 30d
+              value_type: TEXT
+              trends: '0'
+            - uuid: 664330baaf614f28a180ab865b5c31f5
+              name: 'External temperature value [{#NAME}]'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.13742.6.5.5.3.1.4.{#SNMPINDEX}'
+              key: 'raritan.pdu.ext.temperature.value[{#SNMPINDEX}]'
+              delay: '{$RARITAN.PDU.POLL}'
+              history: 30d
+              value_type: FLOAT
+              trends: 90d
+              preprocessing:
+                - type: JAVASCRIPT
+                  parameters:
+                    - 'var d = Number(''{#DIGITS}''); if (isNaN(d) || d < 0) d = 0; var n = Number(value); if (isNaN(n)) throw ''NaN''; return n / Math.pow(10, d);'
+        - uuid: f5dff697796540af97b8166cf830f86e
+          name: 'External water leak discovery'
+          type: SNMP_AGENT
+          snmp_oid: 'discovery[{#NAME},1.3.6.1.4.1.13742.6.3.6.3.1.4,{#TYPE},1.3.6.1.4.1.13742.6.3.6.3.1.2]'
+          key: raritan.pdu.ext.water.discovery
+          delay: '{$RARITAN.PDU.DISCOVERY}'
+          filter:
+            evaltype: AND
+            conditions:
+              - macro: '{#TYPE}'
+                value: ^17$
+                formulaid: A
+          lifetime: 30d
+          item_prototypes:
+            - uuid: 13eed9173ef54a3ca6559c8e4e3b2af0
+              name: 'External water leak name {#NAME}'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.13742.6.3.6.3.1.4.{#SNMPINDEX}'
+              key: 'raritan.pdu.ext.water.name[{#SNMPINDEX}]'
+              delay: '{$RARITAN.PDU.INVENTORY}'
+              history: 30d
+              value_type: TEXT
+              trends: '0'
+            - uuid: 8b6327a2dd604bbeb14d4bb7306a7eae
+              name: 'External water leak state [{#NAME}]'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.13742.6.5.5.3.1.3.{#SNMPINDEX}'
+              key: 'raritan.pdu.ext.water.state[{#SNMPINDEX}]'
+              delay: '{$RARITAN.PDU.POLL}'
+              history: 30d
+              trends: 90d
+              valuemap:
+                name: 'Raritan sensor state'
+              trigger_prototypes:
+                - uuid: 697254739b7543a9bf774119001b2420
+                  expression: 'last(/Raritan PDU by SNMP/raritan.pdu.ext.water.state[{#SNMPINDEX}])=9 or last(/Raritan PDU by SNMP/raritan.pdu.ext.water.state[{#SNMPINDEX}])=11'
+                  name: 'External water leak alarm [{#NAME}]'
+                  priority: HIGH
+            - uuid: 5f55c3c2a2b84bd29721113a817dfa90
+              name: 'External water leak sensor type {#NAME}'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.13742.6.3.6.3.1.2.{#SNMPINDEX}'
+              key: 'raritan.pdu.ext.water.type[{#SNMPINDEX}]'
+              delay: '{$RARITAN.PDU.INVENTORY}'
+              history: 30d
+              value_type: TEXT
+              trends: '0'
+        - uuid: 430844ae069543dd87ad2f06046f66d2
+          name: 'Inlet current discovery'
+          type: SNMP_AGENT
+          snmp_oid: 'discovery[{#TYPE},1.3.6.1.4.1.13742.6.3.3.4.1.2,{#DIGITS},1.3.6.1.4.1.13742.6.3.3.4.1.7]'
+          key: raritan.pdu.inlet.current.discovery
+          delay: '{$RARITAN.PDU.DISCOVERY}'
+          filter:
+            evaltype: AND
+            conditions:
+              - macro: '{#TYPE}'
+                value: ^1$
+                formulaid: A
+          lifetime: 30d
+          item_prototypes:
+            - uuid: fa2b45c904734e4082237d4fba9c5772
+              name: 'Inlet current decimal digits {#SNMPINDEX}'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.13742.6.3.3.4.1.7.{#SNMPINDEX}'
+              key: 'raritan.pdu.inlet.current.digits[{#SNMPINDEX}]'
+              delay: '{$RARITAN.PDU.INVENTORY}'
+              history: 30d
+              value_type: TEXT
+              trends: '0'
+            - uuid: 2be134a5a351436a8aaaa18de5a4e770
+              name: 'Inlet current state [{#SNMPINDEX}]'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.13742.6.5.2.3.1.3.{#SNMPINDEX}'
+              key: 'raritan.pdu.inlet.current.state[{#SNMPINDEX}]'
+              delay: '{$RARITAN.PDU.POLL}'
+              history: 30d
+              trends: 90d
+              valuemap:
+                name: 'Raritan sensor state'
+              trigger_prototypes:
+                - uuid: a35d9f48ec144f22a4e561d19710353a
+                  expression: 'last(/Raritan PDU by SNMP/raritan.pdu.inlet.current.state[{#SNMPINDEX}])=2 or last(/Raritan PDU by SNMP/raritan.pdu.inlet.current.state[{#SNMPINDEX}])=6 or last(/Raritan PDU by SNMP/raritan.pdu.inlet.current.state[{#SNMPINDEX}])=14 or last(/Raritan PDU by SNMP/raritan.pdu.inlet.current.state[{#SNMPINDEX}])=26 or last(/Raritan PDU by SNMP/raritan.pdu.inlet.current.state[{#SNMPINDEX}])=28'
+                  name: 'Inlet current [{#SNMPINDEX}] is in critical state'
+                  priority: HIGH
+                - uuid: a5cf3b57dcbf4ee68ddfcdd3b8884bc5
+                  expression: 'last(/Raritan PDU by SNMP/raritan.pdu.inlet.current.state[{#SNMPINDEX}])=3 or last(/Raritan PDU by SNMP/raritan.pdu.inlet.current.state[{#SNMPINDEX}])=5 or last(/Raritan PDU by SNMP/raritan.pdu.inlet.current.state[{#SNMPINDEX}])=27'
+                  name: 'Inlet current [{#SNMPINDEX}] is in warning state'
+                  priority: WARNING
+            - uuid: 1fa6aa80c6434b0bb497ff3e9c3b9b07
+              name: 'Inlet current sensor type {#SNMPINDEX}'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.13742.6.3.3.4.1.2.{#SNMPINDEX}'
+              key: 'raritan.pdu.inlet.current.type[{#SNMPINDEX}]'
+              delay: '{$RARITAN.PDU.INVENTORY}'
+              history: 30d
+              value_type: TEXT
+              trends: '0'
+            - uuid: 1e471790de6c44029df3a7474c7cfa0a
+              name: 'Inlet current value [{#SNMPINDEX}]'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.13742.6.5.2.3.1.4.{#SNMPINDEX}'
+              key: 'raritan.pdu.inlet.current.value[{#SNMPINDEX}]'
+              delay: '{$RARITAN.PDU.POLL}'
+              history: 30d
+              value_type: FLOAT
+              trends: 90d
+              units: A
+              preprocessing:
+                - type: JAVASCRIPT
+                  parameters:
+                    - 'var d = Number(''{#DIGITS}''); if (isNaN(d) || d < 0) d = 0; var n = Number(value); if (isNaN(n)) throw ''NaN''; return n / Math.pow(10, d);'
+        - uuid: 2c03062243ab4c65ac9b1c7ce77cca54
+          name: 'Inlet active power discovery'
+          type: SNMP_AGENT
+          snmp_oid: 'discovery[{#TYPE},1.3.6.1.4.1.13742.6.3.3.4.1.2,{#DIGITS},1.3.6.1.4.1.13742.6.3.3.4.1.7]'
+          key: raritan.pdu.inlet.power.discovery
+          delay: '{$RARITAN.PDU.DISCOVERY}'
+          filter:
+            evaltype: AND
+            conditions:
+              - macro: '{#TYPE}'
+                value: ^5$
+                formulaid: A
+          lifetime: 30d
+          item_prototypes:
+            - uuid: 4d3782bed52b4d44a17ae9661087ed4e
+              name: 'Inlet active power decimal digits {#SNMPINDEX}'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.13742.6.3.3.4.1.7.{#SNMPINDEX}'
+              key: 'raritan.pdu.inlet.power.digits[{#SNMPINDEX}]'
+              delay: '{$RARITAN.PDU.INVENTORY}'
+              history: 30d
+              value_type: TEXT
+              trends: '0'
+            - uuid: e354e53250b443229340424ea0134af5
+              name: 'Inlet active power state [{#SNMPINDEX}]'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.13742.6.5.2.3.1.3.{#SNMPINDEX}'
+              key: 'raritan.pdu.inlet.power.state[{#SNMPINDEX}]'
+              delay: '{$RARITAN.PDU.POLL}'
+              history: 30d
+              trends: 90d
+              valuemap:
+                name: 'Raritan sensor state'
+              trigger_prototypes:
+                - uuid: a41da0671b964f34b518097e58ba6d00
+                  expression: 'last(/Raritan PDU by SNMP/raritan.pdu.inlet.power.state[{#SNMPINDEX}])=2 or last(/Raritan PDU by SNMP/raritan.pdu.inlet.power.state[{#SNMPINDEX}])=6 or last(/Raritan PDU by SNMP/raritan.pdu.inlet.power.state[{#SNMPINDEX}])=14 or last(/Raritan PDU by SNMP/raritan.pdu.inlet.power.state[{#SNMPINDEX}])=26 or last(/Raritan PDU by SNMP/raritan.pdu.inlet.power.state[{#SNMPINDEX}])=28'
+                  name: 'Inlet active power [{#SNMPINDEX}] is in critical state'
+                  priority: HIGH
+                - uuid: 70a6bd3a8f4e44b9a9bdd976c02722bb
+                  expression: 'last(/Raritan PDU by SNMP/raritan.pdu.inlet.power.state[{#SNMPINDEX}])=3 or last(/Raritan PDU by SNMP/raritan.pdu.inlet.power.state[{#SNMPINDEX}])=5 or last(/Raritan PDU by SNMP/raritan.pdu.inlet.power.state[{#SNMPINDEX}])=27'
+                  name: 'Inlet active power [{#SNMPINDEX}] is in warning state'
+                  priority: WARNING
+            - uuid: 5812321e3b444a4094bee801c29a9f97
+              name: 'Inlet active power sensor type {#SNMPINDEX}'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.13742.6.3.3.4.1.2.{#SNMPINDEX}'
+              key: 'raritan.pdu.inlet.power.type[{#SNMPINDEX}]'
+              delay: '{$RARITAN.PDU.INVENTORY}'
+              history: 30d
+              value_type: TEXT
+              trends: '0'
+            - uuid: 7c0df6322edc434cbb0bd34230f2db6d
+              name: 'Inlet active power value [{#SNMPINDEX}]'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.13742.6.5.2.3.1.4.{#SNMPINDEX}'
+              key: 'raritan.pdu.inlet.power.value[{#SNMPINDEX}]'
+              delay: '{$RARITAN.PDU.POLL}'
+              history: 30d
+              value_type: FLOAT
+              trends: 90d
+              units: W
+              preprocessing:
+                - type: JAVASCRIPT
+                  parameters:
+                    - 'var d = Number(''{#DIGITS}''); if (isNaN(d) || d < 0) d = 0; var n = Number(value); if (isNaN(n)) throw ''NaN''; return n / Math.pow(10, d);'
+        - uuid: daabd13bbebe4e48a55be91ca6b579cb
+          name: 'Inlet voltage discovery'
+          type: SNMP_AGENT
+          snmp_oid: 'discovery[{#TYPE},1.3.6.1.4.1.13742.6.3.3.4.1.2,{#DIGITS},1.3.6.1.4.1.13742.6.3.3.4.1.7]'
+          key: raritan.pdu.inlet.voltage.discovery
+          delay: '{$RARITAN.PDU.DISCOVERY}'
+          filter:
+            evaltype: AND
+            conditions:
+              - macro: '{#TYPE}'
+                value: ^4$
+                formulaid: A
+          lifetime: 30d
+          item_prototypes:
+            - uuid: f95f25d2663d4b8cb3ac05a72ea9f3f0
+              name: 'Inlet voltage decimal digits {#SNMPINDEX}'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.13742.6.3.3.4.1.7.{#SNMPINDEX}'
+              key: 'raritan.pdu.inlet.voltage.digits[{#SNMPINDEX}]'
+              delay: '{$RARITAN.PDU.INVENTORY}'
+              history: 30d
+              value_type: TEXT
+              trends: '0'
+            - uuid: 5ab35f8ddc774e3a909bc3a1bab3d8e7
+              name: 'Inlet voltage state [{#SNMPINDEX}]'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.13742.6.5.2.3.1.3.{#SNMPINDEX}'
+              key: 'raritan.pdu.inlet.voltage.state[{#SNMPINDEX}]'
+              delay: '{$RARITAN.PDU.POLL}'
+              history: 30d
+              trends: 90d
+              valuemap:
+                name: 'Raritan sensor state'
+              trigger_prototypes:
+                - uuid: c8b30bf66c994066b3d9a723aca7b697
+                  expression: 'last(/Raritan PDU by SNMP/raritan.pdu.inlet.voltage.state[{#SNMPINDEX}])=2 or last(/Raritan PDU by SNMP/raritan.pdu.inlet.voltage.state[{#SNMPINDEX}])=6 or last(/Raritan PDU by SNMP/raritan.pdu.inlet.voltage.state[{#SNMPINDEX}])=14 or last(/Raritan PDU by SNMP/raritan.pdu.inlet.voltage.state[{#SNMPINDEX}])=26 or last(/Raritan PDU by SNMP/raritan.pdu.inlet.voltage.state[{#SNMPINDEX}])=28'
+                  name: 'Inlet voltage [{#SNMPINDEX}] is in critical state'
+                  priority: HIGH
+                - uuid: 4e9cb8c9e48640669a07dc64895532ca
+                  expression: 'last(/Raritan PDU by SNMP/raritan.pdu.inlet.voltage.state[{#SNMPINDEX}])=3 or last(/Raritan PDU by SNMP/raritan.pdu.inlet.voltage.state[{#SNMPINDEX}])=5 or last(/Raritan PDU by SNMP/raritan.pdu.inlet.voltage.state[{#SNMPINDEX}])=27'
+                  name: 'Inlet voltage [{#SNMPINDEX}] is in warning state'
+                  priority: WARNING
+            - uuid: 45a704729aaf4f2487e5ef1a3d63bcc9
+              name: 'Inlet voltage sensor type {#SNMPINDEX}'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.13742.6.3.3.4.1.2.{#SNMPINDEX}'
+              key: 'raritan.pdu.inlet.voltage.type[{#SNMPINDEX}]'
+              delay: '{$RARITAN.PDU.INVENTORY}'
+              history: 30d
+              value_type: TEXT
+              trends: '0'
+            - uuid: 796528d8b2c3458b924a0ef9e9acded7
+              name: 'Inlet voltage value [{#SNMPINDEX}]'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.13742.6.5.2.3.1.4.{#SNMPINDEX}'
+              key: 'raritan.pdu.inlet.voltage.value[{#SNMPINDEX}]'
+              delay: '{$RARITAN.PDU.POLL}'
+              history: 30d
+              value_type: FLOAT
+              trends: 90d
+              units: V
+              preprocessing:
+                - type: JAVASCRIPT
+                  parameters:
+                    - 'var d = Number(''{#DIGITS}''); if (isNaN(d) || d < 0) d = 0; var n = Number(value); if (isNaN(n)) throw ''NaN''; return n / Math.pow(10, d);'
+        - uuid: f595e9496ed2408db19832639b9327b0
+          name: 'Outlet current discovery'
+          type: SNMP_AGENT
+          snmp_oid: 'discovery[{#OUTLETLABEL},1.3.6.1.4.1.13742.6.3.5.3.1.2,{#TYPE},1.3.6.1.4.1.13742.6.3.5.4.1.2,{#DIGITS},1.3.6.1.4.1.13742.6.3.5.4.1.7]'
+          key: raritan.pdu.outlet.current.discovery
+          delay: '{$RARITAN.PDU.DISCOVERY}'
+          filter:
+            evaltype: AND
+            conditions:
+              - macro: '{#TYPE}'
+                value: ^1$
+                formulaid: A
+          lifetime: 30d
+          item_prototypes:
+            - uuid: e6cc1ab3e1ba4f10a1528408c558fd9f
+              name: 'Outlet current decimal digits {#OUTLETLABEL}'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.13742.6.3.5.4.1.7.{#SNMPINDEX}'
+              key: 'raritan.pdu.outlet.current.digits[{#SNMPINDEX}]'
+              delay: '{$RARITAN.PDU.INVENTORY}'
+              history: 30d
+              value_type: TEXT
+              trends: '0'
+            - uuid: 4c4aba888844499ba3b6d3b11d60cc2f
+              name: 'Outlet current name {#OUTLETLABEL}'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.13742.6.3.5.3.1.2.{#SNMPINDEX}'
+              key: 'raritan.pdu.outlet.current.name[{#SNMPINDEX}]'
+              delay: '{$RARITAN.PDU.INVENTORY}'
+              history: 30d
+              value_type: TEXT
+              trends: '0'
+            - uuid: c8c21c83c82141b797ca6ceb3c138007
+              name: 'Outlet current state [{#OUTLETLABEL}]'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.13742.6.5.4.3.1.3.{#SNMPINDEX}'
+              key: 'raritan.pdu.outlet.current.state[{#SNMPINDEX}]'
+              delay: '{$RARITAN.PDU.POLL}'
+              history: 30d
+              trends: 90d
+              valuemap:
+                name: 'Raritan sensor state'
+              trigger_prototypes:
+                - uuid: 0f4ef933c7a04670b81167885e66e94d
+                  expression: 'last(/Raritan PDU by SNMP/raritan.pdu.outlet.current.state[{#SNMPINDEX}])=2 or last(/Raritan PDU by SNMP/raritan.pdu.outlet.current.state[{#SNMPINDEX}])=6 or last(/Raritan PDU by SNMP/raritan.pdu.outlet.current.state[{#SNMPINDEX}])=14 or last(/Raritan PDU by SNMP/raritan.pdu.outlet.current.state[{#SNMPINDEX}])=26 or last(/Raritan PDU by SNMP/raritan.pdu.outlet.current.state[{#SNMPINDEX}])=28'
+                  name: 'Outlet current [{#OUTLETLABEL}] is in critical state'
+                  priority: HIGH
+                - uuid: 03968da403ff439b9038f1de218a56ee
+                  expression: 'last(/Raritan PDU by SNMP/raritan.pdu.outlet.current.state[{#SNMPINDEX}])=3 or last(/Raritan PDU by SNMP/raritan.pdu.outlet.current.state[{#SNMPINDEX}])=5 or last(/Raritan PDU by SNMP/raritan.pdu.outlet.current.state[{#SNMPINDEX}])=27'
+                  name: 'Outlet current [{#OUTLETLABEL}] is in warning state'
+                  priority: WARNING
+            - uuid: 1942a4c3961e4bbf93169cdea6bff193
+              name: 'Outlet current sensor type {#OUTLETLABEL}'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.13742.6.3.5.4.1.2.{#SNMPINDEX}'
+              key: 'raritan.pdu.outlet.current.type[{#SNMPINDEX}]'
+              delay: '{$RARITAN.PDU.INVENTORY}'
+              history: 30d
+              value_type: TEXT
+              trends: '0'
+            - uuid: 827c377436bc4e14b5cbb6a38c605f5c
+              name: 'Outlet current value [{#OUTLETLABEL}]'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.13742.6.5.4.3.1.4.{#SNMPINDEX}'
+              key: 'raritan.pdu.outlet.current.value[{#SNMPINDEX}]'
+              delay: '{$RARITAN.PDU.POLL}'
+              history: 30d
+              value_type: FLOAT
+              trends: 90d
+              units: A
+              preprocessing:
+                - type: JAVASCRIPT
+                  parameters:
+                    - 'var d = Number(''{#DIGITS}''); if (isNaN(d) || d < 0) d = 0; var n = Number(value); if (isNaN(n)) throw ''NaN''; return n / Math.pow(10, d);'
+        - uuid: 573179e0513046878b945e76fc3f5f3e
+          name: 'Outlet discovery'
+          type: SNMP_AGENT
+          snmp_oid: 'discovery[{#OUTLETLABEL},1.3.6.1.4.1.13742.6.3.5.3.1.2,{#OUTLETNAME},1.3.6.1.4.1.13742.6.3.5.3.1.3,{#SWITCHABLE},1.3.6.1.4.1.13742.6.3.5.3.1.28]'
+          key: raritan.pdu.outlet.discovery
+          delay: '{$RARITAN.PDU.DISCOVERY}'
+          lifetime: 30d
+          item_prototypes:
+            - uuid: b78ccab8acd44f32a850e44a6ee5e247
+              name: 'Outlet label [{#OUTLETLABEL}]'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.13742.6.3.5.3.1.2.{#SNMPINDEX}'
+              key: 'raritan.pdu.outlet.label[{#SNMPINDEX}]'
+              delay: '{$RARITAN.PDU.INVENTORY}'
+              history: 30d
+              value_type: TEXT
+              trends: '0'
+            - uuid: f7d2ef36b0a9477cac0181d3036eda65
+              name: 'Outlet name [{#OUTLETNAME}]'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.13742.6.3.5.3.1.3.{#SNMPINDEX}'
+              key: 'raritan.pdu.outlet.name[{#SNMPINDEX}]'
+              delay: '{$RARITAN.PDU.INVENTORY}'
+              history: 30d
+              value_type: TEXT
+              trends: '0'
+            - uuid: 57ee6c6fbb554bf89cab00c2432dc95d
+              name: 'Outlet switching state [{#OUTLETLABEL}]'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.13742.6.4.1.2.1.3.{#SNMPINDEX}'
+              key: 'raritan.pdu.outlet.state[{#SNMPINDEX}]'
+              delay: '{$RARITAN.PDU.POLL}'
+              history: 30d
+              trends: 90d
+              valuemap:
+                name: 'Raritan sensor state'
+            - uuid: 318107790ab2447ca737eb5b315ce2c3
+              name: 'Outlet switchable [{#OUTLETLABEL}]'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.13742.6.3.5.3.1.28.{#SNMPINDEX}'
+              key: 'raritan.pdu.outlet.switchable[{#SNMPINDEX}]'
+              delay: '{$RARITAN.PDU.INVENTORY}'
+              history: 30d
+              trends: 90d
+              valuemap:
+                name: 'Raritan switchable'
+        - uuid: b99153661eaf4b648a6ea9e66a88a15f
+          name: 'Outlet active power discovery'
+          type: SNMP_AGENT
+          snmp_oid: 'discovery[{#OUTLETLABEL},1.3.6.1.4.1.13742.6.3.5.3.1.2,{#TYPE},1.3.6.1.4.1.13742.6.3.5.4.1.2,{#DIGITS},1.3.6.1.4.1.13742.6.3.5.4.1.7]'
+          key: raritan.pdu.outlet.power.discovery
+          delay: '{$RARITAN.PDU.DISCOVERY}'
+          filter:
+            evaltype: AND
+            conditions:
+              - macro: '{#TYPE}'
+                value: ^5$
+                formulaid: A
+          lifetime: 30d
+          item_prototypes:
+            - uuid: 4d9f783d7b2e47ed915e3304b9008fba
+              name: 'Outlet active power decimal digits {#OUTLETLABEL}'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.13742.6.3.5.4.1.7.{#SNMPINDEX}'
+              key: 'raritan.pdu.outlet.power.digits[{#SNMPINDEX}]'
+              delay: '{$RARITAN.PDU.INVENTORY}'
+              history: 30d
+              value_type: TEXT
+              trends: '0'
+            - uuid: 4e6b2334b2b64085830ed4785f0e4c88
+              name: 'Outlet active power name {#OUTLETLABEL}'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.13742.6.3.5.3.1.2.{#SNMPINDEX}'
+              key: 'raritan.pdu.outlet.power.name[{#SNMPINDEX}]'
+              delay: '{$RARITAN.PDU.INVENTORY}'
+              history: 30d
+              value_type: TEXT
+              trends: '0'
+            - uuid: fa9879be25de46a3b7d84d9e4ded23f8
+              name: 'Outlet active power state [{#OUTLETLABEL}]'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.13742.6.5.4.3.1.3.{#SNMPINDEX}'
+              key: 'raritan.pdu.outlet.power.state[{#SNMPINDEX}]'
+              delay: '{$RARITAN.PDU.POLL}'
+              history: 30d
+              trends: 90d
+              valuemap:
+                name: 'Raritan sensor state'
+              trigger_prototypes:
+                - uuid: 280c53ac77f64c3daa01a6223bd7a318
+                  expression: 'last(/Raritan PDU by SNMP/raritan.pdu.outlet.power.state[{#SNMPINDEX}])=2 or last(/Raritan PDU by SNMP/raritan.pdu.outlet.power.state[{#SNMPINDEX}])=6 or last(/Raritan PDU by SNMP/raritan.pdu.outlet.power.state[{#SNMPINDEX}])=14 or last(/Raritan PDU by SNMP/raritan.pdu.outlet.power.state[{#SNMPINDEX}])=26 or last(/Raritan PDU by SNMP/raritan.pdu.outlet.power.state[{#SNMPINDEX}])=28'
+                  name: 'Outlet active power [{#OUTLETLABEL}] is in critical state'
+                  priority: HIGH
+                - uuid: f3a7f5d39090408787f3f16673f0be08
+                  expression: 'last(/Raritan PDU by SNMP/raritan.pdu.outlet.power.state[{#SNMPINDEX}])=3 or last(/Raritan PDU by SNMP/raritan.pdu.outlet.power.state[{#SNMPINDEX}])=5 or last(/Raritan PDU by SNMP/raritan.pdu.outlet.power.state[{#SNMPINDEX}])=27'
+                  name: 'Outlet active power [{#OUTLETLABEL}] is in warning state'
+                  priority: WARNING
+            - uuid: 844a26d0cf234ddbba3e82083358c38d
+              name: 'Outlet active power sensor type {#OUTLETLABEL}'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.13742.6.3.5.4.1.2.{#SNMPINDEX}'
+              key: 'raritan.pdu.outlet.power.type[{#SNMPINDEX}]'
+              delay: '{$RARITAN.PDU.INVENTORY}'
+              history: 30d
+              value_type: TEXT
+              trends: '0'
+            - uuid: 313a9af1f1ab49f38176147d52f8eb55
+              name: 'Outlet active power value [{#OUTLETLABEL}]'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.13742.6.5.4.3.1.4.{#SNMPINDEX}'
+              key: 'raritan.pdu.outlet.power.value[{#SNMPINDEX}]'
+              delay: '{$RARITAN.PDU.POLL}'
+              history: 30d
+              value_type: FLOAT
+              trends: 90d
+              units: W
+              preprocessing:
+                - type: JAVASCRIPT
+                  parameters:
+                    - 'var d = Number(''{#DIGITS}''); if (isNaN(d) || d < 0) d = 0; var n = Number(value); if (isNaN(n)) throw ''NaN''; return n / Math.pow(10, d);'
+        - uuid: ce5a6db3d17643e08071ec1c3fc1c96b
+          name: 'PDU unit discovery'
+          type: SNMP_AGENT
+          snmp_oid: 'discovery[{#PDUNAME},1.3.6.1.4.1.13742.6.3.2.2.1.13,{#MODEL},1.3.6.1.4.1.13742.6.3.2.1.1.3,{#SERIAL},1.3.6.1.4.1.13742.6.3.2.1.1.4]'
+          key: raritan.pdu.unit.discovery
+          delay: '{$RARITAN.PDU.DISCOVERY}'
+          lifetime: 30d
+          item_prototypes:
+            - uuid: 3056098bb23e4cf5b12b8da1621f8d8f
+              name: 'PDU unit inlet count [{#PDUNAME}]'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.13742.6.3.2.2.1.2.{#SNMPINDEX}'
+              key: 'raritan.pdu.unit.inlet.count[{#SNMPINDEX}]'
+              delay: '{$RARITAN.PDU.INVENTORY}'
+              history: 30d
+              trends: 90d
+            - uuid: fe1e517033794cc59e1e0af227ccde4e
+              name: 'PDU unit manufacturer [{#PDUNAME}]'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.13742.6.3.2.1.1.2.{#SNMPINDEX}'
+              key: 'raritan.pdu.unit.manufacturer[{#SNMPINDEX}]'
+              delay: '{$RARITAN.PDU.INVENTORY}'
+              history: 30d
+              value_type: TEXT
+              trends: '0'
+            - uuid: 8a3290fd353a42989a18b6158fcae872
+              name: 'PDU unit model [{#PDUNAME}]'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.13742.6.3.2.1.1.3.{#SNMPINDEX}'
+              key: 'raritan.pdu.unit.model[{#SNMPINDEX}]'
+              delay: '{$RARITAN.PDU.INVENTORY}'
+              history: 30d
+              value_type: TEXT
+              trends: '0'
+            - uuid: eae64c26900746d5ad5fcf6d8fee999f
+              name: 'PDU unit name [{#PDUNAME}]'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.13742.6.3.2.2.1.13.{#SNMPINDEX}'
+              key: 'raritan.pdu.unit.name[{#SNMPINDEX}]'
+              delay: '{$RARITAN.PDU.INVENTORY}'
+              history: 30d
+              value_type: TEXT
+              trends: '0'
+            - uuid: 8d4cb9f28eba482c9ce608f9201a8648
+              name: 'PDU unit outlet count [{#PDUNAME}]'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.13742.6.3.2.2.1.4.{#SNMPINDEX}'
+              key: 'raritan.pdu.unit.outlet.count[{#SNMPINDEX}]'
+              delay: '{$RARITAN.PDU.INVENTORY}'
+              history: 30d
+              trends: 90d
+            - uuid: b5ae4c16dbbb461eb45944534d108fd5
+              name: 'PDU unit external sensor count [{#PDUNAME}]'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.13742.6.3.2.2.1.7.{#SNMPINDEX}'
+              key: 'raritan.pdu.unit.sensor.count[{#SNMPINDEX}]'
+              delay: '{$RARITAN.PDU.INVENTORY}'
+              history: 30d
+              trends: 90d
+            - uuid: 8614fe18a0164b8ca3989e1d5c2989ed
+              name: 'PDU unit managed sensor count [{#PDUNAME}]'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.13742.6.3.2.2.1.42.{#SNMPINDEX}'
+              key: 'raritan.pdu.unit.sensor.managed.count[{#SNMPINDEX}]'
+              delay: '{$RARITAN.PDU.INVENTORY}'
+              history: 30d
+              trends: 90d
+            - uuid: a3db61e7edc84ab086c32977b9c3784e
+              name: 'PDU unit serial [{#PDUNAME}]'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.13742.6.3.2.1.1.4.{#SNMPINDEX}'
+              key: 'raritan.pdu.unit.serial[{#SNMPINDEX}]'
+              delay: '{$RARITAN.PDU.INVENTORY}'
+              history: 30d
+              value_type: TEXT
+              trends: '0'
+      macros:
+        - macro: '{$RARITAN.PDU.DISCOVERY}'
+          value: 1h
+          description: 'Discovery interval for outlets and sensors.'
+        - macro: '{$RARITAN.PDU.INVENTORY}'
+          value: 1d
+          description: 'Refresh interval for low-change inventory data.'
+        - macro: '{$RARITAN.PDU.POLL}'
+          value: 5m
+          description: 'Default polling interval for live measurements.'
+      valuemaps:
+        - uuid: 39859debec16437aa220c5497a287ee3
+          name: 'Raritan sensor state'
+          mappings:
+            - value: '-1'
+              newvalue: unavailable
+            - value: '0'
+              newvalue: open
+            - value: '1'
+              newvalue: closed
+            - value: '2'
+              newvalue: 'below lower critical'
+            - value: '3'
+              newvalue: 'below lower warning'
+            - value: '4'
+              newvalue: normal
+            - value: '5'
+              newvalue: 'above upper warning'
+            - value: '6'
+              newvalue: 'above upper critical'
+            - value: '7'
+              newvalue: 'on'
+            - value: '8'
+              newvalue: 'off'
+            - value: '9'
+              newvalue: detected
+            - value: '10'
+              newvalue: 'not detected'
+            - value: '11'
+              newvalue: alarmed
+            - value: '12'
+              newvalue: ok
+            - value: '14'
+              newvalue: fail
+            - value: '15'
+              newvalue: 'yes'
+            - value: '16'
+              newvalue: 'no'
+            - value: '17'
+              newvalue: standby
+            - value: '18'
+              newvalue: one
+            - value: '19'
+              newvalue: two
+            - value: '20'
+              newvalue: 'in sync'
+            - value: '21'
+              newvalue: 'out of sync'
+            - value: '22'
+              newvalue: 'i1 open fault'
+            - value: '23'
+              newvalue: 'i1 short fault'
+            - value: '24'
+              newvalue: 'i2 open fault'
+            - value: '25'
+              newvalue: 'i2 short fault'
+            - value: '26'
+              newvalue: fault
+            - value: '27'
+              newvalue: warning
+            - value: '28'
+              newvalue: critical
+            - value: '29'
+              newvalue: 'self test'
+            - value: '30'
+              newvalue: 'non redundant'
+        - uuid: a802f3382c8b4b209f0c26464f187ab3
+          name: 'Raritan switchable'
+          mappings:
+            - value: '0'
+              newvalue: 'no'
+            - value: '1'
+              newvalue: 'yes'
