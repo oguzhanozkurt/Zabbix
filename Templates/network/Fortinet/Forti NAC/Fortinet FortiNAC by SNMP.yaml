@@ -1,0 +1,835 @@
+zabbix_export:
+  version: '7.0'
+  template_groups:
+    - uuid: 74bffd3469c6475a9a4bbc97c8edcbef
+      name: 'Templates/Network devices'
+  templates:
+    - uuid: 754d3e5dc7184a62b4dfdde63f9be5ef
+      template: 'Fortinet FortiNAC by SNMP'
+      name: 'Fortinet FortiNAC by SNMP'
+      description: |
+        FortiNAC SNMP template for Zabbix 7.0 based on the Fortinet FortiNAC MIB reference.
+        Includes license, memory, swap, client posture, and device inventory metrics.
+        Disk OIDs are present but disabled by default due to Fortinet release notes noting that totalDisk/freeDisk may return 0 on some versions.
+      groups:
+        - name: 'Templates/Network devices'
+      items:
+        - uuid: 560758e191eb49978f1fd37560c56f6c
+          name: 'At-risk clients offline'
+          type: SNMP_AGENT
+          snmp_oid: '{$FORTINAC.BASE}.1.4.3.13.0'
+          key: fortinac.clients.atrisk.offline
+          delay: 5m
+          history: 30d
+          tags:
+            - tag: component
+              value: client
+        - uuid: e34c9adb867f4f2dbda6dcd843f64640
+          name: 'At-risk clients online'
+          type: SNMP_AGENT
+          snmp_oid: '{$FORTINAC.BASE}.1.4.3.12.0'
+          key: fortinac.clients.atrisk.online
+          delay: 5m
+          history: 30d
+          tags:
+            - tag: component
+              value: client
+        - uuid: a66cc9ef63b14aae97cc6a71f71cedfa
+          name: 'At-risk clients total'
+          type: SNMP_AGENT
+          snmp_oid: '{$FORTINAC.BASE}.1.4.3.11.0'
+          key: fortinac.clients.atrisk.total
+          delay: 2m
+          history: 30d
+          tags:
+            - tag: component
+              value: client
+          triggers:
+            - uuid: 456b1dba63dc459086df8e9832b77a00
+              expression: 'max(/Fortinet FortiNAC by SNMP/fortinac.clients.atrisk.total,5m)>{$FORTINAC.ATRISK.MAX}'
+              name: 'FortiNAC: At-risk client count is above threshold'
+              priority: WARNING
+              description: 'FortiNAC reports at-risk clients above the configured threshold.'
+              tags:
+                - tag: component
+                  value: client
+                - tag: scope
+                  value: security
+        - uuid: adee332d56cd4a60b14c16e25e7b275c
+          name: 'Disabled clients offline'
+          type: SNMP_AGENT
+          snmp_oid: '{$FORTINAC.BASE}.1.4.3.10.0'
+          key: fortinac.clients.disabled.offline
+          delay: 5m
+          history: 30d
+          tags:
+            - tag: component
+              value: client
+        - uuid: a0d92f73321f414c917fc8770e51781d
+          name: 'Disabled clients online'
+          type: SNMP_AGENT
+          snmp_oid: '{$FORTINAC.BASE}.1.4.3.9.0'
+          key: fortinac.clients.disabled.online
+          delay: 5m
+          history: 30d
+          tags:
+            - tag: component
+              value: client
+        - uuid: e6a4bc785dc2457f8e456cf2d04a4b8d
+          name: 'Disabled clients total'
+          type: SNMP_AGENT
+          snmp_oid: '{$FORTINAC.BASE}.1.4.3.8.0'
+          key: fortinac.clients.disabled.total
+          delay: 2m
+          history: 30d
+          tags:
+            - tag: component
+              value: client
+          triggers:
+            - uuid: 0140ac5d478e4041bd9b726723c2fdba
+              expression: 'max(/Fortinet FortiNAC by SNMP/fortinac.clients.disabled.total,5m)>{$FORTINAC.DISABLED.MAX}'
+              name: 'FortiNAC: Disabled client count is above threshold'
+              priority: WARNING
+              description: 'FortiNAC reports disabled clients above the configured threshold.'
+              tags:
+                - tag: component
+                  value: client
+                - tag: scope
+                  value: security
+        - uuid: f948c04626f542b284a64bf706974282
+          name: 'Registered clients offline'
+          type: SNMP_AGENT
+          snmp_oid: '{$FORTINAC.BASE}.1.4.3.4.0'
+          key: fortinac.clients.registered.offline
+          delay: 5m
+          history: 30d
+          tags:
+            - tag: component
+              value: client
+        - uuid: b3fc7cf5fd7b40a39d2c14e9297a74a7
+          name: 'Registered clients online'
+          type: SNMP_AGENT
+          snmp_oid: '{$FORTINAC.BASE}.1.4.3.3.0'
+          key: fortinac.clients.registered.online
+          delay: 5m
+          history: 30d
+          tags:
+            - tag: component
+              value: client
+        - uuid: 1f677ad2305348d48c45a083cfbb5773
+          name: 'Registered clients total'
+          type: SNMP_AGENT
+          snmp_oid: '{$FORTINAC.BASE}.1.4.3.2.0'
+          key: fortinac.clients.registered.total
+          delay: 5m
+          history: 30d
+          tags:
+            - tag: component
+              value: client
+        - uuid: 51813facb0254b978e818c219691ab88
+          name: 'Rogue clients offline'
+          type: SNMP_AGENT
+          snmp_oid: '{$FORTINAC.BASE}.1.4.3.7.0'
+          key: fortinac.clients.rogue.offline
+          delay: 5m
+          history: 30d
+          tags:
+            - tag: component
+              value: client
+        - uuid: 9cab5cf033de4b7e965a722cd60532cf
+          name: 'Rogue clients online'
+          type: SNMP_AGENT
+          snmp_oid: '{$FORTINAC.BASE}.1.4.3.6.0'
+          key: fortinac.clients.rogue.online
+          delay: 5m
+          history: 30d
+          tags:
+            - tag: component
+              value: client
+        - uuid: 701c8dcb52a24040876ae4cb1f7b8dc5
+          name: 'Rogue clients total'
+          type: SNMP_AGENT
+          snmp_oid: '{$FORTINAC.BASE}.1.4.3.5.0'
+          key: fortinac.clients.rogue.total
+          delay: 2m
+          history: 30d
+          tags:
+            - tag: component
+              value: client
+          triggers:
+            - uuid: bb74f6b9908b4e8dad69014e6afbead7
+              expression: 'max(/Fortinet FortiNAC by SNMP/fortinac.clients.rogue.total,5m)>{$FORTINAC.ROGUE.MAX}'
+              name: 'FortiNAC: Rogue client count is above threshold'
+              priority: WARNING
+              description: 'FortiNAC reports rogue/unregistered clients above the configured threshold.'
+              tags:
+                - tag: component
+                  value: client
+                - tag: scope
+                  value: security
+        - uuid: add59454c47449d6aedefad13e1ce18d
+          name: 'Managed clients total'
+          type: SNMP_AGENT
+          snmp_oid: '{$FORTINAC.BASE}.1.4.3.1.0'
+          key: fortinac.clients.total
+          delay: 5m
+          history: 30d
+          tags:
+            - tag: component
+              value: client
+        - uuid: 5de9b3625a5041d1a9f148c04c8f494f
+          name: 'CPU cache'
+          type: SNMP_AGENT
+          snmp_oid: '{$FORTINAC.BASE}.1.4.1.3.0'
+          key: fortinac.cpu.cache
+          delay: 1h
+          history: 30d
+          units: B
+          description: 'CPU cache reported by FortiNAC MIB in kB, converted to bytes.'
+          preprocessing:
+            - type: MULTIPLIER
+              parameters:
+                - '1024'
+          tags:
+            - tag: component
+              value: hardware
+        - uuid: d3c96f0f880949e89702f5b9b99c81a4
+          name: 'CPU count'
+          type: SNMP_AGENT
+          snmp_oid: '{$FORTINAC.BASE}.1.4.1.2.0'
+          key: fortinac.cpu.count
+          delay: 1h
+          history: 30d
+          tags:
+            - tag: component
+              value: hardware
+        - uuid: cc250bbde1574f1fa137fe9511fd045a
+          name: 'CPU description'
+          type: SNMP_AGENT
+          snmp_oid: '{$FORTINAC.BASE}.1.4.1.1.0'
+          key: fortinac.cpu.description
+          delay: 1h
+          history: 30d
+          value_type: TEXT
+          trends: '0'
+          tags:
+            - tag: component
+              value: hardware
+        - uuid: e35d05083a8e45b68ada0aedcf34ab9f
+          name: 'Database version'
+          type: SNMP_AGENT
+          snmp_oid: '{$FORTINAC.BASE}.1.4.1.5.0'
+          key: fortinac.database.version
+          delay: 1h
+          history: 30d
+          value_type: TEXT
+          trends: '0'
+          tags:
+            - tag: component
+              value: software
+        - uuid: 4aa23f2973764d6eab13109f6232693c
+          name: 'Hubs offline'
+          type: SNMP_AGENT
+          snmp_oid: '{$FORTINAC.BASE}.1.4.4.13.0'
+          key: fortinac.devices.hub.offline
+          delay: 5m
+          history: 30d
+          tags:
+            - tag: component
+              value: inventory
+        - uuid: c846618a1d1a488dad10fa40703f339b
+          name: 'Hubs online'
+          type: SNMP_AGENT
+          snmp_oid: '{$FORTINAC.BASE}.1.4.4.12.0'
+          key: fortinac.devices.hub.online
+          delay: 5m
+          history: 30d
+          tags:
+            - tag: component
+              value: inventory
+        - uuid: e9dfb7076c5f4c0184c0337615b20348
+          name: 'Hubs total'
+          type: SNMP_AGENT
+          snmp_oid: '{$FORTINAC.BASE}.1.4.4.11.0'
+          key: fortinac.devices.hub.total
+          delay: 5m
+          history: 30d
+          tags:
+            - tag: component
+              value: inventory
+        - uuid: 18282cdeb1f74905a8441e42225d1ec1
+          name: 'Interfaces offline'
+          type: SNMP_AGENT
+          snmp_oid: '{$FORTINAC.BASE}.1.4.4.22.0'
+          key: fortinac.devices.interface.offline
+          delay: 5m
+          history: 30d
+          tags:
+            - tag: component
+              value: inventory
+        - uuid: cdb6d4f3395d467dab67d24e7c14f002
+          name: 'Interfaces online'
+          type: SNMP_AGENT
+          snmp_oid: '{$FORTINAC.BASE}.1.4.4.21.0'
+          key: fortinac.devices.interface.online
+          delay: 5m
+          history: 30d
+          tags:
+            - tag: component
+              value: inventory
+        - uuid: 546a50ee9db64644a5b86a5d328a1c79
+          name: 'Interfaces total'
+          type: SNMP_AGENT
+          snmp_oid: '{$FORTINAC.BASE}.1.4.4.20.0'
+          key: fortinac.devices.interface.total
+          delay: 5m
+          history: 30d
+          tags:
+            - tag: component
+              value: inventory
+        - uuid: 21818fa5501c49a6b55c35d553317d68
+          name: 'Printers offline'
+          type: SNMP_AGENT
+          snmp_oid: '{$FORTINAC.BASE}.1.4.4.19.0'
+          key: fortinac.devices.printer.offline
+          delay: 5m
+          history: 30d
+          tags:
+            - tag: component
+              value: inventory
+        - uuid: 2a6fe30983b54fd2a2aa203740198e50
+          name: 'Printers online'
+          type: SNMP_AGENT
+          snmp_oid: '{$FORTINAC.BASE}.1.4.4.18.0'
+          key: fortinac.devices.printer.online
+          delay: 5m
+          history: 30d
+          tags:
+            - tag: component
+              value: inventory
+        - uuid: d5f3dfc248d940c18cf295c3c2250be0
+          name: 'Printers total'
+          type: SNMP_AGENT
+          snmp_oid: '{$FORTINAC.BASE}.1.4.4.17.0'
+          key: fortinac.devices.printer.total
+          delay: 5m
+          history: 30d
+          tags:
+            - tag: component
+              value: inventory
+        - uuid: b825e61c33124baba7bc8fb3abd5bcf3
+          name: 'Routers offline'
+          type: SNMP_AGENT
+          snmp_oid: '{$FORTINAC.BASE}.1.4.4.4.0'
+          key: fortinac.devices.router.offline
+          delay: 5m
+          history: 30d
+          tags:
+            - tag: component
+              value: inventory
+        - uuid: 4ae7e44ce50f4aff8782b21865266e4a
+          name: 'Routers online'
+          type: SNMP_AGENT
+          snmp_oid: '{$FORTINAC.BASE}.1.4.4.3.0'
+          key: fortinac.devices.router.online
+          delay: 5m
+          history: 30d
+          tags:
+            - tag: component
+              value: inventory
+        - uuid: af3d68c63cd641eb8f34688cd6599870
+          name: 'Routers total'
+          type: SNMP_AGENT
+          snmp_oid: '{$FORTINAC.BASE}.1.4.4.2.0'
+          key: fortinac.devices.router.total
+          delay: 5m
+          history: 30d
+          tags:
+            - tag: component
+              value: inventory
+        - uuid: 216375a080024659b4341d519bb184cd
+          name: 'Servers offline'
+          type: SNMP_AGENT
+          snmp_oid: '{$FORTINAC.BASE}.1.4.4.16.0'
+          key: fortinac.devices.server.offline
+          delay: 5m
+          history: 30d
+          tags:
+            - tag: component
+              value: inventory
+        - uuid: c2ac4d4da6e146b5b7c24dc39270ce4f
+          name: 'Servers online'
+          type: SNMP_AGENT
+          snmp_oid: '{$FORTINAC.BASE}.1.4.4.15.0'
+          key: fortinac.devices.server.online
+          delay: 5m
+          history: 30d
+          tags:
+            - tag: component
+              value: inventory
+        - uuid: 4000c5a3fdb8453eb1619e3010864aa6
+          name: 'Servers total'
+          type: SNMP_AGENT
+          snmp_oid: '{$FORTINAC.BASE}.1.4.4.14.0'
+          key: fortinac.devices.server.total
+          delay: 5m
+          history: 30d
+          tags:
+            - tag: component
+              value: inventory
+        - uuid: ab77159ccfdd4a66810bfe1d8e264481
+          name: 'Wired switches offline'
+          type: SNMP_AGENT
+          snmp_oid: '{$FORTINAC.BASE}.1.4.4.7.0'
+          key: fortinac.devices.switch.wired.offline
+          delay: 5m
+          history: 30d
+          tags:
+            - tag: component
+              value: inventory
+        - uuid: 275a18bef67b4d02a3d935b4eb8c955e
+          name: 'Wired switches online'
+          type: SNMP_AGENT
+          snmp_oid: '{$FORTINAC.BASE}.1.4.4.6.0'
+          key: fortinac.devices.switch.wired.online
+          delay: 5m
+          history: 30d
+          tags:
+            - tag: component
+              value: inventory
+        - uuid: 515e942f83c44bd7831a1a0ca09ea7b1
+          name: 'Wired switches total'
+          type: SNMP_AGENT
+          snmp_oid: '{$FORTINAC.BASE}.1.4.4.5.0'
+          key: fortinac.devices.switch.wired.total
+          delay: 5m
+          history: 30d
+          tags:
+            - tag: component
+              value: inventory
+        - uuid: c63af2bed1c04cbda0f6393ca4f8a5ca
+          name: 'Wireless switches offline'
+          type: SNMP_AGENT
+          snmp_oid: '{$FORTINAC.BASE}.1.4.4.10.0'
+          key: fortinac.devices.switch.wireless.offline
+          delay: 5m
+          history: 30d
+          tags:
+            - tag: component
+              value: inventory
+        - uuid: 2a8fe2f59f7d405a883ff59090fb008e
+          name: 'Wireless switches online'
+          type: SNMP_AGENT
+          snmp_oid: '{$FORTINAC.BASE}.1.4.4.9.0'
+          key: fortinac.devices.switch.wireless.online
+          delay: 5m
+          history: 30d
+          tags:
+            - tag: component
+              value: inventory
+        - uuid: e4f937515b954151b1fbbb65aec27850
+          name: 'Wireless switches total'
+          type: SNMP_AGENT
+          snmp_oid: '{$FORTINAC.BASE}.1.4.4.8.0'
+          key: fortinac.devices.switch.wireless.total
+          delay: 5m
+          history: 30d
+          tags:
+            - tag: component
+              value: inventory
+        - uuid: 4b7d1dffb26a465f8602002c030e7c99
+          name: 'Managed devices total'
+          type: SNMP_AGENT
+          snmp_oid: '{$FORTINAC.BASE}.1.4.4.1.0'
+          key: fortinac.devices.total
+          delay: 5m
+          history: 30d
+          tags:
+            - tag: component
+              value: inventory
+        - uuid: de326bd97078464f8399b4bfb1227d5f
+          name: 'Uplinks total'
+          type: SNMP_AGENT
+          snmp_oid: '{$FORTINAC.BASE}.1.4.4.23.0'
+          key: fortinac.devices.uplink.total
+          delay: 5m
+          history: 30d
+          tags:
+            - tag: component
+              value: inventory
+        - uuid: 9a1017f632fc4bb5a6d5f49afe304de3
+          name: 'User-defined uplinks total'
+          type: SNMP_AGENT
+          snmp_oid: '{$FORTINAC.BASE}.1.4.4.24.0'
+          key: fortinac.devices.uplink.userdefined.total
+          delay: 5m
+          history: 30d
+          tags:
+            - tag: component
+              value: inventory
+        - uuid: b4e136da37164548aab694c2e2fda1a0
+          name: 'Disk free'
+          type: SNMP_AGENT
+          snmp_oid: '{$FORTINAC.BASE}.1.4.1.12.0'
+          key: fortinac.disk.free
+          history: 30d
+          status: DISABLED
+          units: B
+          description: 'Disabled by default because Fortinet release notes mention totalDisk/freeDisk may return 0 on some FortiNAC-F versions.'
+          preprocessing:
+            - type: MULTIPLIER
+              parameters:
+                - '1024'
+          tags:
+            - tag: component
+              value: disk
+        - uuid: 975d080b1ae9497e8fb49dc81563b676
+          name: 'Disk free (%)'
+          type: CALCULATED
+          key: fortinac.disk.free.pct
+          history: 30d
+          value_type: FLOAT
+          status: DISABLED
+          units: '%'
+          params: '100*last(//fortinac.disk.free)/last(//fortinac.disk.total)'
+          tags:
+            - tag: component
+              value: disk
+        - uuid: a270d72cb7384486877e5f584bea837b
+          name: 'Disk total'
+          type: SNMP_AGENT
+          snmp_oid: '{$FORTINAC.BASE}.1.4.1.11.0'
+          key: fortinac.disk.total
+          delay: 10m
+          history: 30d
+          status: DISABLED
+          units: B
+          description: 'Disabled by default because Fortinet release notes mention totalDisk/freeDisk may return 0 on some FortiNAC-F versions.'
+          preprocessing:
+            - type: MULTIPLIER
+              parameters:
+                - '1024'
+          tags:
+            - tag: component
+              value: disk
+        - uuid: 2bf9e1706c0d49928f82a1ddd5bb1977
+          name: 'IP phones offline'
+          type: SNMP_AGENT
+          snmp_oid: '{$FORTINAC.BASE}.1.4.3.19.0'
+          key: fortinac.ipphones.offline
+          delay: 5m
+          history: 30d
+          tags:
+            - tag: component
+              value: client
+        - uuid: 0a7e77f218e14b62aa7b1fdd6458472d
+          name: 'IP phones online'
+          type: SNMP_AGENT
+          snmp_oid: '{$FORTINAC.BASE}.1.4.3.18.0'
+          key: fortinac.ipphones.online
+          delay: 5m
+          history: 30d
+          tags:
+            - tag: component
+              value: client
+        - uuid: a79126906a324125bd81ff6e70bdef10
+          name: 'IP phones total'
+          type: SNMP_AGENT
+          snmp_oid: '{$FORTINAC.BASE}.1.4.3.17.0'
+          key: fortinac.ipphones.total
+          delay: 5m
+          history: 30d
+          tags:
+            - tag: component
+              value: client
+        - uuid: 29182c1de802480bbdcfb555b19c0274
+          name: 'Concurrent license count'
+          type: SNMP_AGENT
+          snmp_oid: '{$FORTINAC.BASE}.1.4.2.1.0'
+          key: fortinac.license.concurrent.max
+          delay: 10m
+          history: 30d
+          tags:
+            - tag: component
+              value: license
+        - uuid: b5a613946c94418dabc67318b7f16e80
+          name: 'Concurrent license usage (%)'
+          type: CALCULATED
+          key: fortinac.license.concurrent.usage.pct
+          history: 30d
+          value_type: FLOAT
+          units: '%'
+          params: '100*last(//fortinac.license.concurrent.used)/last(//fortinac.license.concurrent.max)'
+          tags:
+            - tag: component
+              value: license
+          triggers:
+            - uuid: 62392cbbe8084197a3d791410dc50869
+              expression: 'min(/Fortinet FortiNAC by SNMP/fortinac.license.concurrent.usage.pct,5m)>={$FORTINAC.LIC.WARN} and min(/Fortinet FortiNAC by SNMP/fortinac.license.concurrent.usage.pct,5m)<{$FORTINAC.LIC.HIGH}'
+              name: 'FortiNAC: Concurrent license usage high (>{$FORTINAC.LIC.WARN}%)'
+              priority: WARNING
+              description: 'Concurrent license usage is above the warning threshold for 5 minutes.'
+              tags:
+                - tag: component
+                  value: license
+                - tag: scope
+                  value: capacity
+            - uuid: 5f0d87be465748c5a340b8a243ff35b8
+              expression: 'min(/Fortinet FortiNAC by SNMP/fortinac.license.concurrent.usage.pct,5m)>={$FORTINAC.LIC.HIGH}'
+              name: 'FortiNAC: Concurrent license usage very high (>{$FORTINAC.LIC.HIGH}%)'
+              priority: HIGH
+              description: 'Concurrent license usage is above the high threshold for 5 minutes.'
+              tags:
+                - tag: component
+                  value: license
+                - tag: scope
+                  value: capacity
+        - uuid: 832ad468df484a3cb9b158fec3e6b29d
+          name: 'Concurrent licenses used'
+          type: SNMP_AGENT
+          snmp_oid: '{$FORTINAC.BASE}.1.4.2.2.0'
+          key: fortinac.license.concurrent.used
+          history: 30d
+          tags:
+            - tag: component
+              value: license
+        - uuid: b80e3e1498964f23a25d63577b7bca31
+          name: 'Memory free'
+          type: SNMP_AGENT
+          snmp_oid: '{$FORTINAC.BASE}.1.4.1.8.0'
+          key: fortinac.memory.free
+          history: 30d
+          units: B
+          description: 'freeMemory from FortiNAC MIB (kB), converted to bytes.'
+          preprocessing:
+            - type: MULTIPLIER
+              parameters:
+                - '1024'
+          tags:
+            - tag: component
+              value: memory
+        - uuid: ac4d1a3f2a2c4c5b917924d063ad67f7
+          name: 'Memory free (%)'
+          type: CALCULATED
+          key: fortinac.memory.free.pct
+          history: 30d
+          value_type: FLOAT
+          units: '%'
+          params: '100*last(//fortinac.memory.free)/last(//fortinac.memory.total)'
+          tags:
+            - tag: component
+              value: memory
+          triggers:
+            - uuid: b5388676ce094f24b4a5941a783516de
+              expression: 'avg(/Fortinet FortiNAC by SNMP/fortinac.memory.free.pct,5m)<{$FORTINAC.MEM.FREE.MIN}'
+              name: 'FortiNAC: Low free memory (< {$FORTINAC.MEM.FREE.MIN}%)'
+              priority: HIGH
+              description: 'Average free memory percentage is below the configured threshold for 5 minutes.'
+              tags:
+                - tag: component
+                  value: memory
+                - tag: scope
+                  value: capacity
+        - uuid: 2735389245c8489d8dfa158a98634863
+          name: 'Memory total'
+          type: SNMP_AGENT
+          snmp_oid: '{$FORTINAC.BASE}.1.4.1.7.0'
+          key: fortinac.memory.total
+          delay: 10m
+          history: 30d
+          units: B
+          description: 'totalMemory from FortiNAC MIB (kB), converted to bytes.'
+          preprocessing:
+            - type: MULTIPLIER
+              parameters:
+                - '1024'
+          tags:
+            - tag: component
+              value: memory
+        - uuid: b122207c043f464fa214e82a1a041385
+          name: 'OS version'
+          type: SNMP_AGENT
+          snmp_oid: '{$FORTINAC.BASE}.1.4.1.4.0'
+          key: fortinac.os.version
+          delay: 1h
+          history: 30d
+          value_type: TEXT
+          trends: '0'
+          tags:
+            - tag: component
+              value: software
+        - uuid: e140e2e722414f30882a8156fa45f82a
+          name: 'Swap free'
+          type: SNMP_AGENT
+          snmp_oid: '{$FORTINAC.BASE}.1.4.1.10.0'
+          key: fortinac.swap.free
+          history: 30d
+          units: B
+          description: 'freeSwap from FortiNAC MIB (kB), converted to bytes.'
+          preprocessing:
+            - type: MULTIPLIER
+              parameters:
+                - '1024'
+          tags:
+            - tag: component
+              value: swap
+        - uuid: 2e4f5ef8543843fa9a7386eff438773a
+          name: 'Swap free (%)'
+          type: CALCULATED
+          key: fortinac.swap.free.pct
+          history: 30d
+          value_type: FLOAT
+          units: '%'
+          params: '100*last(//fortinac.swap.free)/last(//fortinac.swap.total)'
+          tags:
+            - tag: component
+              value: swap
+          triggers:
+            - uuid: 1dbdf5c516254b1e99568125ac895d46
+              expression: 'avg(/Fortinet FortiNAC by SNMP/fortinac.swap.free.pct,5m)<{$FORTINAC.SWAP.FREE.MIN}'
+              name: 'FortiNAC: Low free swap (< {$FORTINAC.SWAP.FREE.MIN}%)'
+              priority: HIGH
+              description: 'Average free swap percentage is below the configured threshold for 5 minutes.'
+              tags:
+                - tag: component
+                  value: swap
+                - tag: scope
+                  value: capacity
+        - uuid: c18a096a1dfb4a2eac0baa42345d4067
+          name: 'Swap total'
+          type: SNMP_AGENT
+          snmp_oid: '{$FORTINAC.BASE}.1.4.1.9.0'
+          key: fortinac.swap.total
+          delay: 10m
+          history: 30d
+          units: B
+          description: 'totalSwap from FortiNAC MIB (kB), converted to bytes.'
+          preprocessing:
+            - type: MULTIPLIER
+              parameters:
+                - '1024'
+          tags:
+            - tag: component
+              value: swap
+        - uuid: 5d387c580faf40caa18ac5f2c03e6059
+          name: 'Managed users offline'
+          type: SNMP_AGENT
+          snmp_oid: '{$FORTINAC.BASE}.1.4.3.16.0'
+          key: fortinac.users.offline
+          delay: 5m
+          history: 30d
+          tags:
+            - tag: component
+              value: client
+        - uuid: eecd28689f28430a8c4f62797674a680
+          name: 'Managed users online'
+          type: SNMP_AGENT
+          snmp_oid: '{$FORTINAC.BASE}.1.4.3.15.0'
+          key: fortinac.users.online
+          delay: 5m
+          history: 30d
+          tags:
+            - tag: component
+              value: client
+        - uuid: 07f8015e2e6743eb9b0240b485eedb31
+          name: 'Managed users total'
+          type: SNMP_AGENT
+          snmp_oid: '{$FORTINAC.BASE}.1.4.3.14.0'
+          key: fortinac.users.total
+          delay: 5m
+          history: 30d
+          tags:
+            - tag: component
+              value: client
+        - uuid: 43401af4c00348ef903ef92ee4d23d5d
+          name: 'Web version'
+          type: SNMP_AGENT
+          snmp_oid: '{$FORTINAC.BASE}.1.4.1.6.0'
+          key: fortinac.web.version
+          delay: 1h
+          history: 30d
+          value_type: TEXT
+          trends: '0'
+          tags:
+            - tag: component
+              value: software
+        - uuid: a429772fcc0b4ce1aa5be7c36f8a3fca
+          name: 'System description'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.2.1.1.1.0
+          key: system.descr
+          delay: 1h
+          history: 30d
+          value_type: TEXT
+          trends: '0'
+          tags:
+            - tag: component
+              value: inventory
+        - uuid: 8050e0e3d40349bb86f7df7cb6ddf9e8
+          name: 'System name'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.2.1.1.5.0
+          key: system.name
+          delay: 5m
+          history: 30d
+          value_type: TEXT
+          trends: '0'
+          tags:
+            - tag: component
+              value: inventory
+        - uuid: d4a1291764134f12ae87613983a6c0fc
+          name: Uptime
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.2.1.1.3.0
+          key: system.uptime
+          history: 30d
+          units: s
+          preprocessing:
+            - type: MULTIPLIER
+              parameters:
+                - '0.01'
+          tags:
+            - tag: component
+              value: system
+          triggers:
+            - uuid: f8511edae4e64fec8789a6d37df1c04b
+              expression: 'nodata(/Fortinet FortiNAC by SNMP/system.uptime,{$FORTINAC.NODATA})=1'
+              name: 'FortiNAC: No SNMP data for {$FORTINAC.NODATA}'
+              priority: AVERAGE
+              description: 'No data has been received from the FortiNAC SNMP agent. Verify SNMP settings, ACLs, credentials and reachability.'
+              tags:
+                - tag: scope
+                  value: availability
+      tags:
+        - tag: class
+          value: network
+        - tag: target
+          value: fortinac
+      macros:
+        - macro: '{$FORTINAC.ATRISK.MAX}'
+          value: '0'
+          description: 'Maximum allowed at-risk client count.'
+        - macro: '{$FORTINAC.BASE}'
+          value: 1.3.6.1.4.1.16856
+          description: 'FortiNAC enterprise OID prefix inferred from Fortinet documentation. If your local MIB resolves differently, adjust this macro once for all items.'
+        - macro: '{$FORTINAC.DISABLED.MAX}'
+          value: '0'
+          description: 'Maximum allowed disabled client count.'
+        - macro: '{$FORTINAC.LIC.HIGH}'
+          value: '90'
+          description: 'High threshold for concurrent license usage percent.'
+        - macro: '{$FORTINAC.LIC.WARN}'
+          value: '80'
+          description: 'Warning threshold for concurrent license usage percent.'
+        - macro: '{$FORTINAC.MEM.FREE.MIN}'
+          value: '10'
+          description: 'Minimum acceptable free memory percent.'
+        - macro: '{$FORTINAC.NODATA}'
+          value: 15m
+          description: 'Alert if no SNMP data is received for this duration.'
+        - macro: '{$FORTINAC.ROGUE.MAX}'
+          value: '0'
+          description: 'Maximum allowed rogue client count.'
+        - macro: '{$FORTINAC.SWAP.FREE.MIN}'
+          value: '10'
+          description: 'Minimum acceptable free swap percent.'
