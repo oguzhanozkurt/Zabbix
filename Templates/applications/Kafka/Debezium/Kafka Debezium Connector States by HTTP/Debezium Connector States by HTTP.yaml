@@ -1,0 +1,306 @@
+zabbix_export:
+  version: '7.0'
+  template_groups:
+    - uuid: a571c0d144b14fd4a87a9d9b2aa9fcd6
+      name: Templates/Applications
+  templates:
+    - uuid: a887d2c2309b41f1b7fec4f9be611a9e
+      template: 'Debezium Connector States by HTTP'
+      name: 'Debezium Connector States by HTTP'
+      groups:
+        - name: Templates/Applications
+      items:
+        - uuid: 56496a7009674b18bfb88d89491e3d89
+          name: 'Kafka Connect: Raw connector statuses'
+          type: SCRIPT
+          key: kafka.connect.status.raw
+          history: 1d
+          value_type: TEXT
+          trends: '0'
+          params: |
+            var params = JSON.parse(value);
+            
+            var baseUrl = params.base_url;
+            baseUrl = baseUrl.replace(/\/+$/, '');
+            
+            var request = new HttpRequest();
+            request.addHeader('Accept: application/json');
+            
+            function getJson(url) {
+                var response = request.get(url);
+                var status = request.getStatus();
+            
+                if (status < 200 || status >= 300) {
+                    throw 'HTTP ' + status + ' - ' + url + ' - ' + response;
+                }
+            
+                return JSON.parse(response);
+            }
+            
+            try {
+                var connectors = getJson(baseUrl + '/connectors');
+            
+                if (!Array.isArray(connectors)) {
+                    throw 'Unexpected /connectors response. Array expected.';
+                }
+            
+                var result = {
+                    connectors: []
+                };
+            
+                for (var i = 0; i < connectors.length; i++) {
+                    var connectorName = String(connectors[i]);
+            
+                    var connectorData = {
+                        name: connectorName,
+                        type: '',
+                        state: 'UNKNOWN',
+                        worker_id: '',
+                        tasks: [],
+                        error: ''
+                    };
+            
+                    try {
+                        var statusUrl = baseUrl + '/connectors/' + encodeURIComponent(connectorName) + '/status';
+                        var statusData = getJson(statusUrl);
+            
+                        connectorData.name = statusData.name || connectorName;
+                        connectorData.type = statusData.type || '';
+            
+                        if (statusData.connector) {
+                            connectorData.state = statusData.connector.state || 'UNKNOWN';
+                            connectorData.worker_id = statusData.connector.worker_id || '';
+                        }
+            
+                        if (Array.isArray(statusData.tasks)) {
+                            for (var t = 0; t < statusData.tasks.length; t++) {
+                                connectorData.tasks.push({
+                                    id: statusData.tasks[t].id,
+                                    state: statusData.tasks[t].state || 'UNKNOWN',
+                                    worker_id: statusData.tasks[t].worker_id || ''
+                                });
+                            }
+                        }
+                    }
+                    catch (e) {
+                        connectorData.state = 'UNKNOWN';
+                        connectorData.error = String(e);
+                    }
+            
+                    result.connectors.push(connectorData);
+                }
+            
+                return JSON.stringify(result);
+            }
+            catch (e) {
+                throw 'Kafka Connect status collection failed: ' + e;
+            }
+          timeout: 20s
+          parameters:
+            - name: base_url
+              value: '{$KAFKA.CONNECT.URL}'
+      discovery_rules:
+        - uuid: 59ec50a44c9543c9bb3208567960cc88
+          name: 'Kafka Connect: Connector discovery'
+          type: DEPENDENT
+          key: kafka.connect.connector.discovery
+          delay: '0'
+          lifetime: 2d
+          enabled_lifetime_type: DISABLE_AFTER
+          enabled_lifetime: 1h
+          item_prototypes:
+            - uuid: 32f3a35aa8f743808c8b02a7f56447c1
+              name: 'Kafka Connect: Connector {#CONNECTOR}: state code'
+              type: DEPENDENT
+              key: 'kafka.connect.connector.state.code["{#CONNECTOR}"]'
+              delay: '0'
+              valuemap:
+                name: 'Connector State'
+              preprocessing:
+                - type: JSONPATH
+                  parameters:
+                    - '$.connectors[?(@.name=="{#CONNECTOR}")].state.first()'
+                - type: JAVASCRIPT
+                  parameters:
+                    - |
+                      switch (value) {
+                          case 'RUNNING':
+                              return 1;
+                          case 'PAUSED':
+                              return 2;
+                          case 'FAILED':
+                              return 0;
+                          case 'UNASSIGNED':
+                              return 3;
+                          case 'UNKNOWN':
+                              return 4;
+                          default:
+                              return 5;
+                      }
+              master_item:
+                key: kafka.connect.status.raw
+            - uuid: c40ab06ac6f04863be97cccb15001d26
+              name: 'Kafka Connect: Connector {#CONNECTOR}: state'
+              type: DEPENDENT
+              key: 'kafka.connect.connector.state["{#CONNECTOR}"]'
+              delay: '0'
+              value_type: CHAR
+              trends: '0'
+              preprocessing:
+                - type: JSONPATH
+                  parameters:
+                    - '$.connectors[?(@.name=="{#CONNECTOR}")].state.first()'
+              master_item:
+                key: kafka.connect.status.raw
+            - uuid: 4f8eabcba6454cb49b8bb65ac1451967
+              name: 'Kafka Connect: Connector {#CONNECTOR}: worker'
+              type: DEPENDENT
+              key: 'kafka.connect.connector.worker["{#CONNECTOR}"]'
+              delay: '0'
+              value_type: CHAR
+              trends: '0'
+              preprocessing:
+                - type: JSONPATH
+                  parameters:
+                    - '$.connectors[?(@.name=="{#CONNECTOR}")].worker_id.first()'
+              master_item:
+                key: kafka.connect.status.raw
+          master_item:
+            key: kafka.connect.status.raw
+          preprocessing:
+            - type: JAVASCRIPT
+              parameters:
+                - |
+                  var data = JSON.parse(value);
+                  var out = [];
+                  
+                  if (!data.connectors || !Array.isArray(data.connectors)) {
+                      return JSON.stringify(out);
+                  }
+                  
+                  for (var i = 0; i < data.connectors.length; i++) {
+                      var c = data.connectors[i];
+                  
+                      out.push({
+                          "{#CONNECTOR}": c.name,
+                          "{#CONNECTOR_TYPE}": c.type || "",
+                          "{#CONNECTOR_WORKER}": c.worker_id || ""
+                      });
+                  }
+                  
+                  return JSON.stringify(out);
+        - uuid: 88d55250a3574d01993e7098bfa0f7a1
+          name: 'Kafka Connect: Task discovery'
+          type: DEPENDENT
+          key: kafka.connect.task.discovery
+          delay: '0'
+          lifetime: 2d
+          enabled_lifetime_type: DISABLE_AFTER
+          enabled_lifetime: 1h
+          item_prototypes:
+            - uuid: 896af652dd374b0bab87ce1ba040bb44
+              name: 'Kafka Connect: Connector {#CONNECTOR}: task {#TASK_ID}: state code'
+              type: DEPENDENT
+              key: 'kafka.connect.task.state.code["{#CONNECTOR}","{#TASK_ID}"]'
+              delay: '0'
+              preprocessing:
+                - type: JSONPATH
+                  parameters:
+                    - '$.connectors[?(@.name=="{#CONNECTOR}")].tasks[?(@.id=={#TASK_ID})].state.first()'
+                - type: JAVASCRIPT
+                  parameters:
+                    - |
+                      switch (value) {
+                          case 'RUNNING':
+                              return 1;
+                          case 'PAUSED':
+                              return 2;
+                          case 'FAILED':
+                              return 0;
+                          case 'UNASSIGNED':
+                              return 3;
+                          case 'UNKNOWN':
+                              return 4;
+                          default:
+                              return 5;
+                      }
+              master_item:
+                key: kafka.connect.status.raw
+            - uuid: d7175dcf63c9408ab31963032d1a95eb
+              name: 'Kafka Connect: Connector {#CONNECTOR}: task {#TASK_ID}: state'
+              type: DEPENDENT
+              key: 'kafka.connect.task.state["{#CONNECTOR}","{#TASK_ID}"]'
+              delay: '0'
+              value_type: CHAR
+              trends: '0'
+              preprocessing:
+                - type: JSONPATH
+                  parameters:
+                    - '$.connectors[?(@.name=="{#CONNECTOR}")].tasks[?(@.id=={#TASK_ID})].state.first()'
+              master_item:
+                key: kafka.connect.status.raw
+            - uuid: ae8061e153844ed2964a289f6821d1cc
+              name: 'Kafka Connect: Connector {#CONNECTOR}: task {#TASK_ID}: worker'
+              type: DEPENDENT
+              key: 'kafka.connect.task.worker["{#CONNECTOR}","{#TASK_ID}"]'
+              delay: '0'
+              value_type: CHAR
+              trends: '0'
+              preprocessing:
+                - type: JSONPATH
+                  parameters:
+                    - '$.connectors[?(@.name=="{#CONNECTOR}")].tasks[?(@.id=={#TASK_ID})].worker_id.first()'
+              master_item:
+                key: kafka.connect.status.raw
+          master_item:
+            key: kafka.connect.status.raw
+          preprocessing:
+            - type: JAVASCRIPT
+              parameters:
+                - |
+                  var data = JSON.parse(value);
+                  var out = [];
+                  
+                  if (!data.connectors || !Array.isArray(data.connectors)) {
+                      return JSON.stringify(out);
+                  }
+                  
+                  for (var i = 0; i < data.connectors.length; i++) {
+                      var c = data.connectors[i];
+                  
+                      if (!c.tasks || !Array.isArray(c.tasks)) {
+                          continue;
+                      }
+                  
+                      for (var t = 0; t < c.tasks.length; t++) {
+                          var task = c.tasks[t];
+                  
+                          out.push({
+                              "{#CONNECTOR}": c.name,
+                              "{#CONNECTOR_TYPE}": c.type || "",
+                              "{#TASK_ID}": String(task.id),
+                              "{#TASK_WORKER}": task.worker_id || ""
+                          });
+                      }
+                  }
+                  
+                  return JSON.stringify(out);
+      macros:
+        - macro: '{$KAFKA.CONNECT.URL}'
+          description: 'http://IPaddress:port'
+      valuemaps:
+        - uuid: 2b68635a718146918e75649f21034c67
+          name: 'Connector State'
+          mappings:
+            - value: '0'
+              newvalue: FAILED
+            - value: '1'
+              newvalue: RUNNING
+            - value: '2'
+              newvalue: PAUSED
+            - value: '3'
+              newvalue: UNASSIGNED
+            - value: '4'
+              newvalue: UNKNOWN
+            - value: '5'
+              newvalue: OTHER

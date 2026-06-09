@@ -1,0 +1,776 @@
+zabbix_export:
+  version: '7.0'
+  template_groups:
+  - uuid: 574eec884aef40e49fefb46e2e833d99
+    name: Templates/Security
+  templates:
+  - uuid: 93d77569942947a393562bfac0bc737d
+    template: Template Trend Micro Deep Security Computers by HTTP
+    name: Template Trend Micro Deep Security Computers by HTTP
+    description: 'Best-effort Zabbix 7.0 YAML draft for Trend Micro Deep Security / Workload Security per-computer monitoring by HTTP.
+
+
+      Design:
+
+      - One HTTP master item collects /api/computers with computerStatus and allSecurityModules expanded.
+
+      - One dependent discovery rule creates per-computer prototypes.
+
+      - A per-computer raw dependent prototype feeds all child dependent item prototypes.
+
+
+      Notes:
+
+      - Module names/paths can vary between DSM versions. If a module JSONPath becomes unsupported, review the exact JSON returned by your environment.
+
+      - For large environments you may want to replace the HTTP master item with a Script item that handles paging.
+
+      '
+    groups:
+    - name: Templates/Security
+    macros:
+    - macro: '{$TM.DSM.URL}'
+      value: https://dsm.example.com:4119
+      description: Base URL of Trend Micro DSM / Workload Security Manager.
+    - macro: '{$TM.DSM.API.KEY}'
+      type: SECRET_TEXT
+      value: ''
+      description: Trend Micro DSM API secret key.
+    - macro: '{$TM.DSM.API.VERSION}'
+      value: v1
+      description: API version header value.
+    - macro: '{$TM.DSM.COMPUTERS.DELAY}'
+      value: 10m
+      description: Update interval for full computer collection.
+    - macro: '{$TM.DSM.LLD.DELAY}'
+      value: 30m
+      description: Discovery interval.
+    - macro: '{$TM.DSM.TIMEOUT}'
+      value: 30s
+      description: HTTP timeout for DSM requests.
+    - macro: '{$TM.DSM.COMPUTER.MATCHES}'
+      value: .*
+      description: LLD include regex for computer display names.
+    - macro: '{$TM.DSM.COMPUTER.NOT_MATCHES}'
+      value: ^$
+      description: LLD exclude regex for computer display names.
+    items:
+    - uuid: 1b9b5cceb8154b51ae89c62e41e24417
+      name: 'Trend Micro DSM: Computers full raw'
+      type: HTTP_AGENT
+      key: tm.dsm.computers.full.raw
+      delay: '{$TM.DSM.COMPUTERS.DELAY}'
+      history: 1d
+      trends: '0'
+      value_type: TEXT
+      description: Raw list of computers with computerStatus and allSecurityModules expanded.
+      timeout: '{$TM.DSM.TIMEOUT}'
+      url: '{$TM.DSM.URL}/api/computers?expand=computerStatus,allSecurityModules'
+      status_codes: 200-299
+      headers:
+      - name: api-secret-key
+        value: '{$TM.DSM.API.KEY}'
+      - name: api-version
+        value: '{$TM.DSM.API.VERSION}'
+      retrieve_mode: BODY
+      request_method: GET
+      output_format: RAW
+      verify_peer: 'NO'
+      verify_host: 'NO'
+      preprocessing:
+      - type: CHECK_JSON_ERROR
+        parameters:
+        - $.error.message
+      - type: DISCARD_UNCHANGED_HEARTBEAT
+        parameters:
+        - 1h
+      tags:
+      - tag: component
+        value: raw
+      - tag: component
+        value: computers
+    discovery_rules:
+    - uuid: ab578019aca94114ab36a5199a1806e6
+      name: 'Trend Micro DSM: Computer discovery'
+      type: DEPENDENT
+      key: tm.dsm.computers.discovery
+      delay: '0'
+      lifetime_type: DELETE_NEVER
+      enabled_lifetime_type: DISABLE_NEVER
+      description: Discover computers returned by the DSM API.
+      filter:
+        evaltype: AND
+        conditions:
+        - macro: '{#DISPLAYNAME}'
+          value: '{$TM.DSM.COMPUTER.MATCHES}'
+        - macro: '{#DISPLAYNAME}'
+          value: '{$TM.DSM.COMPUTER.NOT_MATCHES}'
+          operator: NOT_MATCHES_REGEX
+      master_item:
+        key: tm.dsm.computers.full.raw
+      preprocessing:
+      - type: JAVASCRIPT
+        parameters:
+        - "var a = JSON.parse(value);\n\nreturn JSON.stringify(a.map(function(c){\n  return {\n    \"{#ID}\": String(c.ID || \"\"),\n    \"{#HOSTNAME}\": c.hostName || \"\",\n    \"{#DISPLAYNAME}\": c.displayName || c.hostName || (\"ID-\" + c.ID),\n    \"{#POLICYID}\": String(c.policyID || \"\"),\n    \"{#PLATFORM}\": c.platform || \"\",\n    \"{#AGENTVER}\": c.agentVersion || \"\",\n    \"{#LASTIP}\": c.lastIPUsed || \"\"\n  };\n}));"
+      - type: DISCARD_UNCHANGED_HEARTBEAT
+        parameters:
+        - 6h
+      item_prototypes:
+      - uuid: e28d65f23e17482294d4f75d53c60d4a
+        name: 'Trend Micro DSM: Computer raw [{#DISPLAYNAME}]'
+        type: DEPENDENT
+        key: tm.computer.raw[{#ID}]
+        delay: '0'
+        history: 1d
+        trends: '0'
+        value_type: TEXT
+        description: Full raw object for one discovered computer.
+        preprocessing:
+        - type: JAVASCRIPT
+          parameters:
+          - "var a = JSON.parse(value);\nvar id = String('{#ID}');\n\nfor (var i = 0; i < a.length; i++) {\n  if (String(a[i].ID) === id) {\n    return JSON.stringify(a[i]);\n  }\n}\nthrow 'Computer not found: ' + id;"
+        master_item:
+          key: tm.dsm.computers.full.raw
+        tags:
+        - tag: component
+          value: raw
+        - tag: computer
+          value: '{#DISPLAYNAME}'
+      - uuid: 3fe3d9f37fb54abd9a9b087cad50c2a0
+        name: 'Trend Micro DSM: Host name [{#DISPLAYNAME}]'
+        type: DEPENDENT
+        key: tm.computer.hostname[{#ID}]
+        delay: '0'
+        history: 30d
+        trends: '0'
+        value_type: CHAR
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.hostName
+          error_handler: DISCARD_VALUE
+        - type: DISCARD_UNCHANGED_HEARTBEAT
+          parameters:
+          - 12h
+        master_item:
+          key: tm.computer.raw[{#ID}]
+        tags:
+        - tag: component
+          value: inventory
+        - tag: computer
+          value: '{#DISPLAYNAME}'
+      - uuid: 5116e20628e14d378b7ed39f99799abe
+        name: 'Trend Micro DSM: Agent status [{#DISPLAYNAME}]'
+        type: DEPENDENT
+        key: tm.computer.agent.status[{#ID}]
+        delay: '0'
+        history: 30d
+        trends: '0'
+        value_type: CHAR
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.computerStatus.agentStatus
+          error_handler: DISCARD_VALUE
+        - type: DISCARD_UNCHANGED_HEARTBEAT
+          parameters:
+          - 1h
+        master_item:
+          key: tm.computer.raw[{#ID}]
+        tags:
+        - tag: component
+          value: agent
+        - tag: computer
+          value: '{#DISPLAYNAME}'
+      - uuid: 2d1598f1cb6841c8a2603f2f8c889972
+        name: 'Trend Micro DSM: Agent status message [{#DISPLAYNAME}]'
+        type: DEPENDENT
+        key: tm.computer.agent.message[{#ID}]
+        delay: '0'
+        history: 30d
+        trends: '0'
+        value_type: TEXT
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.computerStatus.agentStatusMessages[0]
+          error_handler: DISCARD_VALUE
+        - type: DISCARD_UNCHANGED_HEARTBEAT
+          parameters:
+          - 1h
+        master_item:
+          key: tm.computer.raw[{#ID}]
+        tags:
+        - tag: component
+          value: agent
+        - tag: computer
+          value: '{#DISPLAYNAME}'
+      - uuid: 42497dd1c2164579b0973088e8b2cfc4
+        name: 'Trend Micro DSM: Agent version [{#DISPLAYNAME}]'
+        type: DEPENDENT
+        key: tm.computer.agent.version[{#ID}]
+        delay: '0'
+        history: 30d
+        trends: '0'
+        value_type: CHAR
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.agentVersion
+          error_handler: DISCARD_VALUE
+        - type: DISCARD_UNCHANGED_HEARTBEAT
+          parameters:
+          - 12h
+        master_item:
+          key: tm.computer.raw[{#ID}]
+        tags:
+        - tag: component
+          value: agent
+        - tag: computer
+          value: '{#DISPLAYNAME}'
+      - uuid: 117a34807dd644268ba84d48151506cc
+        name: 'Trend Micro DSM: Platform [{#DISPLAYNAME}]'
+        type: DEPENDENT
+        key: tm.computer.platform[{#ID}]
+        delay: '0'
+        history: 30d
+        trends: '0'
+        value_type: CHAR
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.platform
+          error_handler: DISCARD_VALUE
+        - type: DISCARD_UNCHANGED_HEARTBEAT
+          parameters:
+          - 12h
+        master_item:
+          key: tm.computer.raw[{#ID}]
+        tags:
+        - tag: component
+          value: inventory
+        - tag: computer
+          value: '{#DISPLAYNAME}'
+      - uuid: 98a7a326f8d2487485cc0335bdb127b0
+        name: 'Trend Micro DSM: Policy ID [{#DISPLAYNAME}]'
+        type: DEPENDENT
+        key: tm.computer.policyid[{#ID}]
+        delay: '0'
+        history: 30d
+        value_type: UNSIGNED
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.policyID
+          error_handler: DISCARD_VALUE
+        - type: DISCARD_UNCHANGED_HEARTBEAT
+          parameters:
+          - 12h
+        master_item:
+          key: tm.computer.raw[{#ID}]
+        tags:
+        - tag: component
+          value: policy
+        - tag: computer
+          value: '{#DISPLAYNAME}'
+      - uuid: a5fc0d554d1a4861aff4129daa63ccbc
+        name: 'Trend Micro DSM: Last IP used [{#DISPLAYNAME}]'
+        type: DEPENDENT
+        key: tm.computer.lastip[{#ID}]
+        delay: '0'
+        history: 30d
+        trends: '0'
+        value_type: CHAR
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.lastIPUsed
+          error_handler: DISCARD_VALUE
+        - type: DISCARD_UNCHANGED_HEARTBEAT
+          parameters:
+          - 12h
+        master_item:
+          key: tm.computer.raw[{#ID}]
+        tags:
+        - tag: component
+          value: inventory
+        - tag: computer
+          value: '{#DISPLAYNAME}'
+      - uuid: 4a64f2bf473a42218dfe6016e0487f99
+        name: 'Trend Micro DSM: No agent/appliance flag [{#DISPLAYNAME}]'
+        type: DEPENDENT
+        key: tm.computer.noagent[{#ID}]
+        delay: '0'
+        history: 30d
+        value_type: UNSIGNED
+        preprocessing:
+        - type: JAVASCRIPT
+          parameters:
+          - 'var o = JSON.parse(value);
+
+            return (o.agentFingerPrint || o.applianceFingerPrint) ? 0 : 1;'
+        - type: DISCARD_UNCHANGED_HEARTBEAT
+          parameters:
+          - 1h
+        master_item:
+          key: tm.computer.raw[{#ID}]
+        tags:
+        - tag: component
+          value: agent
+        - tag: computer
+          value: '{#DISPLAYNAME}'
+      - uuid: 82353a519a7b4e5888bfd2109b11a40a
+        name: 'Trend Micro DSM: Anti-Malware state [{#DISPLAYNAME}]'
+        type: DEPENDENT
+        key: tm.computer.am.state[{#ID}]
+        delay: '0'
+        history: 30d
+        trends: '0'
+        value_type: CHAR
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.antiMalware.state
+          error_handler: DISCARD_VALUE
+        - type: DISCARD_UNCHANGED_HEARTBEAT
+          parameters:
+          - 1h
+        master_item:
+          key: tm.computer.raw[{#ID}]
+        tags:
+        - tag: component
+          value: am
+        - tag: computer
+          value: '{#DISPLAYNAME}'
+      - uuid: e14883e3393e46538cb3b5ea14eefcc8
+        name: 'Trend Micro DSM: Anti-Malware module status [{#DISPLAYNAME}]'
+        type: DEPENDENT
+        key: tm.computer.am.status[{#ID}]
+        delay: '0'
+        history: 30d
+        trends: '0'
+        value_type: CHAR
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.antiMalware.moduleStatus.agentStatus
+          error_handler: DISCARD_VALUE
+        - type: DISCARD_UNCHANGED_HEARTBEAT
+          parameters:
+          - 1h
+        master_item:
+          key: tm.computer.raw[{#ID}]
+        tags:
+        - tag: component
+          value: am
+        - tag: computer
+          value: '{#DISPLAYNAME}'
+      - uuid: 5b512eae138049a9aa01109bee68de0b
+        name: 'Trend Micro DSM: Anti-Malware module message [{#DISPLAYNAME}]'
+        type: DEPENDENT
+        key: tm.computer.am.message[{#ID}]
+        delay: '0'
+        history: 30d
+        trends: '0'
+        value_type: TEXT
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.antiMalware.moduleStatus.agentStatusMessage
+          error_handler: DISCARD_VALUE
+        - type: DISCARD_UNCHANGED_HEARTBEAT
+          parameters:
+          - 1h
+        master_item:
+          key: tm.computer.raw[{#ID}]
+        tags:
+        - tag: component
+          value: am
+        - tag: computer
+          value: '{#DISPLAYNAME}'
+      - uuid: 306e0d3295494d0ba453442eb433667b
+        name: 'Trend Micro DSM: Firewall state [{#DISPLAYNAME}]'
+        type: DEPENDENT
+        key: tm.computer.fw.state[{#ID}]
+        delay: '0'
+        history: 30d
+        trends: '0'
+        value_type: CHAR
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.firewall.state
+          error_handler: DISCARD_VALUE
+        - type: DISCARD_UNCHANGED_HEARTBEAT
+          parameters:
+          - 1h
+        master_item:
+          key: tm.computer.raw[{#ID}]
+        tags:
+        - tag: component
+          value: fw
+        - tag: computer
+          value: '{#DISPLAYNAME}'
+      - uuid: fa39fce49e064e269d7b641538476e9a
+        name: 'Trend Micro DSM: Firewall module status [{#DISPLAYNAME}]'
+        type: DEPENDENT
+        key: tm.computer.fw.status[{#ID}]
+        delay: '0'
+        history: 30d
+        trends: '0'
+        value_type: CHAR
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.firewall.moduleStatus.agentStatus
+          error_handler: DISCARD_VALUE
+        - type: DISCARD_UNCHANGED_HEARTBEAT
+          parameters:
+          - 1h
+        master_item:
+          key: tm.computer.raw[{#ID}]
+        tags:
+        - tag: component
+          value: fw
+        - tag: computer
+          value: '{#DISPLAYNAME}'
+      - uuid: eecf0243211c41a0a0dd47d54b8a0f52
+        name: 'Trend Micro DSM: Firewall module message [{#DISPLAYNAME}]'
+        type: DEPENDENT
+        key: tm.computer.fw.message[{#ID}]
+        delay: '0'
+        history: 30d
+        trends: '0'
+        value_type: TEXT
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.firewall.moduleStatus.agentStatusMessage
+          error_handler: DISCARD_VALUE
+        - type: DISCARD_UNCHANGED_HEARTBEAT
+          parameters:
+          - 1h
+        master_item:
+          key: tm.computer.raw[{#ID}]
+        tags:
+        - tag: component
+          value: fw
+        - tag: computer
+          value: '{#DISPLAYNAME}'
+      - uuid: 9720cce2dc7046ea82ec7c147d83cd81
+        name: 'Trend Micro DSM: Intrusion Prevention state [{#DISPLAYNAME}]'
+        type: DEPENDENT
+        key: tm.computer.ips.state[{#ID}]
+        delay: '0'
+        history: 30d
+        trends: '0'
+        value_type: CHAR
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.intrusionPrevention.state
+          error_handler: DISCARD_VALUE
+        - type: DISCARD_UNCHANGED_HEARTBEAT
+          parameters:
+          - 1h
+        master_item:
+          key: tm.computer.raw[{#ID}]
+        tags:
+        - tag: component
+          value: ips
+        - tag: computer
+          value: '{#DISPLAYNAME}'
+      - uuid: 13d57a09f42f4b4b8d84ddf04729b99d
+        name: 'Trend Micro DSM: Intrusion Prevention module status [{#DISPLAYNAME}]'
+        type: DEPENDENT
+        key: tm.computer.ips.status[{#ID}]
+        delay: '0'
+        history: 30d
+        trends: '0'
+        value_type: CHAR
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.intrusionPrevention.moduleStatus.agentStatus
+          error_handler: DISCARD_VALUE
+        - type: DISCARD_UNCHANGED_HEARTBEAT
+          parameters:
+          - 1h
+        master_item:
+          key: tm.computer.raw[{#ID}]
+        tags:
+        - tag: component
+          value: ips
+        - tag: computer
+          value: '{#DISPLAYNAME}'
+      - uuid: 2594a13c9a5f42e4b24eb0605e26685f
+        name: 'Trend Micro DSM: Intrusion Prevention module message [{#DISPLAYNAME}]'
+        type: DEPENDENT
+        key: tm.computer.ips.message[{#ID}]
+        delay: '0'
+        history: 30d
+        trends: '0'
+        value_type: TEXT
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.intrusionPrevention.moduleStatus.agentStatusMessage
+          error_handler: DISCARD_VALUE
+        - type: DISCARD_UNCHANGED_HEARTBEAT
+          parameters:
+          - 1h
+        master_item:
+          key: tm.computer.raw[{#ID}]
+        tags:
+        - tag: component
+          value: ips
+        - tag: computer
+          value: '{#DISPLAYNAME}'
+      - uuid: 36c40991fd5b4e5cb4ff8c54fb51585a
+        name: 'Trend Micro DSM: Integrity Monitoring state [{#DISPLAYNAME}]'
+        type: DEPENDENT
+        key: tm.computer.im.state[{#ID}]
+        delay: '0'
+        history: 30d
+        trends: '0'
+        value_type: CHAR
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.integrityMonitoring.state
+          error_handler: DISCARD_VALUE
+        - type: DISCARD_UNCHANGED_HEARTBEAT
+          parameters:
+          - 1h
+        master_item:
+          key: tm.computer.raw[{#ID}]
+        tags:
+        - tag: component
+          value: im
+        - tag: computer
+          value: '{#DISPLAYNAME}'
+      - uuid: 424284d3d28c479dac39a7d183189ab8
+        name: 'Trend Micro DSM: Integrity Monitoring module status [{#DISPLAYNAME}]'
+        type: DEPENDENT
+        key: tm.computer.im.status[{#ID}]
+        delay: '0'
+        history: 30d
+        trends: '0'
+        value_type: CHAR
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.integrityMonitoring.moduleStatus.agentStatus
+          error_handler: DISCARD_VALUE
+        - type: DISCARD_UNCHANGED_HEARTBEAT
+          parameters:
+          - 1h
+        master_item:
+          key: tm.computer.raw[{#ID}]
+        tags:
+        - tag: component
+          value: im
+        - tag: computer
+          value: '{#DISPLAYNAME}'
+      - uuid: 8b5faa96613049b490abe4ca3da19df5
+        name: 'Trend Micro DSM: Integrity Monitoring module message [{#DISPLAYNAME}]'
+        type: DEPENDENT
+        key: tm.computer.im.message[{#ID}]
+        delay: '0'
+        history: 30d
+        trends: '0'
+        value_type: TEXT
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.integrityMonitoring.moduleStatus.agentStatusMessage
+          error_handler: DISCARD_VALUE
+        - type: DISCARD_UNCHANGED_HEARTBEAT
+          parameters:
+          - 1h
+        master_item:
+          key: tm.computer.raw[{#ID}]
+        tags:
+        - tag: component
+          value: im
+        - tag: computer
+          value: '{#DISPLAYNAME}'
+      - uuid: 1f6bc764c4db4518a67743d40fe0bb5b
+        name: 'Trend Micro DSM: Log Inspection state [{#DISPLAYNAME}]'
+        type: DEPENDENT
+        key: tm.computer.li.state[{#ID}]
+        delay: '0'
+        history: 30d
+        trends: '0'
+        value_type: CHAR
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.logInspection.state
+          error_handler: DISCARD_VALUE
+        - type: DISCARD_UNCHANGED_HEARTBEAT
+          parameters:
+          - 1h
+        master_item:
+          key: tm.computer.raw[{#ID}]
+        tags:
+        - tag: component
+          value: li
+        - tag: computer
+          value: '{#DISPLAYNAME}'
+      - uuid: 1efdf0cf90554f33821cfd86994fe630
+        name: 'Trend Micro DSM: Log Inspection module status [{#DISPLAYNAME}]'
+        type: DEPENDENT
+        key: tm.computer.li.status[{#ID}]
+        delay: '0'
+        history: 30d
+        trends: '0'
+        value_type: CHAR
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.logInspection.moduleStatus.agentStatus
+          error_handler: DISCARD_VALUE
+        - type: DISCARD_UNCHANGED_HEARTBEAT
+          parameters:
+          - 1h
+        master_item:
+          key: tm.computer.raw[{#ID}]
+        tags:
+        - tag: component
+          value: li
+        - tag: computer
+          value: '{#DISPLAYNAME}'
+      - uuid: 974a9d3290764dd189762d7eeeea148b
+        name: 'Trend Micro DSM: Log Inspection module message [{#DISPLAYNAME}]'
+        type: DEPENDENT
+        key: tm.computer.li.message[{#ID}]
+        delay: '0'
+        history: 30d
+        trends: '0'
+        value_type: TEXT
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.logInspection.moduleStatus.agentStatusMessage
+          error_handler: DISCARD_VALUE
+        - type: DISCARD_UNCHANGED_HEARTBEAT
+          parameters:
+          - 1h
+        master_item:
+          key: tm.computer.raw[{#ID}]
+        tags:
+        - tag: component
+          value: li
+        - tag: computer
+          value: '{#DISPLAYNAME}'
+      trigger_prototypes:
+      - uuid: a315eea91c294986a3513e7ad71e21bf
+        expression: last(/Template Trend Micro Deep Security Computers by HTTP/tm.computer.noagent[{#ID}])=1
+        name: 'Trend Micro DSM: No agent or appliance detected on [{#DISPLAYNAME}]'
+        priority: HIGH
+        description: The discovered computer object does not have an agent or appliance fingerprint.
+        manual_close: 'YES'
+        tags:
+        - tag: scope
+          value: security
+        - tag: computer
+          value: '{#DISPLAYNAME}'
+      - uuid: e67bd45c06fc4243b1f3e6a75c23d01d
+        expression: last(/Template Trend Micro Deep Security Computers by HTTP/tm.computer.agent.status[{#ID}])<>"active"
+        name: 'Trend Micro DSM: Agent is not active on [{#DISPLAYNAME}]'
+        priority: AVERAGE
+        description: The computerStatus.agentStatus value is different from active.
+        manual_close: 'YES'
+        tags:
+        - tag: scope
+          value: health
+        - tag: computer
+          value: '{#DISPLAYNAME}'
+      - uuid: 712fd8cff6f8476e9a5d57fc3902f188
+        expression: find(/Template Trend Micro Deep Security Computers by HTTP/tm.computer.agent.message[{#ID}],,"iregexp","Offline")=1
+        name: 'Trend Micro DSM: Agent appears offline on [{#DISPLAYNAME}]'
+        priority: AVERAGE
+        description: The first agent status message contains the word Offline.
+        manual_close: 'YES'
+        tags:
+        - tag: scope
+          value: availability
+        - tag: computer
+          value: '{#DISPLAYNAME}'
+      - uuid: 220554c308264e1e9bcd68d099222984
+        expression: find(/Template Trend Micro Deep Security Computers by HTTP/tm.computer.agent.message[{#ID}],,"iregexp","Upgrade Recommended")=1
+        name: 'Trend Micro DSM: Agent upgrade recommended on [{#DISPLAYNAME}]'
+        priority: WARNING
+        description: The first agent status message contains the text Upgrade Recommended.
+        manual_close: 'YES'
+        tags:
+        - tag: scope
+          value: maintenance
+        - tag: computer
+          value: '{#DISPLAYNAME}'
+      - uuid: e7224c9ceda242128ad874c26bc1fbeb
+        expression: last(/Template Trend Micro Deep Security Computers by HTTP/tm.computer.am.state[{#ID}])="on" and last(/Template Trend Micro Deep Security Computers by HTTP/tm.computer.am.status[{#ID}])<>"active"
+        name: 'Trend Micro DSM: Anti-Malware module unhealthy on [{#DISPLAYNAME}]'
+        priority: HIGH
+        description: The Anti-Malware module is reported as enabled but its moduleStatus.agentStatus is not active.
+        manual_close: 'YES'
+        tags:
+        - tag: scope
+          value: health
+        - tag: component
+          value: am
+        - tag: computer
+          value: '{#DISPLAYNAME}'
+      - uuid: 0e89d37a58c3464d8f825d54bd9f47bf
+        expression: last(/Template Trend Micro Deep Security Computers by HTTP/tm.computer.fw.state[{#ID}])="on" and last(/Template Trend Micro Deep Security Computers by HTTP/tm.computer.fw.status[{#ID}])<>"active"
+        name: 'Trend Micro DSM: Firewall module unhealthy on [{#DISPLAYNAME}]'
+        priority: HIGH
+        description: The Firewall module is reported as enabled but its moduleStatus.agentStatus is not active.
+        manual_close: 'YES'
+        tags:
+        - tag: scope
+          value: health
+        - tag: component
+          value: fw
+        - tag: computer
+          value: '{#DISPLAYNAME}'
+      - uuid: f98896f4bf7a4bf8b64f5ac49ad679d4
+        expression: last(/Template Trend Micro Deep Security Computers by HTTP/tm.computer.ips.state[{#ID}])="on" and last(/Template Trend Micro Deep Security Computers by HTTP/tm.computer.ips.status[{#ID}])<>"active"
+        name: 'Trend Micro DSM: Intrusion Prevention module unhealthy on [{#DISPLAYNAME}]'
+        priority: HIGH
+        description: The Intrusion Prevention module is reported as enabled but its moduleStatus.agentStatus is not active.
+        manual_close: 'YES'
+        tags:
+        - tag: scope
+          value: health
+        - tag: component
+          value: ips
+        - tag: computer
+          value: '{#DISPLAYNAME}'
+      - uuid: ba3e3da0225c42d4b48be3350939b6b7
+        expression: last(/Template Trend Micro Deep Security Computers by HTTP/tm.computer.im.state[{#ID}])="on" and last(/Template Trend Micro Deep Security Computers by HTTP/tm.computer.im.status[{#ID}])<>"active"
+        name: 'Trend Micro DSM: Integrity Monitoring module unhealthy on [{#DISPLAYNAME}]'
+        priority: HIGH
+        description: The Integrity Monitoring module is reported as enabled but its moduleStatus.agentStatus is not active.
+        manual_close: 'YES'
+        tags:
+        - tag: scope
+          value: health
+        - tag: component
+          value: im
+        - tag: computer
+          value: '{#DISPLAYNAME}'
+      - uuid: e979d452241a48a4a3d194bee6612bd2
+        expression: last(/Template Trend Micro Deep Security Computers by HTTP/tm.computer.li.state[{#ID}])="on" and last(/Template Trend Micro Deep Security Computers by HTTP/tm.computer.li.status[{#ID}])<>"active"
+        name: 'Trend Micro DSM: Log Inspection module unhealthy on [{#DISPLAYNAME}]'
+        priority: HIGH
+        description: The Log Inspection module is reported as enabled but its moduleStatus.agentStatus is not active.
+        manual_close: 'YES'
+        tags:
+        - tag: scope
+          value: health
+        - tag: component
+          value: li
+        - tag: computer
+          value: '{#DISPLAYNAME}'

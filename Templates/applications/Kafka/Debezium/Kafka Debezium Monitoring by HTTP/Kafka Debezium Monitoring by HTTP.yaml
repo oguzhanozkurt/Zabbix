@@ -1,0 +1,294 @@
+zabbix_export:
+  version: '7.0'
+  template_groups:
+    - uuid: a571c0d144b14fd4a87a9d9b2aa9fcd6
+      name: Templates/Applications
+  templates:
+    - uuid: 24e6773cb7a34cbf9279a8234409f04e
+      template: 'Kafka Debezium Monitoring by HTTP'
+      name: 'Kafka Debezium Monitoring by HTTP'
+      groups:
+        - name: Templates/Applications
+      items:
+        - uuid: f7fadb286f5d48319e5cb97e22728ca9
+          name: 'ConsumerGroup raw'
+          type: HTTP_AGENT
+          key: consumergroup.raw
+          history: 1d
+          value_type: TEXT
+          trends: '0'
+          url: '{$KAFKA.ENDPOINT.URL}'
+          triggers:
+            - uuid: 8a3532cd02184f1fa6e1b8fc3625aa2b
+              expression: 'nodata(/Kafka Debezium Monitoring by HTTP/consumergroup.raw,30m)=1'
+              name: 'No data ConsumerGroup for 30 minutes'
+              priority: HIGH
+              manual_close: 'YES'
+      discovery_rules:
+        - uuid: f7595f6b45044fb59010bff26a42052b
+          name: 'Kafka consumer group metrics discovery'
+          type: DEPENDENT
+          key: kafka.consumergroup.metrics.discovery
+          delay: '0'
+          lifetime: 2d
+          enabled_lifetime_type: DISABLE_AFTER
+          enabled_lifetime: 1h
+          item_prototypes:
+            - uuid: 3f1f52de84554f3db9fb87a24c15de69
+              name: 'Kafka current offset sum: {#CONSUMERGROUP} / {#TOPIC}'
+              type: DEPENDENT
+              key: 'kafka.consumergroup.current_offset_sum["{#CONSUMERGROUP}","{#TOPIC}"]'
+              delay: '0'
+              history: 7d
+              preprocessing:
+                - type: JAVASCRIPT
+                  parameters:
+                    - |
+                      var metric = 'kafka_consumergroup_current_offset_sum';
+                      
+                      var targetConsumergroup = "{#CONSUMERGROUP}";
+                      var targetTopic = "{#TOPIC}";
+                      
+                      var lines = value.split(/\r?\n/);
+                      
+                      function getLabel(labels, name) {
+                          var re = new RegExp('(?:^|,)' + name + '="((?:\\\\.|[^"\\\\])*)"');
+                          var m = labels.match(re);
+                      
+                          if (!m) {
+                              return null;
+                          }
+                      
+                          return m[1]
+                              .replace(/\\"/g, '"')
+                              .replace(/\\\\/g, '\\');
+                      }
+                      
+                      for (var i = 0; i < lines.length; i++) {
+                          var line = lines[i].trim();
+                      
+                          if (line.indexOf(metric + '{') !== 0) {
+                              continue;
+                          }
+                      
+                          var m = line.match(/^kafka_consumergroup_current_offset_sum\{([^}]*)\}\s+(-?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?)$/);
+                      
+                          if (!m) {
+                              continue;
+                          }
+                      
+                          var labels = m[1];
+                          var currentOffsetSum = m[2];
+                      
+                          var consumergroup = getLabel(labels, 'consumergroup');
+                          var topic = getLabel(labels, 'topic');
+                      
+                          if (consumergroup === targetConsumergroup && topic === targetTopic) {
+                              return currentOffsetSum;
+                          }
+                      }
+                      
+                      throw 'Metric not found: consumergroup=' + targetConsumergroup + ', topic=' + targetTopic;
+                - type: CHANGE_PER_SECOND
+                  parameters:
+                    - ''
+                - type: IN_RANGE
+                  parameters:
+                    - '0'
+                    - ''
+                  error_handler: DISCARD_VALUE
+              master_item:
+                key: consumergroup.raw
+            - uuid: 15eb0a98215941c39b78a6ff4a7c21f2
+              name: 'Kafka lag / offset ratio: {#CONSUMERGROUP} / {#TOPIC}'
+              type: CALCULATED
+              key: 'kafka.consumergroup.lag.offset.ratio["{#CONSUMERGROUP}","{#TOPIC}"]'
+              history: 7d
+              value_type: FLOAT
+              units: s
+              params: 'last(//kafka.consumergroup.lag.sum["{#CONSUMERGROUP}","{#TOPIC}"]) / (last(//kafka.consumergroup.current_offset_sum["{#CONSUMERGROUP}","{#TOPIC}"]) + 0.001)'
+            - uuid: 7cf31ff129ab47eeb3c00e11f961360e
+              name: 'Kafka consumer group lag: {#CONSUMERGROUP} / {#TOPIC}'
+              type: DEPENDENT
+              key: 'kafka.consumergroup.lag.sum["{#CONSUMERGROUP}","{#TOPIC}"]'
+              delay: '0'
+              history: 7d
+              preprocessing:
+                - type: JAVASCRIPT
+                  parameters:
+                    - |
+                      var metric = 'kafka_consumergroup_lag_sum';
+                      var targetConsumergroup = "{#CONSUMERGROUP}";
+                      var targetTopic = "{#TOPIC}";
+                      
+                      var lines = value.split(/\r?\n/);
+                      
+                      function getLabel(labels, name) {
+                          var re = new RegExp('(?:^|,)' + name + '="((?:\\\\.|[^"\\\\])*)"');
+                          var m = labels.match(re);
+                          if (!m) {
+                              return null;
+                          }
+                      
+                          return m[1]
+                              .replace(/\\"/g, '"')
+                              .replace(/\\\\/g, '\\');
+                      }
+                      
+                      for (var i = 0; i < lines.length; i++) {
+                          var line = lines[i].trim();
+                      
+                          if (line.indexOf(metric + '{') !== 0) {
+                              continue;
+                          }
+                      
+                          var m = line.match(/^kafka_consumergroup_lag_sum\{([^}]*)\}\s+(-?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?)$/);
+                          if (!m) {
+                              continue;
+                          }
+                      
+                          var labels = m[1];
+                          var lag = m[2];
+                      
+                          var consumergroup = getLabel(labels, 'consumergroup');
+                          var topic = getLabel(labels, 'topic');
+                      
+                          if (consumergroup === targetConsumergroup && topic === targetTopic) {
+                              return lag;
+                          }
+                      }
+                      
+                      throw 'Metric not found: consumergroup=' + targetConsumergroup + ', topic=' + targetTopic;
+              master_item:
+                key: consumergroup.raw
+          trigger_prototypes:
+            - uuid: 0b2dc4c984bd4f3ab0c8dbd4c469080e
+              expression: 'min(/Kafka Debezium Monitoring by HTTP/kafka.consumergroup.lag.offset.ratio["{#CONSUMERGROUP}","{#TOPIC}"],5m)>3600 and min(/Kafka Debezium Monitoring by HTTP/kafka.consumergroup.lag.sum["{#CONSUMERGROUP}","{#TOPIC}"],5m)>100'
+              recovery_mode: RECOVERY_EXPRESSION
+              recovery_expression: 'max(/Kafka Debezium Monitoring by HTTP/kafka.consumergroup.lag.offset.ratio["{#CONSUMERGROUP}","{#TOPIC}"],5m)<1800'
+              name: '{#CONSUMERGROUP} / {#TOPIC} ratio delay is higher than 1h'
+              priority: DISASTER
+              description: '1-hour delay: replication is death'
+              manual_close: 'YES'
+            - uuid: 9a3ec52f81d6408c82e50ca649b0fcb9
+              expression: 'min(/Kafka Debezium Monitoring by HTTP/kafka.consumergroup.lag.offset.ratio["{#CONSUMERGROUP}","{#TOPIC}"],5m)>600 and min(/Kafka Debezium Monitoring by HTTP/kafka.consumergroup.lag.sum["{#CONSUMERGROUP}","{#TOPIC}"],5m)>100'
+              recovery_mode: RECOVERY_EXPRESSION
+              recovery_expression: 'max(/Kafka Debezium Monitoring by HTTP/kafka.consumergroup.lag.offset.ratio["{#CONSUMERGROUP}","{#TOPIC}"],5m)<300'
+              name: '{#CONSUMERGROUP} / {#TOPIC} ratio is higher than for 10 minutes'
+              priority: HIGH
+              description: 'Delay 10 minutes, CDC choking.'
+              manual_close: 'YES'
+          master_item:
+            key: consumergroup.raw
+          preprocessing:
+            - type: JAVASCRIPT
+              parameters:
+                - |
+                  var lagMetric = 'kafka_consumergroup_lag_sum';
+                  var offsetMetric = 'kafka_consumergroup_current_offset_sum';
+                  
+                  var lines = value.split(/\r?\n/);
+                  
+                  var lagPairs = {};
+                  var offsetPairs = {};
+                  var pairLabels = {};
+                  
+                  function getLabel(labels, name) {
+                      var re = new RegExp('(?:^|,)' + name + '="((?:\\\\.|[^"\\\\])*)"');
+                      var m = labels.match(re);
+                  
+                      if (!m) {
+                          return null;
+                      }
+                  
+                      return m[1]
+                          .replace(/\\"/g, '"')
+                          .replace(/\\\\/g, '\\');
+                  }
+                  
+                  function parseMetricLine(line, metricName) {
+                      if (line.indexOf(metricName + '{') !== 0) {
+                          return null;
+                      }
+                  
+                      var re = new RegExp('^' + metricName + '\\{([^}]*)\\}\\s+(-?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][+-]?\\d+)?)$');
+                      var m = line.match(re);
+                  
+                      if (!m) {
+                          return null;
+                      }
+                  
+                      var labels = m[1];
+                  
+                      var consumergroup = getLabel(labels, 'consumergroup');
+                      var topic = getLabel(labels, 'topic');
+                  
+                      if (consumergroup === null || topic === null) {
+                          return null;
+                      }
+                  
+                      /*
+                      Anonymous consumer group'ları keşfetmek istemiyorsan bu bloğu aktif et.
+                      */
+                      /*
+                      if (consumergroup.match(/^anonymous\./)) {
+                          return null;
+                      }
+                      */
+                  
+                      return {
+                          key: consumergroup + '\u001f' + topic,
+                          consumergroup: consumergroup,
+                          topic: topic
+                      };
+                  }
+                  
+                  for (var i = 0; i < lines.length; i++) {
+                      var line = lines[i].trim();
+                  
+                      if (line === '' || line.indexOf('#') === 0) {
+                          continue;
+                      }
+                  
+                      var lag = parseMetricLine(line, lagMetric);
+                      if (lag !== null) {
+                          lagPairs[lag.key] = true;
+                          pairLabels[lag.key] = lag;
+                          continue;
+                      }
+                  
+                      var offset = parseMetricLine(line, offsetMetric);
+                      if (offset !== null) {
+                          offsetPairs[offset.key] = true;
+                          pairLabels[offset.key] = offset;
+                          continue;
+                      }
+                  }
+                  
+                  var data = [];
+                  
+                  for (var key in pairLabels) {
+                      if (!pairLabels.hasOwnProperty(key)) {
+                          continue;
+                      }
+                  
+                      /*
+                      Kritik nokta:
+                      Sadece hem lag_sum hem current_offset_sum olan consumer/topic çiftlerini keşfediyoruz.
+                      */
+                      if (!lagPairs[key] || !offsetPairs[key]) {
+                          continue;
+                      }
+                  
+                      data.push({
+                          "{#CONSUMERGROUP}": pairLabels[key].consumergroup,
+                          "{#TOPIC}": pairLabels[key].topic
+                      });
+                  }
+                  
+                  return JSON.stringify({
+                      "data": data
+                  });
+      macros:
+        - macro: '{$KAFKA.ENDPOINT.URL}'
+          description: 'https://kafka-exporter.company/project/metrics'

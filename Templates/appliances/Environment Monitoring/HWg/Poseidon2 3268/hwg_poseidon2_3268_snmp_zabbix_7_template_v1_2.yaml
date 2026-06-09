@@ -1,0 +1,947 @@
+zabbix_export:
+  version: '7.0'
+  template_groups:
+  - uuid: 859abd831d1b460d88e1fe66c9778cf8
+    name: Templates/Network devices
+  templates:
+  - uuid: 71266f80a814481ea10ede78ce9b0697
+    template: HWg Poseidon2 3268 by SNMP
+    name: HWg Poseidon2 3268 by SNMP
+    description: 'Template for HW group HWg-Poseidon2 3268 environment monitoring device by SNMP polling.
+
+
+      MIB used: POSEIDON-MIB 2.10 from uploaded posdam.mib.
+
+      Base OID: 1.3.6.1.4.1.21796.3.3 (enterprises.21796.3.3)
+
+
+      Main coverage:
+
+      - Sensor discovery from sensTable: state, value, raw value, unit, sensor ID, port ID, configured low/high limits and hysteresis.
+
+      - Digital input discovery from inpTable: value, alarm setup, alarm state and pulse counter.
+
+      - Relay output discovery from outTable: value, type and mode.
+
+      - Active alarm count and dynamic active alarm table discovery.
+
+      - Basic device inventory, log counters, ICMP and SNMP availability.
+
+
+      Notes:
+
+      - sensValue, sensLimitMin, sensLimitMax and sensHysteresis are reported by the device as decimal * 10; this template applies multiplier 0.1.
+
+      - Sensor alarm triggers primarily use sensState because the device evaluates its own configured limits and alarm delays.
+
+      - Configured low/high limit triggers are gated by {$POSEIDON.SENSOR.LIMIT.ALERT}; default is 0 to avoid false positives when limits are not configured.
+
+      - Relay output ON trigger is controlled by user macro {$POSEIDON.OUTPUT.ON.ALERT:"<output name>"}. Default is 0, so output ON does not create a problem unless
+      enabled per output.
+
+      '
+    vendor:
+      name: Custom
+      version: '1.2'
+    groups:
+    - name: Templates/Network devices
+    items:
+    - uuid: 65bc6676210e40d98cafca47d749922a
+      name: 'HWg Poseidon2: ICMP ping'
+      type: SIMPLE
+      key: icmpping
+      history: 7d
+      valuemap:
+        name: Service state
+      tags:
+      - tag: component
+        value: network
+      triggers:
+      - uuid: fddf88a7939b4dcdac89d02facce0f3f
+        expression: max(/HWg Poseidon2 3268 by SNMP/icmpping,#3)=0
+        name: 'HWg Poseidon2: Unavailable by ICMP ping'
+        priority: HIGH
+        description: Last three ICMP ping attempts returned timeout. Check device connectivity.
+        tags:
+        - tag: scope
+          value: availability
+    - uuid: 30264745f741492ebd6e42164368e514
+      name: 'HWg Poseidon2: ICMP loss'
+      type: SIMPLE
+      key: icmppingloss
+      history: 7d
+      value_type: FLOAT
+      units: '%'
+      tags:
+      - tag: component
+        value: network
+      triggers:
+      - uuid: 319a927002a046c190b7e29123180a05
+        expression: min(/HWg Poseidon2 3268 by SNMP/icmppingloss,5m)>{$ICMP_LOSS_WARN} and min(/HWg Poseidon2 3268 by SNMP/icmppingloss,5m)<100
+        name: 'HWg Poseidon2: High ICMP ping loss'
+        priority: WARNING
+        opdata: 'Loss: {ITEM.LASTVALUE1}'
+        dependencies:
+        - name: 'HWg Poseidon2: Unavailable by ICMP ping'
+          expression: max(/HWg Poseidon2 3268 by SNMP/icmpping,#3)=0
+        tags:
+        - tag: scope
+          value: availability
+        - tag: scope
+          value: performance
+    - uuid: 7b8290478f99431caebcde15a70bfe8a
+      name: 'HWg Poseidon2: ICMP response time'
+      type: SIMPLE
+      key: icmppingsec
+      history: 7d
+      value_type: FLOAT
+      units: s
+      tags:
+      - tag: component
+        value: network
+      triggers:
+      - uuid: 4c2c71a639fe408c8562e9644bb4f9c3
+        expression: avg(/HWg Poseidon2 3268 by SNMP/icmppingsec,5m)>{$ICMP_RESPONSE_TIME_WARN}
+        name: 'HWg Poseidon2: High ICMP response time'
+        priority: WARNING
+        opdata: 'Value: {ITEM.LASTVALUE1}'
+        dependencies:
+        - name: 'HWg Poseidon2: High ICMP ping loss'
+          expression: min(/HWg Poseidon2 3268 by SNMP/icmppingloss,5m)>{$ICMP_LOSS_WARN} and min(/HWg Poseidon2 3268 by SNMP/icmppingloss,5m)<100
+        - name: 'HWg Poseidon2: Unavailable by ICMP ping'
+          expression: max(/HWg Poseidon2 3268 by SNMP/icmpping,#3)=0
+        tags:
+        - tag: scope
+          value: availability
+        - tag: scope
+          value: performance
+    - uuid: 57916f18d2f14211b92013b21865ae99
+      name: 'HWg Poseidon2: SNMP agent availability'
+      type: INTERNAL
+      key: zabbix[host,snmp,available]
+      history: 7d
+      description: 'Availability of SNMP checks on the host. Possible values: 0 - not available, 1 - available, 2 - unknown.'
+      valuemap:
+        name: zabbix.host.available
+      tags:
+      - tag: component
+        value: health
+      triggers:
+      - uuid: 1c9adaa1a0a44ae9ab3ad62a8c8be033
+        expression: max(/HWg Poseidon2 3268 by SNMP/zabbix[host,snmp,available],{$SNMP.TIMEOUT})=0
+        name: 'HWg Poseidon2: No SNMP data collection'
+        priority: WARNING
+        opdata: 'Current state: {ITEM.LASTVALUE1}'
+        description: SNMP is not available for polling. Check host SNMP interface, community/SNMPv3 credentials, firewall and device SNMP service.
+        tags:
+        - tag: scope
+          value: availability
+    - uuid: 4243a8c9dc9f4fa58dd2f883b1466df3
+      name: 'HWg Poseidon2: System name'
+      type: SNMP_AGENT
+      key: system.name[sysName.0]
+      snmp_oid: 1.3.6.1.2.1.1.5.0
+      history: 30d
+      trends: '0'
+      value_type: CHAR
+      description: SNMPv2-MIB::sysName.0
+      tags:
+      - tag: component
+        value: inventory
+    - uuid: af1dddc9401044f18f0f03c861d43168
+      name: 'HWg Poseidon2: System description'
+      type: SNMP_AGENT
+      key: system.descr[sysDescr.0]
+      snmp_oid: 1.3.6.1.2.1.1.1.0
+      history: 30d
+      trends: '0'
+      value_type: CHAR
+      description: SNMPv2-MIB::sysDescr.0
+      tags:
+      - tag: component
+        value: inventory
+    - uuid: a01d54acf14e4f5497f87726d7e0bda9
+      name: 'HWg Poseidon2: System object ID'
+      type: SNMP_AGENT
+      key: system.objectid[sysObjectID.0]
+      snmp_oid: 1.3.6.1.2.1.1.2.0
+      history: 30d
+      trends: '0'
+      value_type: CHAR
+      description: SNMPv2-MIB::sysObjectID.0
+      tags:
+      - tag: component
+        value: inventory
+    - uuid: 6b1837b2103b46458903b929bbb4f9a3
+      name: 'HWg Poseidon2: MAC address'
+      type: SNMP_AGENT
+      key: hwg.poseidon.info.mac
+      snmp_oid: 1.3.6.1.4.1.21796.3.3.70.1.0
+      history: 30d
+      trends: '0'
+      value_type: CHAR
+      description: POSEIDON-MIB::infoAddressMAC.0
+      tags:
+      - tag: component
+        value: inventory
+    - uuid: 2ff8d4837ccf4b88b2b96c53215277db
+      name: 'HWg Poseidon2: Active alarms present'
+      type: SNMP_AGENT
+      key: hwg.poseidon.alarms.present
+      snmp_oid: 1.3.6.1.4.1.21796.3.3.50.1.0
+      history: 30d
+      value_type: UNSIGNED
+      description: POSEIDON-MIB::tsAlarmsPresent. Number of active alarm conditions in the device alarm table.
+      tags:
+      - tag: component
+        value: alarm
+      triggers:
+      - uuid: 346526072bde4d9f8df742dccc379f7e
+        expression: last(/HWg Poseidon2 3268 by SNMP/hwg.poseidon.alarms.present)>0
+        name: 'HWg Poseidon2: Active alarm present on device'
+        priority: AVERAGE
+        opdata: 'Active alarms: {ITEM.LASTVALUE1}'
+        description: The device reports one or more active alarm conditions in its alarm table.
+        tags:
+        - tag: scope
+          value: availability
+    - uuid: 7944cc301d6445dfa765e8dabeac1554
+      name: 'HWg Poseidon2: Log record count'
+      type: SNMP_AGENT
+      key: hwg.poseidon.log.records
+      snmp_oid: 1.3.6.1.4.1.21796.3.3.30.1.0
+      history: 30d
+      value_type: UNSIGNED
+      description: POSEIDON-MIB::logRecordCount. Number of already logged records.
+      tags:
+      - tag: component
+        value: log
+    - uuid: 7bd4f44898e34083acc4122b06e2dbcf
+      name: 'HWg Poseidon2: Log time remaining'
+      type: SNMP_AGENT
+      key: hwg.poseidon.log.time_remaining
+      snmp_oid: 1.3.6.1.4.1.21796.3.3.30.2.0
+      history: 30d
+      value_type: UNSIGNED
+      units: uptime
+      description: POSEIDON-MIB::logTimeRemain. Remaining logging time estimated by the device.
+      tags:
+      - tag: component
+        value: log
+    - uuid: 0a38851b11254d2eb7bf69f57d90abca
+      name: 'HWg Poseidon2: Log period'
+      type: SNMP_AGENT
+      key: hwg.poseidon.log.period
+      snmp_oid: 1.3.6.1.4.1.21796.3.3.30.3.0
+      delay: 1h
+      history: 30d
+      value_type: UNSIGNED
+      units: s
+      description: POSEIDON-MIB::logPeriod. Time between two log samples.
+      tags:
+      - tag: component
+        value: log
+    - uuid: 18e3ded4369347b29f26c5477c86b6d3
+      name: 'HWg Poseidon2: Log I/O enabled'
+      type: SNMP_AGENT
+      key: hwg.poseidon.log.io_enabled
+      snmp_oid: 1.3.6.1.4.1.21796.3.3.30.4.0
+      delay: 1h
+      history: 30d
+      value_type: UNSIGNED
+      description: POSEIDON-MIB::logIOEnabled. Whether binary inputs/outputs are included in log samples.
+      valuemap:
+        name: HWg Poseidon OnOff
+      tags:
+      - tag: component
+        value: log
+    - uuid: 9953527a9ab74743bd436febcda08d0b
+      name: 'HWg Poseidon2: Configured display unit type'
+      type: SNMP_AGENT
+      key: hwg.poseidon.setup.unit_type
+      snmp_oid: 1.3.6.1.4.1.21796.3.3.99.1.1.0
+      delay: 1h
+      history: 30d
+      value_type: UNSIGNED
+      description: POSEIDON-MIB::unitType. Units for displayed values.
+      valuemap:
+        name: HWg Poseidon Unit type
+      preprocessing:
+      - type: DISCARD_UNCHANGED_HEARTBEAT
+        parameters:
+        - 1d
+      tags:
+      - tag: component
+        value: configuration
+    discovery_rules:
+    - uuid: d77d1d5ea22047fba09b40b64c633cc9
+      name: 'HWg Poseidon2: Sensor discovery'
+      type: SNMP_AGENT
+      snmp_oid: discovery[{#SENSOR.NAME},1.3.6.1.4.1.21796.3.3.3.1.2,{#SENSOR.STATE},1.3.6.1.4.1.21796.3.3.3.1.4,{#SENSOR.VALUESTR},1.3.6.1.4.1.21796.3.3.3.1.5,{#SENSOR.ID},1.3.6.1.4.1.21796.3.3.3.1.8,{#SENSOR.UNIT},1.3.6.1.4.1.21796.3.3.3.1.9,{#SENSOR.UNITSTRING},1.3.6.1.4.1.21796.3.3.3.1.10,{#SENSOR.PORTID},1.3.6.1.4.1.21796.3.3.3.1.11]
+      key: hwg.poseidon.sensor.discovery
+      delay: 1h
+      description: Discovers sensors from POSEIDON-MIB::sensTable.
+      item_prototypes:
+      - uuid: 2b3f4feae56d40b0aa036b93aaff7455
+        name: 'Sensor {#SENSOR.NAME}: State'
+        type: SNMP_AGENT
+        key: hwg.poseidon.sensor.state[{#SNMPINDEX}]
+        snmp_oid: 1.3.6.1.4.1.21796.3.3.3.1.4.{#SNMPINDEX}
+        history: 30d
+        value_type: UNSIGNED
+        description: POSEIDON-MIB::sensState. 0 invalid, 1 normal, 2 alarm state, 3 alarm.
+        valuemap:
+          name: HWg Poseidon Sensor state
+        tags:
+        - tag: component
+          value: sensor
+        - tag: sensor
+          value: '{#SENSOR.NAME}'
+        - tag: unit
+          value: '{#SENSOR.UNITSTRING}'
+      - uuid: 560985b16fb9421e8c5624c3ef72c4ce
+        name: 'Sensor {#SENSOR.NAME}: Value'
+        type: SNMP_AGENT
+        key: hwg.poseidon.sensor.value[{#SNMPINDEX}]
+        snmp_oid: 1.3.6.1.4.1.21796.3.3.3.1.6.{#SNMPINDEX}
+        history: 90d
+        value_type: FLOAT
+        units: '{#SENSOR.UNITSTRING}'
+        description: POSEIDON-MIB::sensValue. The device reports integer value as decimal * 10; template applies multiplier 0.1.
+        preprocessing:
+        - type: MULTIPLIER
+          parameters:
+          - '0.1'
+        tags:
+        - tag: component
+          value: sensor
+        - tag: sensor
+          value: '{#SENSOR.NAME}'
+        - tag: unit
+          value: '{#SENSOR.UNITSTRING}'
+      - uuid: bad38cf09ad941e4875be94742233a1b
+        name: 'Sensor {#SENSOR.NAME}: Raw value'
+        type: SNMP_AGENT
+        key: hwg.poseidon.sensor.raw_value[{#SNMPINDEX}]
+        snmp_oid: 1.3.6.1.4.1.21796.3.3.3.1.7.{#SNMPINDEX}
+        history: 30d
+        value_type: FLOAT
+        description: POSEIDON-MIB::sensValueRaw. Original raw value; precision depends on sensor type.
+        tags:
+        - tag: component
+          value: sensor
+        - tag: sensor
+          value: '{#SENSOR.NAME}'
+      - uuid: 50c44b3e471041f8a4f3049d649e9a00
+        name: 'Sensor {#SENSOR.NAME}: String value'
+        type: SNMP_AGENT
+        key: hwg.poseidon.sensor.string[{#SNMPINDEX}]
+        snmp_oid: 1.3.6.1.4.1.21796.3.3.3.1.5.{#SNMPINDEX}
+        history: 30d
+        trends: '0'
+        value_type: CHAR
+        description: POSEIDON-MIB::sensString. String representation of sensor value.
+        preprocessing:
+        - type: DISCARD_UNCHANGED_HEARTBEAT
+          parameters:
+          - 6h
+        tags:
+        - tag: component
+          value: sensor
+        - tag: sensor
+          value: '{#SENSOR.NAME}'
+      - uuid: e3c589738fc143a89ecaea890a82d992
+        name: 'Sensor {#SENSOR.NAME}: Sensor ID'
+        type: SNMP_AGENT
+        key: hwg.poseidon.sensor.id[{#SNMPINDEX}]
+        snmp_oid: 1.3.6.1.4.1.21796.3.3.3.1.8.{#SNMPINDEX}
+        delay: 1h
+        history: 30d
+        value_type: UNSIGNED
+        description: POSEIDON-MIB::sensID.
+        preprocessing:
+        - type: DISCARD_UNCHANGED_HEARTBEAT
+          parameters:
+          - 1d
+        tags:
+        - tag: component
+          value: sensor
+        - tag: sensor
+          value: '{#SENSOR.NAME}'
+      - uuid: 31472514697b424384e17f303c8fa2d5
+        name: 'Sensor {#SENSOR.NAME}: Unit code'
+        type: SNMP_AGENT
+        key: hwg.poseidon.sensor.unit[{#SNMPINDEX}]
+        snmp_oid: 1.3.6.1.4.1.21796.3.3.3.1.9.{#SNMPINDEX}
+        delay: 1h
+        history: 30d
+        value_type: UNSIGNED
+        description: POSEIDON-MIB::sensUnit.
+        valuemap:
+          name: HWg Poseidon Unit type
+        preprocessing:
+        - type: DISCARD_UNCHANGED_HEARTBEAT
+          parameters:
+          - 1d
+        tags:
+        - tag: component
+          value: sensor
+        - tag: sensor
+          value: '{#SENSOR.NAME}'
+      - uuid: 65e7147723034be9992541eed5d16b95
+        name: 'Sensor {#SENSOR.NAME}: Unit string'
+        type: SNMP_AGENT
+        key: hwg.poseidon.sensor.unit_string[{#SNMPINDEX}]
+        snmp_oid: 1.3.6.1.4.1.21796.3.3.3.1.10.{#SNMPINDEX}
+        delay: 1h
+        history: 30d
+        trends: '0'
+        value_type: CHAR
+        description: POSEIDON-MIB::sensUnitString.
+        preprocessing:
+        - type: DISCARD_UNCHANGED_HEARTBEAT
+          parameters:
+          - 1d
+        tags:
+        - tag: component
+          value: sensor
+        - tag: sensor
+          value: '{#SENSOR.NAME}'
+      - uuid: 25e64f7a010746c6a1ee6709a29123fd
+        name: 'Sensor {#SENSOR.NAME}: Port ID'
+        type: SNMP_AGENT
+        key: hwg.poseidon.sensor.port_id[{#SNMPINDEX}]
+        snmp_oid: 1.3.6.1.4.1.21796.3.3.3.1.11.{#SNMPINDEX}
+        delay: 1h
+        history: 30d
+        value_type: UNSIGNED
+        description: POSEIDON-MIB::sensPortID.
+        preprocessing:
+        - type: DISCARD_UNCHANGED_HEARTBEAT
+          parameters:
+          - 1d
+        tags:
+        - tag: component
+          value: sensor
+        - tag: sensor
+          value: '{#SENSOR.NAME}'
+      - uuid: fc57e2fcfdbf48458e80fc6bdf7dee23
+        name: 'Sensor {#SENSOR.NAME}: Alarm flags'
+        type: SNMP_AGENT
+        key: hwg.poseidon.sensor.flags[{#SNMPINDEX}]
+        snmp_oid: 1.3.6.1.4.1.21796.3.3.99.1.2.1.5.{#SNMPINDEX}
+        delay: 5m
+        history: 30d
+        value_type: UNSIGNED
+        description: 'POSEIDON-MIB::sensFlags. Bit field: 0x01 range/level detection, 0x02 trap, 0x08 sensor enabled, 0x10 SMS, 0x20 email.'
+        preprocessing:
+        - type: DISCARD_UNCHANGED_HEARTBEAT
+          parameters:
+          - 1d
+        tags:
+        - tag: component
+          value: sensor
+        - tag: sensor
+          value: '{#SENSOR.NAME}'
+        - tag: scope
+          value: configuration
+      - uuid: 7f9d919184da49c2aee1f94b1fdfa8ac
+        name: 'Sensor {#SENSOR.NAME}: Configured low limit'
+        type: SNMP_AGENT
+        key: hwg.poseidon.sensor.limit.min[{#SNMPINDEX}]
+        snmp_oid: 1.3.6.1.4.1.21796.3.3.99.1.2.1.6.{#SNMPINDEX}
+        delay: 5m
+        history: 30d
+        value_type: FLOAT
+        units: '{#SENSOR.UNITSTRING}'
+        description: POSEIDON-MIB::sensLimitMin. The device reports integer value as decimal * 10; template applies multiplier 0.1.
+        preprocessing:
+        - type: MULTIPLIER
+          parameters:
+          - '0.1'
+        tags:
+        - tag: component
+          value: sensor
+        - tag: sensor
+          value: '{#SENSOR.NAME}'
+        - tag: scope
+          value: configuration
+      - uuid: 35bcdb8d98014a2c80ed744ce5126648
+        name: 'Sensor {#SENSOR.NAME}: Configured high limit'
+        type: SNMP_AGENT
+        key: hwg.poseidon.sensor.limit.max[{#SNMPINDEX}]
+        snmp_oid: 1.3.6.1.4.1.21796.3.3.99.1.2.1.7.{#SNMPINDEX}
+        delay: 5m
+        history: 30d
+        value_type: FLOAT
+        units: '{#SENSOR.UNITSTRING}'
+        description: POSEIDON-MIB::sensLimitMax. The device reports integer value as decimal * 10; template applies multiplier 0.1.
+        preprocessing:
+        - type: MULTIPLIER
+          parameters:
+          - '0.1'
+        tags:
+        - tag: component
+          value: sensor
+        - tag: sensor
+          value: '{#SENSOR.NAME}'
+        - tag: scope
+          value: configuration
+      - uuid: 058b9be7e0f34d0b8ed45e1c6c06303f
+        name: 'Sensor {#SENSOR.NAME}: Hysteresis'
+        type: SNMP_AGENT
+        key: hwg.poseidon.sensor.hysteresis[{#SNMPINDEX}]
+        snmp_oid: 1.3.6.1.4.1.21796.3.3.99.1.2.1.8.{#SNMPINDEX}
+        delay: 5m
+        history: 30d
+        value_type: FLOAT
+        units: '{#SENSOR.UNITSTRING}'
+        description: POSEIDON-MIB::sensHysteresis. The device reports integer value as decimal * 10; template applies multiplier 0.1.
+        preprocessing:
+        - type: MULTIPLIER
+          parameters:
+          - '0.1'
+        tags:
+        - tag: component
+          value: sensor
+        - tag: sensor
+          value: '{#SENSOR.NAME}'
+        - tag: scope
+          value: configuration
+      trigger_prototypes:
+      - uuid: b056d0f57a1f4d93b3b97c314f2ac06a
+        expression: last(/HWg Poseidon2 3268 by SNMP/hwg.poseidon.sensor.state[{#SNMPINDEX}])=3
+        name: 'Sensor {#SENSOR.NAME}: Alarm'
+        priority: HIGH
+        event_name: 'Sensor {#SENSOR.NAME}: Alarm state'
+        opdata: 'State: {ITEM.LASTVALUE1}'
+        description: Sensor is in alarm state according to POSEIDON-MIB::sensState.
+        tags:
+        - tag: scope
+          value: availability
+        - tag: sensor
+          value: '{#SENSOR.NAME}'
+      - uuid: ba4575c6ba014da8b435be8eb7da2e22
+        expression: last(/HWg Poseidon2 3268 by SNMP/hwg.poseidon.sensor.state[{#SNMPINDEX}])=2
+        name: 'Sensor {#SENSOR.NAME}: Warning alarm state'
+        priority: WARNING
+        event_name: 'Sensor {#SENSOR.NAME}: Alarm state, alarm not enabled or delay not elapsed'
+        opdata: 'State: {ITEM.LASTVALUE1}'
+        description: Sensor reports alarmstate=2. In HWg MIB this means alarm state exists, but alarm may not be enabled or delay has not elapsed.
+        tags:
+        - tag: scope
+          value: availability
+        - tag: sensor
+          value: '{#SENSOR.NAME}'
+      - uuid: 6ba443fe659244cc851de3686cb24a0a
+        expression: last(/HWg Poseidon2 3268 by SNMP/hwg.poseidon.sensor.state[{#SNMPINDEX}])=0
+        name: 'Sensor {#SENSOR.NAME}: Invalid sensor'
+        priority: AVERAGE
+        event_name: 'Sensor {#SENSOR.NAME}: Invalid'
+        opdata: 'State: {ITEM.LASTVALUE1}'
+        description: Sensor is invalid/unavailable according to POSEIDON-MIB::sensState.
+        tags:
+        - tag: scope
+          value: availability
+        - tag: sensor
+          value: '{#SENSOR.NAME}'
+      - uuid: 06bc0f62db814d9e923362d38dab58be
+        expression: last(/HWg Poseidon2 3268 by SNMP/hwg.poseidon.sensor.value[{#SNMPINDEX}])<last(/HWg Poseidon2 3268 by SNMP/hwg.poseidon.sensor.limit.min[{#SNMPINDEX}])
+          and last(/HWg Poseidon2 3268 by SNMP/hwg.poseidon.sensor.state[{#SNMPINDEX}])<>0 and {$POSEIDON.SENSOR.LIMIT.ALERT:"{#SENSOR.NAME}"}=1
+        name: 'Sensor {#SENSOR.NAME}: Value is below configured low limit'
+        priority: WARNING
+        event_name: 'Sensor {#SENSOR.NAME}: Value below low limit'
+        opdata: 'Value: {ITEM.LASTVALUE1}, low limit: {ITEM.LASTVALUE2}'
+        description: Compares sensValue with sensLimitMin from the device setup table.
+        manual_close: 'YES'
+        tags:
+        - tag: scope
+          value: capacity
+        - tag: sensor
+          value: '{#SENSOR.NAME}'
+      - uuid: 618643dfc87a4d24baaec62d27cc54ef
+        expression: last(/HWg Poseidon2 3268 by SNMP/hwg.poseidon.sensor.value[{#SNMPINDEX}])>last(/HWg Poseidon2 3268 by SNMP/hwg.poseidon.sensor.limit.max[{#SNMPINDEX}])
+          and last(/HWg Poseidon2 3268 by SNMP/hwg.poseidon.sensor.state[{#SNMPINDEX}])<>0 and {$POSEIDON.SENSOR.LIMIT.ALERT:"{#SENSOR.NAME}"}=1
+        name: 'Sensor {#SENSOR.NAME}: Value is above configured high limit'
+        priority: WARNING
+        event_name: 'Sensor {#SENSOR.NAME}: Value above high limit'
+        opdata: 'Value: {ITEM.LASTVALUE1}, high limit: {ITEM.LASTVALUE2}'
+        description: Compares sensValue with sensLimitMax from the device setup table.
+        manual_close: 'YES'
+        tags:
+        - tag: scope
+          value: capacity
+        - tag: sensor
+          value: '{#SENSOR.NAME}'
+      graph_prototypes:
+      - uuid: e0dd4d8d15234bef87344c5601776076
+        name: 'Sensor {#SENSOR.NAME}: Value'
+        graph_items:
+        - color: 199C0D
+          item:
+            host: HWg Poseidon2 3268 by SNMP
+            key: hwg.poseidon.sensor.value[{#SNMPINDEX}]
+        - sortorder: '1'
+          color: F63100
+          item:
+            host: HWg Poseidon2 3268 by SNMP
+            key: hwg.poseidon.sensor.limit.max[{#SNMPINDEX}]
+        - sortorder: '2'
+          color: 00611C
+          item:
+            host: HWg Poseidon2 3268 by SNMP
+            key: hwg.poseidon.sensor.limit.min[{#SNMPINDEX}]
+    - uuid: 1640c59ff3374bdcad545ef8530ee516
+      name: 'HWg Poseidon2: Digital input discovery'
+      type: SNMP_AGENT
+      snmp_oid: discovery[{#INPUT.NAME},1.3.6.1.4.1.21796.3.3.1.1.3,{#INPUT.ALARMSETUP},1.3.6.1.4.1.21796.3.3.1.1.4,{#INPUT.ALARMSTATE},1.3.6.1.4.1.21796.3.3.1.1.5]
+      key: hwg.poseidon.input.discovery
+      delay: 1h
+      description: Discovers binary inputs from POSEIDON-MIB::inpTable.
+      item_prototypes:
+      - uuid: b8c43ad8920c445b99d1683f19313c46
+        name: 'Digital input {#INPUT.NAME}: Value'
+        type: SNMP_AGENT
+        key: hwg.poseidon.input.value[{#SNMPINDEX}]
+        snmp_oid: 1.3.6.1.4.1.21796.3.3.1.1.2.{#SNMPINDEX}
+        history: 90d
+        value_type: UNSIGNED
+        description: POSEIDON-MIB::inpValue. 0 off/open, 1 on/closed.
+        valuemap:
+          name: HWg Poseidon OnOff
+        tags:
+        - tag: component
+          value: digital-input
+        - tag: input
+          value: '{#INPUT.NAME}'
+      - uuid: de9ca6bc4ae04734838f838748a39886
+        name: 'Digital input {#INPUT.NAME}: Alarm setup'
+        type: SNMP_AGENT
+        key: hwg.poseidon.input.alarm_setup[{#SNMPINDEX}]
+        snmp_oid: 1.3.6.1.4.1.21796.3.3.1.1.4.{#SNMPINDEX}
+        delay: 5m
+        history: 30d
+        value_type: UNSIGNED
+        description: POSEIDON-MIB::inpAlarmSetup. Alarm can be inactive, activeOff or activeOn.
+        valuemap:
+          name: HWg Poseidon Input alarm setup
+        preprocessing:
+        - type: DISCARD_UNCHANGED_HEARTBEAT
+          parameters:
+          - 1d
+        tags:
+        - tag: component
+          value: digital-input
+        - tag: input
+          value: '{#INPUT.NAME}'
+        - tag: scope
+          value: configuration
+      - uuid: 2ec9827d3a3c4bb4b43192c8ba14d72c
+        name: 'Digital input {#INPUT.NAME}: Alarm state'
+        type: SNMP_AGENT
+        key: hwg.poseidon.input.alarm_state[{#SNMPINDEX}]
+        snmp_oid: 1.3.6.1.4.1.21796.3.3.1.1.5.{#SNMPINDEX}
+        history: 90d
+        value_type: UNSIGNED
+        description: POSEIDON-MIB::inpAlarmState. 0 normal, 1 alarm.
+        valuemap:
+          name: HWg Poseidon Input alarm state
+        tags:
+        - tag: component
+          value: digital-input
+        - tag: input
+          value: '{#INPUT.NAME}'
+      - uuid: 9ac2301585224236b8c893643b603a19
+        name: 'Digital input {#INPUT.NAME}: Pulse counter'
+        type: SNMP_AGENT
+        key: hwg.poseidon.input.counter[{#SNMPINDEX}]
+        snmp_oid: 1.3.6.1.4.1.21796.3.3.1.1.6.{#SNMPINDEX}
+        history: 90d
+        value_type: UNSIGNED
+        description: POSEIDON-MIB::inpCounter. Number of pulses on this input.
+        tags:
+        - tag: component
+          value: digital-input
+        - tag: input
+          value: '{#INPUT.NAME}'
+      trigger_prototypes:
+      - uuid: b9eb775da34e48b5b9180f97176b1881
+        expression: last(/HWg Poseidon2 3268 by SNMP/hwg.poseidon.input.alarm_state[{#SNMPINDEX}])=1
+        name: 'Digital input {#INPUT.NAME}: Alarm'
+        priority: AVERAGE
+        event_name: 'Digital input {#INPUT.NAME}: Alarm state'
+        opdata: 'State: {ITEM.LASTVALUE1}'
+        description: Binary input reached a state that matches its alarm setup.
+        tags:
+        - tag: scope
+          value: availability
+        - tag: input
+          value: '{#INPUT.NAME}'
+      graph_prototypes:
+      - uuid: 3a424db4abb74f829aed1ebd051f47a0
+        name: 'Digital input {#INPUT.NAME}: Pulse counter'
+        graph_items:
+        - color: 199C0D
+          item:
+            host: HWg Poseidon2 3268 by SNMP
+            key: hwg.poseidon.input.counter[{#SNMPINDEX}]
+    - uuid: f558f83ce23442b29e217a85ed8f0c45
+      name: 'HWg Poseidon2: Relay output discovery'
+      type: SNMP_AGENT
+      snmp_oid: discovery[{#OUTPUT.NAME},1.3.6.1.4.1.21796.3.3.2.1.3,{#OUTPUT.TYPE},1.3.6.1.4.1.21796.3.3.2.1.4,{#OUTPUT.MODE},1.3.6.1.4.1.21796.3.3.2.1.5]
+      key: hwg.poseidon.output.discovery
+      delay: 1h
+      description: Discovers relay outputs from POSEIDON-MIB::outTable.
+      item_prototypes:
+      - uuid: b0d8b954ac784628a5c47d503dbf28fc
+        name: 'Relay output {#OUTPUT.NAME}: Value'
+        type: SNMP_AGENT
+        key: hwg.poseidon.output.value[{#SNMPINDEX}]
+        snmp_oid: 1.3.6.1.4.1.21796.3.3.2.1.2.{#SNMPINDEX}
+        history: 90d
+        value_type: UNSIGNED
+        description: POSEIDON-MIB::outValue. 0 off/open, 1 on/closed.
+        valuemap:
+          name: HWg Poseidon OnOff
+        tags:
+        - tag: component
+          value: relay-output
+        - tag: output
+          value: '{#OUTPUT.NAME}'
+      - uuid: e0850cd4c89d4640890d39e01681ed65
+        name: 'Relay output {#OUTPUT.NAME}: Type'
+        type: SNMP_AGENT
+        key: hwg.poseidon.output.type[{#SNMPINDEX}]
+        snmp_oid: 1.3.6.1.4.1.21796.3.3.2.1.4.{#SNMPINDEX}
+        delay: 1h
+        history: 30d
+        value_type: UNSIGNED
+        description: POSEIDON-MIB::outType.
+        valuemap:
+          name: HWg Poseidon Output type
+        preprocessing:
+        - type: DISCARD_UNCHANGED_HEARTBEAT
+          parameters:
+          - 1d
+        tags:
+        - tag: component
+          value: relay-output
+        - tag: output
+          value: '{#OUTPUT.NAME}'
+        - tag: scope
+          value: configuration
+      - uuid: 7fbe184d877e4bc0b512590614f25ff9
+        name: 'Relay output {#OUTPUT.NAME}: Mode'
+        type: SNMP_AGENT
+        key: hwg.poseidon.output.mode[{#SNMPINDEX}]
+        snmp_oid: 1.3.6.1.4.1.21796.3.3.2.1.5.{#SNMPINDEX}
+        delay: 5m
+        history: 30d
+        value_type: UNSIGNED
+        description: POSEIDON-MIB::outMode.
+        valuemap:
+          name: HWg Poseidon Output mode
+        preprocessing:
+        - type: DISCARD_UNCHANGED_HEARTBEAT
+          parameters:
+          - 1d
+        tags:
+        - tag: component
+          value: relay-output
+        - tag: output
+          value: '{#OUTPUT.NAME}'
+        - tag: scope
+          value: configuration
+      trigger_prototypes:
+      - uuid: d194b327e6c04bbeaf8bf28dfe4ea494
+        expression: last(/HWg Poseidon2 3268 by SNMP/hwg.poseidon.output.value[{#SNMPINDEX}])=1 and {$POSEIDON.OUTPUT.ON.ALERT:"{#OUTPUT.NAME}"}=1
+        name: 'Relay output {#OUTPUT.NAME}: Output is ON'
+        priority: INFO
+        event_name: 'Relay output {#OUTPUT.NAME}: ON'
+        opdata: 'State: {ITEM.LASTVALUE1}'
+        description: Disabled by default through macro {$POSEIDON.OUTPUT.ON.ALERT}. Set context macro to 1 for selected outputs if ON state must create a problem.
+        manual_close: 'YES'
+        tags:
+        - tag: scope
+          value: notice
+        - tag: output
+          value: '{#OUTPUT.NAME}'
+    - uuid: 35f0d4e2c3e441498c8cd8c9af73702a
+      name: 'HWg Poseidon2: Active alarm table discovery'
+      type: SNMP_AGENT
+      snmp_oid: discovery[{#ALARM.ID},1.3.6.1.4.1.21796.3.3.50.2.1.2,{#ALARM.DESCR},1.3.6.1.4.1.21796.3.3.50.2.1.3,{#ALARM.SENSOR},1.3.6.1.4.1.21796.3.3.50.2.1.4]
+      key: hwg.poseidon.alarm.discovery
+      delay: 1m
+      lifetime: 1h
+      description: Discovers currently active rows from POSEIDON-MIB::tsAlarmTable. Rows are created and removed by the device dynamically.
+      item_prototypes:
+      - uuid: 6199dbda326b481ca675f8afcf0abcbc
+        name: 'Active alarm {#ALARM.ID}: Description'
+        type: SNMP_AGENT
+        key: hwg.poseidon.alarm.description[{#SNMPINDEX}]
+        snmp_oid: 1.3.6.1.4.1.21796.3.3.50.2.1.3.{#SNMPINDEX}
+        history: 7d
+        value_type: UNSIGNED
+        description: POSEIDON-MIB::tsAlarmDescr.
+        valuemap:
+          name: HWg Poseidon Alarm description
+        tags:
+        - tag: component
+          value: alarm
+        - tag: alarm
+          value: '{#ALARM.ID}'
+      - uuid: 0c08e11e14264783ba88a8db1f4aba60
+        name: 'Active alarm {#ALARM.ID}: Sensor/Input name'
+        type: SNMP_AGENT
+        key: hwg.poseidon.alarm.sensor_name[{#SNMPINDEX}]
+        snmp_oid: 1.3.6.1.4.1.21796.3.3.50.2.1.4.{#SNMPINDEX}
+        history: 7d
+        trends: '0'
+        value_type: CHAR
+        description: POSEIDON-MIB::tsAlarmSensName.
+        tags:
+        - tag: component
+          value: alarm
+        - tag: alarm
+          value: '{#ALARM.ID}'
+      - uuid: b8cfbf4d495d4c97a9f01d76ecfb5f03
+        name: 'Active alarm {#ALARM.ID}: Alarm time'
+        type: SNMP_AGENT
+        key: hwg.poseidon.alarm.time[{#SNMPINDEX}]
+        snmp_oid: 1.3.6.1.4.1.21796.3.3.50.2.1.5.{#SNMPINDEX}
+        history: 7d
+        value_type: UNSIGNED
+        units: uptime
+        description: POSEIDON-MIB::tsAlarmTime. sysUpTime value when the alarm was detected.
+        tags:
+        - tag: component
+          value: alarm
+        - tag: alarm
+          value: '{#ALARM.ID}'
+    macros:
+    - macro: '{$SNMP.TIMEOUT}'
+      value: 5m
+      description: Time interval used by the SNMP availability trigger.
+    - macro: '{$ICMP_LOSS_WARN}'
+      value: '20'
+      description: ICMP packet loss warning threshold in percent.
+    - macro: '{$ICMP_RESPONSE_TIME_WARN}'
+      value: '0.15'
+      description: ICMP response time warning threshold in seconds.
+    - macro: '{$POSEIDON.SENSOR.LIMIT.ALERT}'
+      value: '0'
+      description: Default sensor configured-limit alert control. Set context macro, for example {$POSEIDON.SENSOR.LIMIT.ALERT:"Temperature"}=1, to alert when sensValue
+        exceeds configured low/high limits for a selected sensor.
+    - macro: '{$POSEIDON.OUTPUT.ON.ALERT}'
+      value: '0'
+      description: Default relay output ON alert control. Set context macro, for example {$POSEIDON.OUTPUT.ON.ALERT:"Relay 1"}=1, to alert when a selected output
+        is ON.
+    valuemaps:
+    - uuid: 1a37eb8f79364009967a52af5aa52b53
+      name: Service state
+      mappings:
+      - value: '0'
+        newvalue: Down
+      - value: '1'
+        newvalue: Up
+    - uuid: 0788eaf1cbd544719e7b5676719d540e
+      name: zabbix.host.available
+      mappings:
+      - value: '0'
+        newvalue: not available
+      - value: '1'
+        newvalue: available
+      - value: '2'
+        newvalue: unknown
+    - uuid: 958a60f8851f453f8ef8c0a69069ae4b
+      name: HWg Poseidon OnOff
+      mappings:
+      - value: '0'
+        newvalue: off/open
+      - value: '1'
+        newvalue: on/closed
+    - uuid: fc00102d9e6a4528aef0e0f37fc4a5df
+      name: HWg Poseidon Input alarm setup
+      mappings:
+      - value: '0'
+        newvalue: inactive
+      - value: '1'
+        newvalue: activeOff
+      - value: '2'
+        newvalue: activeOn
+    - uuid: 4629908e79cd4d80bcc6884fd28a1c03
+      name: HWg Poseidon Input alarm state
+      mappings:
+      - value: '0'
+        newvalue: normal
+      - value: '1'
+        newvalue: alarm
+    - uuid: 7aaeb90318734d1b828dc99b47a34ea5
+      name: HWg Poseidon Sensor state
+      mappings:
+      - value: '0'
+        newvalue: invalid
+      - value: '1'
+        newvalue: normal
+      - value: '2'
+        newvalue: alarmstate
+      - value: '3'
+        newvalue: alarm
+    - uuid: ca01c4d72074418cba352f293bffb5e3
+      name: HWg Poseidon Unit type
+      mappings:
+      - value: '0'
+        newvalue: celsius
+      - value: '1'
+        newvalue: fahrenheit
+      - value: '2'
+        newvalue: kelvin
+      - value: '3'
+        newvalue: percent
+      - value: '4'
+        newvalue: volt
+      - value: '5'
+        newvalue: miliAmper
+      - value: '6'
+        newvalue: noUnit
+      - value: '7'
+        newvalue: pulse
+      - value: '8'
+        newvalue: switch
+      - value: '9'
+        newvalue: dewPoint
+      - value: '10'
+        newvalue: absoluteHumidity
+      - value: '11'
+        newvalue: pressure
+      - value: '12'
+        newvalue: universal
+    - uuid: 2f0071a1fe7e423a9331dbae29c13a44
+      name: HWg Poseidon Output type
+      mappings:
+      - value: '0'
+        newvalue: onOff/relay
+      - value: '1'
+        newvalue: rts
+      - value: '2'
+        newvalue: dtr
+    - uuid: e4ae5011072c44c3b12017b46a0b307c
+      name: HWg Poseidon Output mode
+      mappings:
+      - value: '0'
+        newvalue: manual
+      - value: '1'
+        newvalue: autoAlarm
+      - value: '2'
+        newvalue: autoTriggerEq
+      - value: '3'
+        newvalue: autoTriggerHi
+      - value: '4'
+        newvalue: autoTriggerLo
+    - uuid: 9aa28c11cfc54f28a8b581fb12848ae2
+      name: HWg Poseidon Alarm description
+      mappings:
+      - value: '1'
+        newvalue: inputStateAlarm
+      - value: '2'
+        newvalue: temperatureOutOfRange
