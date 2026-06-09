@@ -1,0 +1,320 @@
+zabbix_export:
+  version: '7.0'
+  template_groups:
+  - uuid: 574eec884aef40e49fefb46e2e833d99
+    name: Templates/Security
+  templates:
+  - uuid: 0b95699ecab74625a1186a260379850a
+    template: Template Trend Micro Deep Security Manager by HTTP
+    name: Template Trend Micro Deep Security Manager by HTTP
+    description: 'Best-effort Zabbix 7.0 YAML draft for Trend Micro Deep Security / Workload Security Manager monitoring by HTTP.
+
+
+      Assumptions:
+
+      - DSM/Manager exposes the newer /api endpoints and accepts the ''api-secret-key'' and ''api-version'' headers.
+
+      - Legacy /rest/apiVersion is available for a lightweight availability check.
+
+      - The /api/computers endpoint returns an array with computerStatus information.
+
+
+      Notes:
+
+      - TLS peer/host verification is disabled in this draft for easier pilot deployment. Enable it after you install a trusted certificate on DSM.
+
+      - If your DSM version returns different JSON field names, adjust JSONPath/JavaScript preprocessing accordingly.
+
+      '
+    groups:
+    - name: Templates/Security
+    macros:
+    - macro: '{$TM.DSM.URL}'
+      value: https://dsm.example.com:4119
+      description: Base URL of Trend Micro DSM / Workload Security Manager.
+    - macro: '{$TM.DSM.API.KEY}'
+      type: SECRET_TEXT
+      value: ''
+      description: Trend Micro DSM API secret key.
+    - macro: '{$TM.DSM.API.VERSION}'
+      value: v1
+      description: API version header value.
+    - macro: '{$TM.DSM.API.DELAY}'
+      value: 5m
+      description: Update interval for lightweight DSM API checks.
+    - macro: '{$TM.DSM.COMPUTERS.DELAY}'
+      value: 10m
+      description: Update interval for summarized computer status collection.
+    - macro: '{$TM.DSM.TIMEOUT}'
+      value: 15s
+      description: HTTP timeout for DSM requests.
+    items:
+    - uuid: c1995f0fe4a841e9b99f52dcc768cd81
+      name: 'Trend Micro DSM: API health raw'
+      type: HTTP_AGENT
+      key: tm.dsm.api.health.raw
+      delay: '{$TM.DSM.API.DELAY}'
+      history: 1d
+      trends: '0'
+      value_type: TEXT
+      description: Lightweight authenticated request against the newer DSM API.
+      timeout: '{$TM.DSM.TIMEOUT}'
+      url: '{$TM.DSM.URL}/api/policies'
+      status_codes: 200-299
+      headers:
+      - name: api-secret-key
+        value: '{$TM.DSM.API.KEY}'
+      - name: api-version
+        value: '{$TM.DSM.API.VERSION}'
+      retrieve_mode: BODY
+      request_method: GET
+      output_format: RAW
+      verify_peer: 'NO'
+      verify_host: 'NO'
+      preprocessing:
+      - type: CHECK_JSON_ERROR
+        parameters:
+        - $.error.message
+      - type: DISCARD_UNCHANGED_HEARTBEAT
+        parameters:
+        - 1h
+      tags:
+      - tag: component
+        value: raw
+      - tag: component
+        value: manager
+    - uuid: bc9003e4a74c45b8b8cc8a5590153e41
+      name: 'Trend Micro DSM: API health'
+      type: DEPENDENT
+      key: tm.dsm.api.health
+      delay: '0'
+      history: 7d
+      value_type: UNSIGNED
+      description: Returns 1 if the authenticated API request succeeded and raw JSON was received.
+      preprocessing:
+      - type: JAVASCRIPT
+        parameters:
+        - return 1;
+      master_item:
+        key: tm.dsm.api.health.raw
+      tags:
+      - tag: component
+        value: manager
+      - tag: component
+        value: availability
+      triggers:
+      - uuid: 13b553c3e71a445b8fddd1dd1a08ae3a
+        expression: nodata(/Template Trend Micro Deep Security Manager by HTTP/tm.dsm.api.health,10m)=1
+        name: 'Trend Micro DSM: Authenticated API is unavailable'
+        priority: HIGH
+        description: No successful value has been received from the authenticated DSM API check for 10 minutes.
+        manual_close: 'YES'
+        tags:
+        - tag: scope
+          value: availability
+    - uuid: 9f497b5ab8d347a1a2fc5ad647113783
+      name: 'Trend Micro DSM: Legacy REST apiVersion raw'
+      type: HTTP_AGENT
+      key: tm.dsm.rest.apiversion.raw
+      delay: 30m
+      history: 7d
+      trends: '0'
+      value_type: TEXT
+      description: Unauthenticated legacy REST endpoint used as a secondary DSM liveness check.
+      timeout: '{$TM.DSM.TIMEOUT}'
+      url: '{$TM.DSM.URL}/rest/apiVersion'
+      status_codes: 200-299
+      retrieve_mode: BODY
+      request_method: GET
+      output_format: RAW
+      verify_peer: 'NO'
+      verify_host: 'NO'
+      tags:
+      - tag: component
+        value: raw
+      - tag: component
+        value: manager
+    - uuid: ca167108570649fbb45b81ee51bee999
+      name: 'Trend Micro DSM: Legacy REST apiVersion'
+      type: DEPENDENT
+      key: tm.dsm.rest.apiversion
+      delay: '0'
+      history: 30d
+      trends: '0'
+      value_type: CHAR
+      preprocessing:
+      - type: REGEX
+        parameters:
+        - (.+)
+        - \1
+      master_item:
+        key: tm.dsm.rest.apiversion.raw
+      tags:
+      - tag: component
+        value: manager
+      - tag: component
+        value: version
+      triggers:
+      - uuid: 8b6f8ecd1658404aa5517063d4889cb7
+        expression: nodata(/Template Trend Micro Deep Security Manager by HTTP/tm.dsm.rest.apiversion,1h)=1
+        name: 'Trend Micro DSM: Legacy REST apiVersion endpoint is unavailable'
+        priority: WARNING
+        description: No value has been received from /rest/apiVersion for 1 hour.
+        manual_close: 'YES'
+        tags:
+        - tag: scope
+          value: availability
+    - uuid: bd451b9614014f869b53151c9c6c4e1f
+      name: 'Trend Micro DSM: Computers status raw'
+      type: HTTP_AGENT
+      key: tm.dsm.computers.status.raw
+      delay: '{$TM.DSM.COMPUTERS.DELAY}'
+      history: 1d
+      trends: '0'
+      value_type: TEXT
+      description: Raw list of computers with computerStatus expanded.
+      timeout: '{$TM.DSM.TIMEOUT}'
+      url: '{$TM.DSM.URL}/api/computers?expand=computerStatus'
+      status_codes: 200-299
+      headers:
+      - name: api-secret-key
+        value: '{$TM.DSM.API.KEY}'
+      - name: api-version
+        value: '{$TM.DSM.API.VERSION}'
+      retrieve_mode: BODY
+      request_method: GET
+      output_format: RAW
+      verify_peer: 'NO'
+      verify_host: 'NO'
+      preprocessing:
+      - type: CHECK_JSON_ERROR
+        parameters:
+        - $.error.message
+      - type: DISCARD_UNCHANGED_HEARTBEAT
+        parameters:
+        - 1h
+      tags:
+      - tag: component
+        value: raw
+      - tag: component
+        value: computers
+    - uuid: 9d186bd9f0aa4374a783fe4994446f07
+      name: 'Trend Micro DSM: Computers total'
+      type: DEPENDENT
+      key: tm.dsm.computers.total
+      delay: '0'
+      history: 30d
+      value_type: UNSIGNED
+      preprocessing:
+      - type: JAVASCRIPT
+        parameters:
+        - var a=JSON.parse(value); return a.length;
+      master_item:
+        key: tm.dsm.computers.status.raw
+      tags:
+      - tag: component
+        value: computers
+      - tag: component
+        value: inventory
+    - uuid: 5470715d57a34d83905eef548fd6ce89
+      name: 'Trend Micro DSM: Computers without agent/appliance'
+      type: DEPENDENT
+      key: tm.dsm.computers.noagent
+      delay: '0'
+      history: 30d
+      value_type: UNSIGNED
+      preprocessing:
+      - type: JAVASCRIPT
+        parameters:
+        - "var a = JSON.parse(value), n = 0;\na.forEach(function(c){\n  if (!(c.agentFingerPrint || c.applianceFingerPrint)) n++;\n});\nreturn n;"
+      master_item:
+        key: tm.dsm.computers.status.raw
+      tags:
+      - tag: component
+        value: computers
+      - tag: component
+        value: agent
+      triggers:
+      - uuid: 1708c6073cce4397a448082816bee808
+        expression: last(/Template Trend Micro Deep Security Manager by HTTP/tm.dsm.computers.noagent)>0
+        name: 'Trend Micro DSM: Unprotected computers detected'
+        priority: HIGH
+        description: At least one discovered computer does not have an agent or appliance fingerprint.
+        manual_close: 'YES'
+        tags:
+        - tag: scope
+          value: security
+    - uuid: be8b1b0e6e1c40feb10dad88dd62242e
+      name: 'Trend Micro DSM: Computers with non-active agent status'
+      type: DEPENDENT
+      key: tm.dsm.computers.nonactive
+      delay: '0'
+      history: 30d
+      value_type: UNSIGNED
+      preprocessing:
+      - type: JAVASCRIPT
+        parameters:
+        - "var a = JSON.parse(value), n = 0;\na.forEach(function(c){\n  var s = (((c.computerStatus || {}).agentStatus) || '').toLowerCase();\n  if (s !== 'active') n++;\n});\nreturn n;"
+      master_item:
+        key: tm.dsm.computers.status.raw
+      tags:
+      - tag: component
+        value: computers
+      - tag: component
+        value: agent
+      triggers:
+      - uuid: c523cac55f44431ab5981993c55c1acd
+        expression: last(/Template Trend Micro Deep Security Manager by HTTP/tm.dsm.computers.nonactive)>0
+        name: 'Trend Micro DSM: Computers with non-active agent status detected'
+        priority: AVERAGE
+        description: At least one computer returned an agentStatus other than active.
+        manual_close: 'YES'
+        tags:
+        - tag: scope
+          value: health
+    - uuid: c12985605182405ea43aed41ea37c386
+      name: 'Trend Micro DSM: Computers managed and online'
+      type: DEPENDENT
+      key: tm.dsm.computers.managed.online
+      delay: '0'
+      history: 30d
+      value_type: UNSIGNED
+      preprocessing:
+      - type: JAVASCRIPT
+        parameters:
+        - "var a = JSON.parse(value), n = 0;\na.forEach(function(c){\n  var msgs = ((c.computerStatus || {}).agentStatusMessages) || [];\n  if (/Managed \\(Online\\)/i.test(msgs.join(' | '))) n++;\n});\nreturn n;"
+      master_item:
+        key: tm.dsm.computers.status.raw
+      tags:
+      - tag: component
+        value: computers
+      - tag: component
+        value: agent
+    - uuid: bf18548148c24cbeb2e89105c62e62d8
+      name: 'Trend Micro DSM: Computers with upgrade recommended'
+      type: DEPENDENT
+      key: tm.dsm.computers.upgrade.recommended
+      delay: '0'
+      history: 30d
+      value_type: UNSIGNED
+      preprocessing:
+      - type: JAVASCRIPT
+        parameters:
+        - "var a = JSON.parse(value), n = 0;\na.forEach(function(c){\n  var msgs = ((c.computerStatus || {}).agentStatusMessages) || [];\n  if (/Upgrade Recommended/i.test(msgs.join(' | '))) n++;\n});\nreturn n;"
+      master_item:
+        key: tm.dsm.computers.status.raw
+      tags:
+      - tag: component
+        value: computers
+      - tag: component
+        value: upgrade
+      triggers:
+      - uuid: a01aeb915baa4db698c9ecd03c80684e
+        expression: last(/Template Trend Micro Deep Security Manager by HTTP/tm.dsm.computers.upgrade.recommended)>0
+        name: 'Trend Micro DSM: Computers with agent upgrade recommended detected'
+        priority: WARNING
+        description: At least one computer reports 'Upgrade Recommended' in agent status messages.
+        manual_close: 'YES'
+        tags:
+        - tag: scope
+          value: maintenance
