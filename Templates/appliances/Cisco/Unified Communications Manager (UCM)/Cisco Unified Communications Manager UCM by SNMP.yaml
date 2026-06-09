@@ -1,0 +1,652 @@
+zabbix_export:
+  version: '7.0'
+  template_groups:
+    - uuid: 467b4cfee611415bb3570e3fec1d5bef
+      name: Templates/Telephony
+  templates:
+    - uuid: e3cc73c6c705469d94b2eb369b89ba01
+      template: 'Cisco Unified Communications Manager UCM by SNMP'
+      name: 'Cisco Unified Communications Manager UCM by SNMP'
+      description: |
+        Polling tabanli Zabbix 7.0 baslangic template'i. Cisco Unified Communications Manager (CUCM) icin standart MIB-II / HOST-RESOURCES-MIB ve Cisco CISCO-CCM-MIB numeric OID'lerini kullanir.
+        
+        Kapsam:
+        - Sistem envanteri ve SNMP uptime
+        - Total RAM, fixed disk discovery ve CPU core discovery
+        - Registered / unregistered / rejected phone, gateway, media, CTI ve voicemail sayaclari
+        - Cluster node discovery
+        - Gateway discovery
+        - SIP trunk inventory discovery
+        
+        Notlar:
+        - Numeric OID kullanildigi icin Zabbix sunucusuna vendor MIB import etmeden de calisabilir.
+        - CISCO-CCM-MIB dinamik tablolari ancak Cisco Unified CM servisi calisiyorsa veri dondurur.
+        - CUCM tarafinda SNMP Master Agent ve Cisco Unified CM SNMP Service aktif olmadan CCM MIB alanlari bos donebilir.
+        - Bu template trap kullanmaz; yalnizca SNMP polling icindir.
+        - SIP trunk MIB tablosu inventory amaclidir; trunk durum alarmi bu MIB ile zengin degildir.
+      groups:
+        - name: Templates/Telephony
+      items:
+        - uuid: 4ecb11610f554249b11ec643a097f25a
+          name: 'Registered CTI devices'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.4.1.9.9.156.1.5.14.0
+          key: cucm.cti.registered
+          delay: '{$CUCM.POLL}'
+          history: 30d
+          trends: 90d
+        - uuid: 64599c7becd542a7b0f4416d5fd66f19
+          name: 'Rejected CTI devices'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.4.1.9.9.156.1.5.16.0
+          key: cucm.cti.rejected
+          delay: '{$CUCM.POLL}'
+          history: 30d
+          trends: 90d
+          triggers:
+            - uuid: aef00ea143ff40e2ac133b4520c60834
+              expression: 'last(/Cisco Unified Communications Manager UCM by SNMP/cucm.cti.rejected)>0'
+              name: 'Rejected CTI device count is greater than zero'
+              priority: WARNING
+        - uuid: c9c68b60aba24f2dbee0b10441222dcb
+          name: 'Unregistered CTI devices'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.4.1.9.9.156.1.5.15.0
+          key: cucm.cti.unregistered
+          delay: '{$CUCM.POLL}'
+          history: 30d
+          trends: 90d
+        - uuid: 24c2ff97281e42229298fb86ff19a43e
+          name: 'Registered gateways'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.4.1.9.9.156.1.5.8.0
+          key: cucm.gw.registered
+          delay: '{$CUCM.POLL}'
+          history: 30d
+          trends: 90d
+        - uuid: 98c95c45e55046c68962e5cc11eb9117
+          name: 'Rejected gateways'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.4.1.9.9.156.1.5.10.0
+          key: cucm.gw.rejected
+          delay: '{$CUCM.POLL}'
+          history: 30d
+          trends: 90d
+          triggers:
+            - uuid: 9d2df4955118446b80b548fb683d1797
+              expression: 'last(/Cisco Unified Communications Manager UCM by SNMP/cucm.gw.rejected)>0'
+              name: 'Rejected gateway count is greater than zero'
+              priority: HIGH
+        - uuid: 0846584b2f144167b0b2b61908e4fd34
+          name: 'Unregistered gateways'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.4.1.9.9.156.1.5.9.0
+          key: cucm.gw.unregistered
+          delay: '{$CUCM.POLL}'
+          history: 30d
+          trends: 90d
+          triggers:
+            - uuid: 20a9b022c66b4baf9961f81e4d7a801a
+              expression: 'last(/Cisco Unified Communications Manager UCM by SNMP/cucm.gw.unregistered)>0'
+              name: 'Unregistered gateway count is greater than zero'
+              priority: WARNING
+        - uuid: 44ae9d49bf464b349492de962c458fd0
+          name: 'H.323 table entries'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.4.1.9.9.156.1.5.32.0
+          key: cucm.h323.entries
+          delay: '{$CUCM.POLL}'
+          history: 30d
+          trends: 90d
+        - uuid: 336cecec982a44e4bf546aa30067cd77
+          name: 'Total RAM'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.2.1.25.2.2.0
+          key: cucm.hr.memory.total
+          delay: '{$CUCM.INVENTORY}'
+          history: 30d
+          trends: 90d
+          units: B
+          preprocessing:
+            - type: JAVASCRIPT
+              parameters:
+                - 'return Number(value) * 1024;'
+        - uuid: 5d69c8843ed649efbf99a037422faed1
+          name: 'CUCM installation ID'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.4.1.9.9.156.1.5.30.0
+          key: cucm.installation.id
+          delay: '{$CUCM.INVENTORY}'
+          history: 30d
+          value_type: TEXT
+          trends: '0'
+        - uuid: fb25cbebec0a4708b793a456b4211359
+          name: 'Registered media devices'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.4.1.9.9.156.1.5.11.0
+          key: cucm.media.registered
+          delay: '{$CUCM.POLL}'
+          history: 30d
+          trends: 90d
+        - uuid: b5e8f22b38654d91a26a052ef103084f
+          name: 'Rejected media devices'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.4.1.9.9.156.1.5.13.0
+          key: cucm.media.rejected
+          delay: '{$CUCM.POLL}'
+          history: 30d
+          trends: 90d
+        - uuid: 201e5ea1530043d98bdccf1d45269ded
+          name: 'Unregistered media devices'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.4.1.9.9.156.1.5.12.0
+          key: cucm.media.unregistered
+          delay: '{$CUCM.POLL}'
+          history: 30d
+          trends: 90d
+        - uuid: fca7d2febbc0432b9956f6be67e8b076
+          name: 'Partially registered phones'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.4.1.9.9.156.1.5.31.0
+          key: cucm.phones.partial
+          delay: '{$CUCM.POLL}'
+          history: 30d
+          trends: 90d
+          triggers:
+            - uuid: ae32b21566284ca2a5ba58935b62bffb
+              expression: 'last(/Cisco Unified Communications Manager UCM by SNMP/cucm.phones.partial)>{$CUCM.PARTIAL.PHONES.WARN}'
+              name: 'Partially registered phone count is above threshold'
+              priority: WARNING
+        - uuid: e7458a6f41f742119c755829d8f044a3
+          name: 'Registered phones'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.4.1.9.9.156.1.5.5.0
+          key: cucm.phones.registered
+          delay: '{$CUCM.POLL}'
+          history: 30d
+          trends: 90d
+        - uuid: 87768a8588f74feba67fe6d374d128e3
+          name: 'Rejected phones'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.4.1.9.9.156.1.5.7.0
+          key: cucm.phones.rejected
+          delay: '{$CUCM.POLL}'
+          history: 30d
+          trends: 90d
+          triggers:
+            - uuid: 0151e7adb595425da590aa893feeecac
+              expression: 'last(/Cisco Unified Communications Manager UCM by SNMP/cucm.phones.rejected)>0'
+              name: 'Rejected phone count is greater than zero'
+              priority: HIGH
+        - uuid: c273762e41a24ab6bba6c1a2ba38891a
+          name: 'Unregistered phones'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.4.1.9.9.156.1.5.6.0
+          key: cucm.phones.unregistered
+          delay: '{$CUCM.POLL}'
+          history: 30d
+          trends: 90d
+          triggers:
+            - uuid: b8e7758fe7354f539cf7bbd2b5bfd384
+              expression: 'last(/Cisco Unified Communications Manager UCM by SNMP/cucm.phones.unregistered)>{$CUCM.UNREGISTERED.PHONES.WARN}'
+              name: 'Unregistered phone count is above threshold'
+              priority: WARNING
+        - uuid: bc651f0f455249ee8dbcfacc028f72c2
+          name: 'SIP trunk table entries'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.4.1.9.9.156.1.5.33.0
+          key: cucm.sip.entries
+          delay: '{$CUCM.POLL}'
+          history: 30d
+          trends: 90d
+        - uuid: 7e81373eed444db6b13ada2a980f4a2d
+          name: 'System contact'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.2.1.1.4.0
+          key: cucm.sys.contact
+          delay: '{$CUCM.INVENTORY}'
+          history: 30d
+          value_type: TEXT
+          trends: '0'
+        - uuid: 5b8ab054777442fa9f192f12a6443cf4
+          name: 'System description'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.2.1.1.1.0
+          key: cucm.sys.descr
+          delay: '{$CUCM.INVENTORY}'
+          history: 30d
+          value_type: TEXT
+          trends: '0'
+        - uuid: c670159c8438457d80c0a5b6f03a4711
+          name: 'System location'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.2.1.1.6.0
+          key: cucm.sys.location
+          delay: '{$CUCM.INVENTORY}'
+          history: 30d
+          value_type: TEXT
+          trends: '0'
+        - uuid: 857b0397d95d495baed9b9b677d8adb0
+          name: 'System name'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.2.1.1.5.0
+          key: cucm.sys.name
+          delay: '{$CUCM.INVENTORY}'
+          history: 30d
+          value_type: TEXT
+          trends: '0'
+        - uuid: 8479b3038ae74e44b6f36e2fb9352c3c
+          name: 'SNMP uptime'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.2.1.1.3.0
+          key: cucm.sys.uptime
+          delay: '{$CUCM.POLL}'
+          history: 30d
+          trends: 90d
+          units: uptime
+          preprocessing:
+            - type: JAVASCRIPT
+              parameters:
+                - 'return Number(value) / 100;'
+        - uuid: c6fb9c493d924c43b272f4b33c8edcd5
+          name: 'CUCM system version'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.4.1.9.9.156.1.5.29.0
+          key: cucm.system.version
+          delay: '{$CUCM.INVENTORY}'
+          history: 30d
+          value_type: TEXT
+          trends: '0'
+        - uuid: dc831a9f525341e293441622a2d0d608
+          name: 'Registered voicemail devices'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.4.1.9.9.156.1.5.17.0
+          key: cucm.vm.registered
+          delay: '{$CUCM.POLL}'
+          history: 30d
+          trends: 90d
+        - uuid: 29ce39f75b32496fbda29a2e6ba72eb6
+          name: 'Rejected voicemail devices'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.4.1.9.9.156.1.5.19.0
+          key: cucm.vm.rejected
+          delay: '{$CUCM.POLL}'
+          history: 30d
+          trends: 90d
+        - uuid: 9043019d88534ec4acc417e34c082303
+          name: 'Unregistered voicemail devices'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.4.1.9.9.156.1.5.18.0
+          key: cucm.vm.unregistered
+          delay: '{$CUCM.POLL}'
+          history: 30d
+          trends: 90d
+        - uuid: b6ae7ccd1d354ccc8a872f85d065ee1b
+          name: 'ICMP ping'
+          type: SIMPLE
+          key: icmpping
+          delay: '60'
+          history: 1w
+          valuemap:
+            name: 'Service state'
+          tags:
+            - tag: Application
+              value: Status
+          triggers:
+            - uuid: e07fc8d483174b268d439e0240d2af6d
+              expression: 'max(/Cisco Unified Communications Manager UCM by SNMP/icmpping,#3)=0'
+              name: 'Unavailable by ICMP ping'
+              priority: DISASTER
+              description: |
+                Last value: {ITEM.LASTVALUE1}.
+                Last three attempts returned timeout.  Please check device connectivity.
+              manual_close: 'YES'
+        - uuid: 07945bd935c64e2ca7c9ffeaac7f490d
+          name: 'ICMP loss'
+          type: SIMPLE
+          key: icmppingloss
+          delay: '60'
+          history: 1w
+          value_type: FLOAT
+          units: '%'
+          tags:
+            - tag: Application
+              value: Status
+          triggers:
+            - uuid: 1cfd8e780f00432b8a476f5ff92251e7
+              expression: 'min(/Cisco Unified Communications Manager UCM by SNMP/icmppingloss,5m)>{$ICMP_LOSS_WARN} and min(/Cisco Unified Communications Manager UCM by SNMP/icmppingloss,5m)<100'
+              name: 'High ICMP ping loss'
+              priority: WARNING
+              dependencies:
+                - name: 'Unavailable by ICMP ping'
+                  expression: 'max(/Cisco Unified Communications Manager UCM by SNMP/icmpping,#3)=0'
+        - uuid: 0abc32a24f944a87acd17d47999ba89a
+          name: 'ICMP response time'
+          type: SIMPLE
+          key: icmppingsec
+          delay: '60'
+          history: 1w
+          value_type: FLOAT
+          units: s
+          tags:
+            - tag: Application
+              value: Status
+          triggers:
+            - uuid: a4da00103ccb4d42b7c186c955a5915c
+              expression: 'avg(/Cisco Unified Communications Manager UCM by SNMP/icmppingsec,5m)>{$ICMP_RESPONSE_TIME_WARN}'
+              name: 'High ICMP ping response time'
+              priority: WARNING
+              dependencies:
+                - name: 'High ICMP ping loss'
+                  expression: 'min(/Cisco Unified Communications Manager UCM by SNMP/icmppingloss,5m)>{$ICMP_LOSS_WARN} and min(/Cisco Unified Communications Manager UCM by SNMP/icmppingloss,5m)<100'
+                - name: 'Unavailable by ICMP ping'
+                  expression: 'max(/Cisco Unified Communications Manager UCM by SNMP/icmpping,#3)=0'
+        - uuid: ce7aa50e20f148009b62fefb624fdff9
+          name: 'SNMP agent availability'
+          type: INTERNAL
+          key: 'zabbix[host,snmp,available]'
+          history: 7d
+          valuemap:
+            name: zabbix.host.available
+          tags:
+            - tag: Application
+              value: Status
+          triggers:
+            - uuid: e580d545dd0c4b948c169f382614b6b6
+              expression: 'max(/Cisco Unified Communications Manager UCM by SNMP/zabbix[host,snmp,available],{$SNMP.TIMEOUT})=0'
+              name: 'No SNMP data collection'
+              opdata: 'Current state: {ITEM.LASTVALUE1}'
+              priority: DISASTER
+              description: 'SNMP is not available for polling. Please check device connectivity and SNMP settings.'
+              manual_close: 'YES'
+      discovery_rules:
+        - uuid: d4fdc854e6804fb4add09e74e45ce31c
+          name: 'Cluster node discovery'
+          type: SNMP_AGENT
+          snmp_oid: 'discovery[{#NODENAME},1.3.6.1.4.1.9.9.156.1.1.2.1.2,{#VERSION},1.3.6.1.4.1.9.9.156.1.1.2.1.4]'
+          key: cucm.cluster.node.discovery
+          delay: '{$CUCM.DISCOVERY}'
+          lifetime: 30d
+          item_prototypes:
+            - uuid: 3726bea1300c47aa89edfa551e1059bc
+              name: 'Cluster node status [{#NODENAME}]'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.9.9.156.1.1.2.1.5.{#SNMPINDEX}'
+              key: 'cucm.cluster.node.status[{#SNMPINDEX}]'
+              delay: '{$CUCM.POLL}'
+              history: 30d
+              trends: 90d
+              valuemap:
+                name: 'CUCM callmanager status'
+              trigger_prototypes:
+                - uuid: 042ab808b7204cfca82adf7f7afdfae9
+                  expression: 'last(/Cisco Unified Communications Manager UCM by SNMP/cucm.cluster.node.status[{#SNMPINDEX}])=3'
+                  name: 'Cluster node [{#NODENAME}] is down'
+                  priority: HIGH
+            - uuid: 73cd461351f24d6fa4bc9870ee768085
+              name: 'Cluster node version [{#NODENAME}]'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.9.9.156.1.1.2.1.4.{#SNMPINDEX}'
+              key: 'cucm.cluster.node.version[{#SNMPINDEX}]'
+              delay: '{$CUCM.INVENTORY}'
+              history: 30d
+              value_type: TEXT
+              trends: '0'
+        - uuid: 6d7c0e654c2e41cabcb979f79282d4fa
+          name: 'CPU core discovery'
+          type: SNMP_AGENT
+          snmp_oid: 'discovery[{#CPUDESC},1.3.6.1.2.1.25.3.2.1.3,{#TYPEOID},1.3.6.1.2.1.25.3.2.1.2]'
+          key: cucm.cpu.discovery
+          delay: '{$CUCM.DISCOVERY}'
+          filter:
+            evaltype: AND
+            conditions:
+              - macro: '{#TYPEOID}'
+                value: ^1\.3\.6\.1\.2\.1\.25\.3\.1\.3$
+                formulaid: A
+          lifetime: 30d
+          item_prototypes:
+            - uuid: c3d1b23215444c698861eca09c89837e
+              name: 'CPU load [{#CPUDESC}]'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.2.1.25.3.3.1.2.{#SNMPINDEX}'
+              key: 'cucm.cpu.load[{#SNMPINDEX}]'
+              delay: '{$CUCM.POLL}'
+              history: 30d
+              trends: 90d
+              units: '%'
+              trigger_prototypes:
+                - uuid: 506dc9b3dd70452faa2749bbfc22f7df
+                  expression: 'min(/Cisco Unified Communications Manager UCM by SNMP/cucm.cpu.load[{#SNMPINDEX}],15m)>={$CUCM.CPU.HIGH}'
+                  name: 'CPU load [{#CPUDESC}] is above high threshold'
+                  priority: HIGH
+                - uuid: a5bfe0a890b548e2b6055a2a475df336
+                  expression: 'min(/Cisco Unified Communications Manager UCM by SNMP/cucm.cpu.load[{#SNMPINDEX}],15m)>={$CUCM.CPU.WARN} and min(/Cisco Unified Communications Manager UCM by SNMP/cucm.cpu.load[{#SNMPINDEX}],15m)<{$CUCM.CPU.HIGH}'
+                  name: 'CPU load [{#CPUDESC}] is above warning threshold'
+                  priority: WARNING
+        - uuid: f643b8b16f5a4311bc652d32d38eee67
+          name: 'Gateway discovery'
+          type: SNMP_AGENT
+          snmp_oid: 'discovery[{#GWNAME},1.3.6.1.4.1.9.9.156.1.3.1.1.2,{#GWDESC},1.3.6.1.4.1.9.9.156.1.3.1.1.4]'
+          key: cucm.gateway.discovery
+          delay: '{$CUCM.DISCOVERY}'
+          lifetime: 30d
+          item_prototypes:
+            - uuid: e2e489edf2c4487ab13f243b64b2a695
+              name: 'Gateway description [{#GWNAME}]'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.9.9.156.1.3.1.1.4.{#SNMPINDEX}'
+              key: 'cucm.gateway.desc[{#SNMPINDEX}]'
+              delay: '{$CUCM.INVENTORY}'
+              history: 30d
+              value_type: TEXT
+              trends: '0'
+            - uuid: 277d295949cb4b57ab10a70d4a7a1d5b
+              name: 'Gateway status [{#GWNAME}]'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.9.9.156.1.3.1.1.5.{#SNMPINDEX}'
+              key: 'cucm.gateway.status[{#SNMPINDEX}]'
+              delay: '{$CUCM.POLL}'
+              history: 30d
+              trends: 90d
+              valuemap:
+                name: 'CUCM device status'
+              trigger_prototypes:
+                - uuid: 3f027f6a66de4f3ca6c366ac6c629c1a
+                  expression: 'last(/Cisco Unified Communications Manager UCM by SNMP/cucm.gateway.status[{#SNMPINDEX}])=3'
+                  name: 'Gateway [{#GWNAME}] is unregistered'
+                  priority: WARNING
+                - uuid: 7e2dfc2f9dfa4081910a75a16ed4a71f
+                  expression: 'last(/Cisco Unified Communications Manager UCM by SNMP/cucm.gateway.status[{#SNMPINDEX}])=4'
+                  name: 'Gateway [{#GWNAME}] registration is rejected'
+                  priority: HIGH
+        - uuid: 08c75fe5120f4f139f60e1d3695f4256
+          name: 'SIP trunk discovery'
+          type: SNMP_AGENT
+          snmp_oid: 'discovery[{#SIPNAME},1.3.6.1.4.1.9.9.156.1.14.1.1.2,{#SIPDESC},1.3.6.1.4.1.9.9.156.1.14.1.1.4]'
+          key: cucm.sip.discovery
+          delay: '{$CUCM.DISCOVERY}'
+          lifetime: 30d
+          item_prototypes:
+            - uuid: 76702ef6077844b48605f280ac62e695
+              name: 'SIP trunk description [{#SIPNAME}]'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.9.9.156.1.14.1.1.4.{#SNMPINDEX}'
+              key: 'cucm.sip.desc[{#SNMPINDEX}]'
+              delay: '{$CUCM.INVENTORY}'
+              history: 30d
+              value_type: TEXT
+              trends: '0'
+            - uuid: b983018f06404f4b9a9fd92a670daa05
+              name: 'SIP trunk inbound port [{#SIPNAME}]'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.9.9.156.1.14.1.1.8.{#SNMPINDEX}'
+              key: 'cucm.sip.in.port[{#SNMPINDEX}]'
+              delay: '{$CUCM.INVENTORY}'
+              history: 30d
+              trends: 90d
+            - uuid: b27355ea628c4a638aded8c18dbd04fb
+              name: 'SIP trunk inbound transport [{#SIPNAME}]'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.9.9.156.1.14.1.1.7.{#SNMPINDEX}'
+              key: 'cucm.sip.in.transport[{#SNMPINDEX}]'
+              delay: '{$CUCM.INVENTORY}'
+              history: 30d
+              trends: 90d
+              valuemap:
+                name: 'CUCM SIP transport'
+            - uuid: 84c62392cbee468fb5770b517af9b39d
+              name: 'SIP trunk outbound port [{#SIPNAME}]'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.9.9.156.1.14.1.1.10.{#SNMPINDEX}'
+              key: 'cucm.sip.out.port[{#SNMPINDEX}]'
+              delay: '{$CUCM.INVENTORY}'
+              history: 30d
+              trends: 90d
+            - uuid: b62884651ba14106b1049e020bcc6cff
+              name: 'SIP trunk outbound transport [{#SIPNAME}]'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.9.9.156.1.14.1.1.9.{#SNMPINDEX}'
+              key: 'cucm.sip.out.transport[{#SNMPINDEX}]'
+              delay: '{$CUCM.INVENTORY}'
+              history: 30d
+              trends: 90d
+              valuemap:
+                name: 'CUCM SIP transport'
+        - uuid: 76e0dc574fa24e40bf6ed835a06b2884
+          name: 'Fixed disk discovery'
+          type: SNMP_AGENT
+          snmp_oid: 'discovery[{#STORAGE},1.3.6.1.2.1.25.2.3.1.3,{#TYPEOID},1.3.6.1.2.1.25.2.3.1.2,{#ALLOCUNIT},1.3.6.1.2.1.25.2.3.1.4]'
+          key: cucm.storage.discovery
+          delay: '{$CUCM.DISCOVERY}'
+          filter:
+            evaltype: AND
+            conditions:
+              - macro: '{#TYPEOID}'
+                value: ^1\.3\.6\.1\.2\.1\.25\.2\.1\.4$
+                formulaid: A
+          lifetime: 30d
+          item_prototypes:
+            - uuid: 0bd4175a899040f09d846ad46e1fefb9
+              name: 'Storage total [{#STORAGE}]'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.2.1.25.2.3.1.5.{#SNMPINDEX}'
+              key: 'cucm.storage.size[{#SNMPINDEX}]'
+              delay: '{$CUCM.INVENTORY}'
+              history: 30d
+              value_type: FLOAT
+              trends: 90d
+              units: B
+              preprocessing:
+                - type: JAVASCRIPT
+                  parameters:
+                    - 'return Number(value) * Number(''{#ALLOCUNIT}'');'
+            - uuid: 2515c985334948eb8b013d35a252ac99
+              name: 'Storage used [{#STORAGE}]'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.2.1.25.2.3.1.6.{#SNMPINDEX}'
+              key: 'cucm.storage.used[{#SNMPINDEX}]'
+              delay: '{$CUCM.POLL}'
+              history: 30d
+              value_type: FLOAT
+              trends: 90d
+              units: B
+              preprocessing:
+                - type: JAVASCRIPT
+                  parameters:
+                    - 'return Number(value) * Number(''{#ALLOCUNIT}'');'
+          trigger_prototypes:
+            - uuid: 7e3392c88a71457ba2e8b0885a904787
+              expression: '100*last(/Cisco Unified Communications Manager UCM by SNMP/cucm.storage.used[{#SNMPINDEX}])/last(/Cisco Unified Communications Manager UCM by SNMP/cucm.storage.size[{#SNMPINDEX}])>={$CUCM.STORAGE.HIGH.PCT}'
+              name: 'Storage usage [{#STORAGE}] is above high threshold'
+              priority: HIGH
+            - uuid: d1e75cafb4834247920d85b878120ad7
+              expression: '100*last(/Cisco Unified Communications Manager UCM by SNMP/cucm.storage.used[{#SNMPINDEX}])/last(/Cisco Unified Communications Manager UCM by SNMP/cucm.storage.size[{#SNMPINDEX}])>={$CUCM.STORAGE.WARN.PCT} and 100*last(/Cisco Unified Communications Manager UCM by SNMP/cucm.storage.used[{#SNMPINDEX}])/last(/Cisco Unified Communications Manager UCM by SNMP/cucm.storage.size[{#SNMPINDEX}])<{$CUCM.STORAGE.HIGH.PCT}'
+              name: 'Storage usage [{#STORAGE}] is above warning threshold'
+              priority: WARNING
+      macros:
+        - macro: '{$CUCM.CPU.HIGH}'
+          value: '95'
+          description: 'CPU core load high esigi (avg 15m).'
+        - macro: '{$CUCM.CPU.WARN}'
+          value: '85'
+          description: 'CPU core load warning esigi (avg 15m).'
+        - macro: '{$CUCM.DISCOVERY}'
+          value: 1h
+          description: 'Discovery kurallari icin varsayilan aralik.'
+        - macro: '{$CUCM.INVENTORY}'
+          value: 1d
+          description: 'Dusuk degisimli inventory verileri icin varsayilan aralik.'
+        - macro: '{$CUCM.PARTIAL.PHONES.WARN}'
+          value: '1'
+          description: 'Uyari icin minimum partially registered phone sayisi.'
+        - macro: '{$CUCM.POLL}'
+          value: 5m
+          description: 'Canli metrikler icin varsayilan polling araligi.'
+        - macro: '{$CUCM.STORAGE.HIGH.PCT}'
+          value: '90'
+          description: 'Fixed disk kullanim high esigi.'
+        - macro: '{$CUCM.STORAGE.WARN.PCT}'
+          value: '80'
+          description: 'Fixed disk kullanim warning esigi.'
+        - macro: '{$CUCM.UNREGISTERED.PHONES.WARN}'
+          value: '1'
+          description: 'Uyari icin minimum unregistered phone sayisi.'
+        - macro: '{$ICMP_LOSS_WARN}'
+          value: '20'
+        - macro: '{$ICMP_RESPONSE_TIME_WARN}'
+          value: '0.15'
+        - macro: '{$SNMP.TIMEOUT}'
+          value: 5m
+      valuemaps:
+        - uuid: 6b1116cedfbd4709a767dfb64e86f5af
+          name: 'CUCM callmanager status'
+          mappings:
+            - value: '1'
+              newvalue: unknown
+            - value: '2'
+              newvalue: up
+            - value: '3'
+              newvalue: down
+        - uuid: 906197afdf9544a981b7b7721243f739
+          name: 'CUCM device status'
+          mappings:
+            - value: '1'
+              newvalue: unknown
+            - value: '2'
+              newvalue: registered
+            - value: '3'
+              newvalue: unregistered
+            - value: '4'
+              newvalue: rejected
+            - value: '5'
+              newvalue: 'partially registered'
+        - uuid: 46342b941ba14e3f9c73641497c9a84d
+          name: 'CUCM SIP transport'
+          mappings:
+            - value: '1'
+              newvalue: unknown
+            - value: '2'
+              newvalue: tcp
+            - value: '3'
+              newvalue: udp
+            - value: '4'
+              newvalue: 'tcp and udp'
+            - value: '5'
+              newvalue: tls
+        - uuid: 5836e5e3b390433bae0985ad0ea39607
+          name: 'Service state'
+          mappings:
+            - value: '0'
+              newvalue: Down
+            - value: '1'
+              newvalue: Up
+        - uuid: b9f21184f1a84f44a45c0971fcb146db
+          name: zabbix.host.available
+          mappings:
+            - value: '0'
+              newvalue: 'not available'
+            - value: '1'
+              newvalue: available
+            - value: '2'
+              newvalue: unknown
