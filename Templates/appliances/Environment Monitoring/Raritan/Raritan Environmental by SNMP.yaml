@@ -1,0 +1,938 @@
+zabbix_export:
+  version: '7.0'
+  template_groups:
+    - uuid: ba97e174c9e044f2b499cc435ff17587
+      name: Templates/Power
+  templates:
+    - uuid: 72b7ff8727ed4148bd315479c659caab
+      template: 'Raritan Environmental by SNMP'
+      name: 'Raritan Environmental by SNMP'
+      description: |
+        Generic Zabbix 7.0 starter template for Raritan EMX/SRC-style environmental monitoring devices using numeric OIDs from the official EMD-MIB.
+        
+        Scope:
+        - Device inventory
+        - Peripheral package inventory
+        - Temperature / humidity / airflow / air pressure
+        - Water leak, smoke, vibration, motion and tamper detection
+        
+        Notes:
+        - Numeric OIDs are used; importing vendor MIB files into Zabbix is not required.
+        - Alarm logic is primarily based on device-reported sensor state, so thresholding should be configured on the Raritan side.
+        - Measurement values are scaled with the sensor decimal-digits field by JavaScript preprocessing.
+        - Actual sensor set depends on the connected DX/DX2 / SmartSensor hardware and device firmware.
+      groups:
+        - name: Templates/Power
+      items:
+        - uuid: bc9afd7c24354d14b8361bebc35c3db0
+          name: 'ICMP ping'
+          type: SIMPLE
+          key: icmpping
+          delay: '60'
+          history: 1w
+          valuemap:
+            name: 'Service state'
+          tags:
+            - tag: Application
+              value: Status
+          triggers:
+            - uuid: 9d31dc7300cb4ad88a5412078a7406ad
+              expression: 'max(/Raritan Environmental by SNMP/icmpping,#3)=0'
+              name: 'Unavailable by ICMP ping'
+              priority: DISASTER
+              description: |
+                Last value: {ITEM.LASTVALUE1}.
+                Last three attempts returned timeout.  Please check device connectivity.
+        - uuid: 2c001358f033463eada5eb5f8d75b96d
+          name: 'ICMP loss'
+          type: SIMPLE
+          key: icmppingloss
+          delay: '60'
+          history: 1w
+          value_type: FLOAT
+          units: '%'
+          tags:
+            - tag: Application
+              value: Status
+          triggers:
+            - uuid: 59f206ab43f04c7e85184407d2fc5d5b
+              expression: 'min(/Raritan Environmental by SNMP/icmppingloss,5m)>{$ICMP_LOSS_WARN} and min(/Raritan Environmental by SNMP/icmppingloss,5m)<100'
+              name: 'High ICMP ping loss'
+              priority: WARNING
+              dependencies:
+                - name: 'Unavailable by ICMP ping'
+                  expression: 'max(/Raritan Environmental by SNMP/icmpping,#3)=0'
+        - uuid: 1545356289aa41e6bde3948f0c07082f
+          name: 'ICMP response time'
+          type: SIMPLE
+          key: icmppingsec
+          delay: '60'
+          history: 1w
+          value_type: FLOAT
+          units: s
+          tags:
+            - tag: Application
+              value: Status
+          triggers:
+            - uuid: 667ea765a75e4412baff204b5598715f
+              expression: 'avg(/Raritan Environmental by SNMP/icmppingsec,5m)>{$ICMP_RESPONSE_TIME_WARN}'
+              name: 'High ICMP ping response time'
+              priority: WARNING
+              dependencies:
+                - name: 'High ICMP ping loss'
+                  expression: 'min(/Raritan Environmental by SNMP/icmppingloss,5m)>{$ICMP_LOSS_WARN} and min(/Raritan Environmental by SNMP/icmppingloss,5m)<100'
+                - name: 'Unavailable by ICMP ping'
+                  expression: 'max(/Raritan Environmental by SNMP/icmpping,#3)=0'
+        - uuid: f4d3f490e5aa48509b54729766a70d88
+          name: 'Device name'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.4.1.13742.8.1.1.1.1
+          key: raritan.env.device.name
+          delay: '{$RARITAN.ENV.INVENTORY}'
+          history: 30d
+          value_type: TEXT
+          trends: '0'
+        - uuid: cf454ee175694b25ba9616da588c9939
+          name: 'Firmware version'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.4.1.13742.8.1.1.1.3
+          key: raritan.env.firmware.version
+          delay: '{$RARITAN.ENV.INVENTORY}'
+          history: 30d
+          value_type: TEXT
+          trends: '0'
+        - uuid: ed71a1c00bfc476b9d2e093a92bf38d6
+          name: 'Hardware version'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.4.1.13742.8.1.1.1.2
+          key: raritan.env.hardware.version
+          delay: '{$RARITAN.ENV.INVENTORY}'
+          history: 30d
+          value_type: TEXT
+          trends: '0'
+        - uuid: 2801668e2b40490a9aa4427320fa680a
+          name: 'External sensor count'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.4.1.13742.8.1.1.1.5
+          key: raritan.env.sensor.count
+          delay: '{$RARITAN.ENV.INVENTORY}'
+          history: 30d
+          trends: 90d
+        - uuid: 222d661bbd3e41bfa03b9e573b6030bb
+          name: 'Managed external sensor count'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.4.1.13742.8.1.1.1.6
+          key: raritan.env.sensor.managed.count
+          delay: '{$RARITAN.ENV.INVENTORY}'
+          history: 30d
+          trends: 90d
+        - uuid: a3b27bbb46d74796be6b9aff996827fb
+          name: 'System contact details'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.2.1.1.4.0
+          key: 'system.contact[sysContact.0]'
+          delay: 1h
+          history: 2w
+          value_type: CHAR
+          trends: '0'
+          description: |
+            MIB: SNMPv2-MIB
+            The textual identification of the contact person for this managed node, together with information on how to contact this person.  If no contact information is known, the value is the zero-length string.
+          inventory_link: CONTACT
+          preprocessing:
+            - type: DISCARD_UNCHANGED_HEARTBEAT
+              parameters:
+                - 1d
+          tags:
+            - tag: Application
+              value: General
+        - uuid: be4a3979a7474f29a486d65052ee677d
+          name: 'System description'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.2.1.1.1.0
+          key: 'system.descr[sysDescr.0]'
+          delay: 1h
+          history: 2w
+          value_type: CHAR
+          trends: '0'
+          description: |
+            MIB: SNMPv2-MIB
+            A textual description of the entity. This value should
+            include the full name and version identification of the system's hardware type, software operating-system, and
+            networking software.
+          preprocessing:
+            - type: DISCARD_UNCHANGED_HEARTBEAT
+              parameters:
+                - 1d
+          tags:
+            - tag: Application
+              value: General
+        - uuid: 17c821ad997c408a946af4b65bb25b5b
+          name: 'System location'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.2.1.1.6.0
+          key: 'system.location[sysLocation.0]'
+          delay: 1h
+          history: 2w
+          value_type: CHAR
+          trends: '0'
+          description: |
+            MIB: SNMPv2-MIB
+            The physical location of this node (e.g., `telephone closet, 3rd floor').  If the location is unknown, the value is the zero-length string.
+          inventory_link: LOCATION
+          preprocessing:
+            - type: DISCARD_UNCHANGED_HEARTBEAT
+              parameters:
+                - 1h
+          tags:
+            - tag: Application
+              value: General
+        - uuid: c2a0245983034154940eaae111cef903
+          name: 'System name'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.2.1.1.5.0
+          key: system.name
+          delay: 1h
+          history: 2w
+          value_type: CHAR
+          trends: '0'
+          description: |
+            MIB: SNMPv2-MIB
+            An administratively-assigned name for this managed node.By convention, this is the node's fully-qualified domain name.  If the name is unknown, the value is the zero-length string.
+          inventory_link: NAME
+          preprocessing:
+            - type: DISCARD_UNCHANGED_HEARTBEAT
+              parameters:
+                - 1h
+          tags:
+            - tag: Application
+              value: General
+        - uuid: 33f2e802483f40f39e2dd8270629e080
+          name: Uptime
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.2.1.1.3.0
+          key: 'system.uptime[sysUpTime.0]'
+          delay: 30s
+          history: 2w
+          trends: 0d
+          units: uptime
+          description: |
+            MIB: SNMPv2-MIB
+            The time (in hundredths of a second) since the network management portion of the system was last re-initialized.
+          preprocessing:
+            - type: MULTIPLIER
+              parameters:
+                - '0.01'
+          tags:
+            - tag: Application
+              value: Status
+        - uuid: 58e87595a9d64697b7281f6903289f46
+          name: 'SNMP agent availability'
+          type: INTERNAL
+          key: 'zabbix[host,snmp,available]'
+          history: 7d
+          valuemap:
+            name: zabbix.host.available
+          tags:
+            - tag: Application
+              value: Status
+          triggers:
+            - uuid: dcb3d92392f247c5a726433f74b38d7a
+              expression: 'max(/Raritan Environmental by SNMP/zabbix[host,snmp,available],{$SNMP.TIMEOUT})=0'
+              name: 'No SNMP data collection'
+              opdata: 'Current state: {ITEM.LASTVALUE1}'
+              priority: DISASTER
+              description: 'SNMP is not available for polling. Please check device connectivity and SNMP settings.'
+              dependencies:
+                - name: 'Unavailable by ICMP ping'
+                  expression: 'max(/Raritan Environmental by SNMP/icmpping,#3)=0'
+      discovery_rules:
+        - uuid: f5501d2601eb4ec48aeeba37b3796510
+          name: 'Airflow discovery'
+          type: SNMP_AGENT
+          snmp_oid: 'discovery[{#NAME},1.3.6.1.4.1.13742.8.1.2.1.1.4,{#TYPE},1.3.6.1.4.1.13742.8.1.2.1.1.2,{#DIGITS},1.3.6.1.4.1.13742.8.1.2.1.1.12]'
+          key: raritan.env.airflow.discovery
+          delay: '{$RARITAN.ENV.DISCOVERY}'
+          filter:
+            evaltype: AND
+            conditions:
+              - macro: '{#TYPE}'
+                value: ^12$
+                formulaid: A
+          lifetime: 30d
+          item_prototypes:
+            - uuid: 040e5f04357a4a84bc8e3f183dd76a50
+              name: 'Airflow decimal digits {#NAME}'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.13742.8.1.2.1.1.12.{#SNMPINDEX}'
+              key: 'raritan.env.airflow.digits[{#SNMPINDEX}]'
+              delay: '{$RARITAN.ENV.INVENTORY}'
+              history: 30d
+              value_type: TEXT
+              trends: '0'
+            - uuid: 5adf7066b28b4b84842179309fc9c971
+              name: 'Airflow name {#NAME}'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.13742.8.1.2.1.1.4.{#SNMPINDEX}'
+              key: 'raritan.env.airflow.name[{#SNMPINDEX}]'
+              delay: '{$RARITAN.ENV.INVENTORY}'
+              history: 30d
+              value_type: TEXT
+              trends: '0'
+            - uuid: 69c2741380c3452bbf92cb5c30d8d2b8
+              name: 'Airflow state [{#NAME}]'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.13742.8.2.1.1.1.2.{#SNMPINDEX}'
+              key: 'raritan.env.airflow.state[{#SNMPINDEX}]'
+              delay: '{$RARITAN.ENV.POLL}'
+              history: 30d
+              trends: 90d
+              valuemap:
+                name: 'Raritan sensor state'
+              trigger_prototypes:
+                - uuid: 60bf953182734d1eaebe793e1c733beb
+                  expression: 'last(/Raritan Environmental by SNMP/raritan.env.airflow.state[{#SNMPINDEX}])=2 or last(/Raritan Environmental by SNMP/raritan.env.airflow.state[{#SNMPINDEX}])=6 or last(/Raritan Environmental by SNMP/raritan.env.airflow.state[{#SNMPINDEX}])=14 or last(/Raritan Environmental by SNMP/raritan.env.airflow.state[{#SNMPINDEX}])=26 or last(/Raritan Environmental by SNMP/raritan.env.airflow.state[{#SNMPINDEX}])=28'
+                  name: 'Airflow [{#NAME}] is in critical state'
+                  priority: HIGH
+                - uuid: 232b7213906a494bad62738a8c08fa44
+                  expression: 'last(/Raritan Environmental by SNMP/raritan.env.airflow.state[{#SNMPINDEX}])=3 or last(/Raritan Environmental by SNMP/raritan.env.airflow.state[{#SNMPINDEX}])=5 or last(/Raritan Environmental by SNMP/raritan.env.airflow.state[{#SNMPINDEX}])=27'
+                  name: 'Airflow [{#NAME}] is in warning state'
+                  priority: WARNING
+            - uuid: 3f084c75e50649438c1d505aab25025e
+              name: 'Airflow sensor type {#NAME}'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.13742.8.1.2.1.1.2.{#SNMPINDEX}'
+              key: 'raritan.env.airflow.type[{#SNMPINDEX}]'
+              delay: '{$RARITAN.ENV.INVENTORY}'
+              history: 30d
+              value_type: TEXT
+              trends: '0'
+            - uuid: e4e339ca4b0543308c2a433903f0529f
+              name: 'Airflow value [{#NAME}]'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.13742.8.2.1.1.1.3.{#SNMPINDEX}'
+              key: 'raritan.env.airflow.value[{#SNMPINDEX}]'
+              delay: '{$RARITAN.ENV.POLL}'
+              history: 30d
+              value_type: FLOAT
+              trends: 90d
+              preprocessing:
+                - type: JAVASCRIPT
+                  parameters:
+                    - 'var d = Number(''{#DIGITS}''); if (isNaN(d) || d < 0) d = 0; var n = Number(value); if (isNaN(n)) throw ''NaN''; return n / Math.pow(10, d);'
+        - uuid: 2463665997a3491094ee2e0064bbbf78
+          name: 'Air pressure discovery'
+          type: SNMP_AGENT
+          snmp_oid: 'discovery[{#NAME},1.3.6.1.4.1.13742.8.1.2.1.1.4,{#TYPE},1.3.6.1.4.1.13742.8.1.2.1.1.2,{#DIGITS},1.3.6.1.4.1.13742.8.1.2.1.1.12]'
+          key: raritan.env.airpressure.discovery
+          delay: '{$RARITAN.ENV.DISCOVERY}'
+          filter:
+            evaltype: AND
+            conditions:
+              - macro: '{#TYPE}'
+                value: ^13$
+                formulaid: A
+          lifetime: 30d
+          item_prototypes:
+            - uuid: 4b189fbb6a5042c9a0a2db319dd40cd8
+              name: 'Air pressure decimal digits {#NAME}'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.13742.8.1.2.1.1.12.{#SNMPINDEX}'
+              key: 'raritan.env.airpressure.digits[{#SNMPINDEX}]'
+              delay: '{$RARITAN.ENV.INVENTORY}'
+              history: 30d
+              value_type: TEXT
+              trends: '0'
+            - uuid: be7f8b30d9ac4987af5471e8dc6072a9
+              name: 'Air pressure name {#NAME}'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.13742.8.1.2.1.1.4.{#SNMPINDEX}'
+              key: 'raritan.env.airpressure.name[{#SNMPINDEX}]'
+              delay: '{$RARITAN.ENV.INVENTORY}'
+              history: 30d
+              value_type: TEXT
+              trends: '0'
+            - uuid: a9265027e1934973aa915a230fd72888
+              name: 'Air pressure state [{#NAME}]'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.13742.8.2.1.1.1.2.{#SNMPINDEX}'
+              key: 'raritan.env.airpressure.state[{#SNMPINDEX}]'
+              delay: '{$RARITAN.ENV.POLL}'
+              history: 30d
+              trends: 90d
+              valuemap:
+                name: 'Raritan sensor state'
+              trigger_prototypes:
+                - uuid: 1a8e170c11d64a6aa7bb49f7e1fb4b21
+                  expression: 'last(/Raritan Environmental by SNMP/raritan.env.airpressure.state[{#SNMPINDEX}])=2 or last(/Raritan Environmental by SNMP/raritan.env.airpressure.state[{#SNMPINDEX}])=6 or last(/Raritan Environmental by SNMP/raritan.env.airpressure.state[{#SNMPINDEX}])=14 or last(/Raritan Environmental by SNMP/raritan.env.airpressure.state[{#SNMPINDEX}])=26 or last(/Raritan Environmental by SNMP/raritan.env.airpressure.state[{#SNMPINDEX}])=28'
+                  name: 'Air pressure [{#NAME}] is in critical state'
+                  priority: HIGH
+                - uuid: d898c39cb5694ec786d4eb06ad04ee1e
+                  expression: 'last(/Raritan Environmental by SNMP/raritan.env.airpressure.state[{#SNMPINDEX}])=3 or last(/Raritan Environmental by SNMP/raritan.env.airpressure.state[{#SNMPINDEX}])=5 or last(/Raritan Environmental by SNMP/raritan.env.airpressure.state[{#SNMPINDEX}])=27'
+                  name: 'Air pressure [{#NAME}] is in warning state'
+                  priority: WARNING
+            - uuid: d72bfd6ab78546e5aaa0174c217b6726
+              name: 'Air pressure sensor type {#NAME}'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.13742.8.1.2.1.1.2.{#SNMPINDEX}'
+              key: 'raritan.env.airpressure.type[{#SNMPINDEX}]'
+              delay: '{$RARITAN.ENV.INVENTORY}'
+              history: 30d
+              value_type: TEXT
+              trends: '0'
+            - uuid: 753450b8386f463e9c2b2fb7d5c25fd8
+              name: 'Air pressure value [{#NAME}]'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.13742.8.2.1.1.1.3.{#SNMPINDEX}'
+              key: 'raritan.env.airpressure.value[{#SNMPINDEX}]'
+              delay: '{$RARITAN.ENV.POLL}'
+              history: 30d
+              value_type: FLOAT
+              trends: 90d
+              preprocessing:
+                - type: JAVASCRIPT
+                  parameters:
+                    - 'var d = Number(''{#DIGITS}''); if (isNaN(d) || d < 0) d = 0; var n = Number(value); if (isNaN(n)) throw ''NaN''; return n / Math.pow(10, d);'
+        - uuid: a72bf4c45ca84b3da4232417c44e6ff5
+          name: 'Humidity discovery'
+          type: SNMP_AGENT
+          snmp_oid: 'discovery[{#NAME},1.3.6.1.4.1.13742.8.1.2.1.1.4,{#TYPE},1.3.6.1.4.1.13742.8.1.2.1.1.2,{#DIGITS},1.3.6.1.4.1.13742.8.1.2.1.1.12]'
+          key: raritan.env.humidity.discovery
+          delay: '{$RARITAN.ENV.DISCOVERY}'
+          filter:
+            evaltype: AND
+            conditions:
+              - macro: '{#TYPE}'
+                value: ^11$
+                formulaid: A
+          lifetime: 30d
+          item_prototypes:
+            - uuid: 5f8af7b7b7204cbca146a463502fc38e
+              name: 'Humidity decimal digits {#NAME}'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.13742.8.1.2.1.1.12.{#SNMPINDEX}'
+              key: 'raritan.env.humidity.digits[{#SNMPINDEX}]'
+              delay: '{$RARITAN.ENV.INVENTORY}'
+              history: 30d
+              value_type: TEXT
+              trends: '0'
+            - uuid: b6856f7da5c74a9182acb88ac2451d39
+              name: 'Humidity name {#NAME}'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.13742.8.1.2.1.1.4.{#SNMPINDEX}'
+              key: 'raritan.env.humidity.name[{#SNMPINDEX}]'
+              delay: '{$RARITAN.ENV.INVENTORY}'
+              history: 30d
+              value_type: TEXT
+              trends: '0'
+            - uuid: d186dd0a153d4d44b02edcc58611a69e
+              name: 'Humidity state [{#NAME}]'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.13742.8.2.1.1.1.2.{#SNMPINDEX}'
+              key: 'raritan.env.humidity.state[{#SNMPINDEX}]'
+              delay: '{$RARITAN.ENV.POLL}'
+              history: 30d
+              trends: 90d
+              valuemap:
+                name: 'Raritan sensor state'
+              trigger_prototypes:
+                - uuid: 7ad19b8701ff45fa966003a9de8f15d4
+                  expression: 'last(/Raritan Environmental by SNMP/raritan.env.humidity.state[{#SNMPINDEX}])=2 or last(/Raritan Environmental by SNMP/raritan.env.humidity.state[{#SNMPINDEX}])=6 or last(/Raritan Environmental by SNMP/raritan.env.humidity.state[{#SNMPINDEX}])=14 or last(/Raritan Environmental by SNMP/raritan.env.humidity.state[{#SNMPINDEX}])=26 or last(/Raritan Environmental by SNMP/raritan.env.humidity.state[{#SNMPINDEX}])=28'
+                  name: 'Humidity [{#NAME}] is in critical state'
+                  priority: HIGH
+                - uuid: d14ee1b97c4a487ea621e7b4a4e4e287
+                  expression: 'last(/Raritan Environmental by SNMP/raritan.env.humidity.state[{#SNMPINDEX}])=3 or last(/Raritan Environmental by SNMP/raritan.env.humidity.state[{#SNMPINDEX}])=5 or last(/Raritan Environmental by SNMP/raritan.env.humidity.state[{#SNMPINDEX}])=27'
+                  name: 'Humidity [{#NAME}] is in warning state'
+                  priority: WARNING
+            - uuid: 48a3fa080615477f96c5b072cfd58da6
+              name: 'Humidity sensor type {#NAME}'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.13742.8.1.2.1.1.2.{#SNMPINDEX}'
+              key: 'raritan.env.humidity.type[{#SNMPINDEX}]'
+              delay: '{$RARITAN.ENV.INVENTORY}'
+              history: 30d
+              value_type: TEXT
+              trends: '0'
+            - uuid: 9929bad9f26b494fa37234fcbed09d09
+              name: 'Humidity value [{#NAME}]'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.13742.8.2.1.1.1.3.{#SNMPINDEX}'
+              key: 'raritan.env.humidity.value[{#SNMPINDEX}]'
+              delay: '{$RARITAN.ENV.POLL}'
+              history: 30d
+              value_type: FLOAT
+              trends: 90d
+              units: '%'
+              preprocessing:
+                - type: JAVASCRIPT
+                  parameters:
+                    - 'var d = Number(''{#DIGITS}''); if (isNaN(d) || d < 0) d = 0; var n = Number(value); if (isNaN(n)) throw ''NaN''; return n / Math.pow(10, d);'
+              trigger_prototypes:
+                - uuid: bc46f86d3f4543c999346029d7239bc6
+                  expression: 'min(/Raritan Environmental by SNMP/raritan.env.humidity.value[{#SNMPINDEX}],5m)<=10'
+                  name: 'Humidity [{#NAME}] is in Lower critical state'
+                  priority: DISASTER
+                - uuid: 86fd14eadf8444bebe31c1fa4ca5aeae
+                  expression: 'min(/Raritan Environmental by SNMP/raritan.env.humidity.value[{#SNMPINDEX}],5m)<=25'
+                  name: 'Humidity [{#NAME}] is in Lower warning state'
+                  priority: HIGH
+                - uuid: 6d0be08985164d76b738c5b523d9e863
+                  expression: 'min(/Raritan Environmental by SNMP/raritan.env.humidity.value[{#SNMPINDEX}],5m)>=90'
+                  name: 'Humidity [{#NAME}] is in Upper critical state'
+                  priority: DISASTER
+                - uuid: b01ab72dcac942e2916b85f73fe45e40
+                  expression: 'min(/Raritan Environmental by SNMP/raritan.env.humidity.value[{#SNMPINDEX}],5m)>=80'
+                  name: 'Humidity [{#NAME}] is in Upper warning state'
+                  priority: HIGH
+        - uuid: d953f5c5de9c4c6ca7ad9d2c13cd08cb
+          name: 'Motion discovery'
+          type: SNMP_AGENT
+          snmp_oid: 'discovery[{#NAME},1.3.6.1.4.1.13742.8.1.2.1.1.4,{#TYPE},1.3.6.1.4.1.13742.8.1.2.1.1.2]'
+          key: raritan.env.motion.discovery
+          delay: '{$RARITAN.ENV.DISCOVERY}'
+          filter:
+            evaltype: AND
+            conditions:
+              - macro: '{#TYPE}'
+                value: ^45$
+                formulaid: A
+          lifetime: 30d
+          item_prototypes:
+            - uuid: 3facc86fd3b14243a5d255bb83cee845
+              name: 'Motion name {#NAME}'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.13742.8.1.2.1.1.4.{#SNMPINDEX}'
+              key: 'raritan.env.motion.name[{#SNMPINDEX}]'
+              delay: '{$RARITAN.ENV.INVENTORY}'
+              history: 30d
+              value_type: TEXT
+              trends: '0'
+            - uuid: d6d1cd84f4a94011ace204ff51fbeb00
+              name: 'Motion state [{#NAME}]'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.13742.8.2.1.1.1.2.{#SNMPINDEX}'
+              key: 'raritan.env.motion.state[{#SNMPINDEX}]'
+              delay: '{$RARITAN.ENV.POLL}'
+              history: 30d
+              trends: 90d
+              valuemap:
+                name: 'Raritan sensor state'
+              trigger_prototypes:
+                - uuid: 41443883286a4dd4bf68af651a7eadfb
+                  expression: 'last(/Raritan Environmental by SNMP/raritan.env.motion.state[{#SNMPINDEX}])=9 or last(/Raritan Environmental by SNMP/raritan.env.motion.state[{#SNMPINDEX}])=11'
+                  name: 'Motion alarm [{#NAME}]'
+                  priority: WARNING
+            - uuid: 9584a30d5f524d3ca8970ec55f8cca8d
+              name: 'Motion sensor type {#NAME}'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.13742.8.1.2.1.1.2.{#SNMPINDEX}'
+              key: 'raritan.env.motion.type[{#SNMPINDEX}]'
+              delay: '{$RARITAN.ENV.INVENTORY}'
+              history: 30d
+              value_type: TEXT
+              trends: '0'
+        - uuid: c0f4036f98004baf8e0caeed079ce4c2
+          name: 'Peripheral package discovery'
+          type: SNMP_AGENT
+          snmp_oid: 'discovery[{#PKGMODEL},1.3.6.1.4.1.13742.8.1.2.5.1.4,{#PKGFW},1.3.6.1.4.1.13742.8.1.2.5.1.5]'
+          key: raritan.env.package.discovery
+          delay: '{$RARITAN.ENV.DISCOVERY}'
+          lifetime: 30d
+          item_prototypes:
+            - uuid: e49ddd4bf1b94b06b11be4654971c45c
+              name: 'Peripheral package firmware [{#PKGMODEL}]'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.13742.8.1.2.5.1.5.{#SNMPINDEX}'
+              key: 'raritan.env.package.fw[{#SNMPINDEX}]'
+              delay: '{$RARITAN.ENV.INVENTORY}'
+              history: 30d
+              value_type: TEXT
+              trends: '0'
+            - uuid: c307355ae01b4ce092bceb64368cb21f
+              name: 'Peripheral package model [{#PKGMODEL}]'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.13742.8.1.2.5.1.4.{#SNMPINDEX}'
+              key: 'raritan.env.package.model[{#SNMPINDEX}]'
+              delay: '{$RARITAN.ENV.INVENTORY}'
+              history: 30d
+              value_type: TEXT
+              trends: '0'
+        - uuid: 318140a06161468da8e60638fd14d730
+          name: 'Smoke discovery'
+          type: SNMP_AGENT
+          snmp_oid: 'discovery[{#NAME},1.3.6.1.4.1.13742.8.1.2.1.1.4,{#TYPE},1.3.6.1.4.1.13742.8.1.2.1.1.2]'
+          key: raritan.env.smoke.discovery
+          delay: '{$RARITAN.ENV.DISCOVERY}'
+          filter:
+            evaltype: AND
+            conditions:
+              - macro: '{#TYPE}'
+                value: ^18$
+                formulaid: A
+          lifetime: 30d
+          item_prototypes:
+            - uuid: 155a5e07deb441c3997e97130115a382
+              name: 'Smoke name {#NAME}'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.13742.8.1.2.1.1.4.{#SNMPINDEX}'
+              key: 'raritan.env.smoke.name[{#SNMPINDEX}]'
+              delay: '{$RARITAN.ENV.INVENTORY}'
+              history: 30d
+              value_type: TEXT
+              trends: '0'
+            - uuid: bf4896d617504f75924a002ed0cc5cf4
+              name: 'Smoke state [{#NAME}]'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.13742.8.2.1.1.1.2.{#SNMPINDEX}'
+              key: 'raritan.env.smoke.state[{#SNMPINDEX}]'
+              delay: '{$RARITAN.ENV.POLL}'
+              history: 30d
+              trends: 90d
+              valuemap:
+                name: 'Raritan sensor state'
+              trigger_prototypes:
+                - uuid: 42fad93acc074b7cb87b396542ca7a60
+                  expression: 'last(/Raritan Environmental by SNMP/raritan.env.smoke.state[{#SNMPINDEX}])=9 or last(/Raritan Environmental by SNMP/raritan.env.smoke.state[{#SNMPINDEX}])=11'
+                  name: 'Smoke alarm [{#NAME}]'
+                  priority: HIGH
+            - uuid: 79d5501578c94bbaae7e4e5865447de2
+              name: 'Smoke sensor type {#NAME}'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.13742.8.1.2.1.1.2.{#SNMPINDEX}'
+              key: 'raritan.env.smoke.type[{#SNMPINDEX}]'
+              delay: '{$RARITAN.ENV.INVENTORY}'
+              history: 30d
+              value_type: TEXT
+              trends: '0'
+        - uuid: 667ac3d3db52446aa8aa85cab489b4bb
+          name: 'Tamper discovery'
+          type: SNMP_AGENT
+          snmp_oid: 'discovery[{#NAME},1.3.6.1.4.1.13742.8.1.2.1.1.4,{#TYPE},1.3.6.1.4.1.13742.8.1.2.1.1.2]'
+          key: raritan.env.tamper.discovery
+          delay: '{$RARITAN.ENV.DISCOVERY}'
+          filter:
+            evaltype: AND
+            conditions:
+              - macro: '{#TYPE}'
+                value: ^44$
+                formulaid: A
+          lifetime: 30d
+          item_prototypes:
+            - uuid: 4187c6c5f2f148fe9283936ef58a13ca
+              name: 'Tamper name {#NAME}'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.13742.8.1.2.1.1.4.{#SNMPINDEX}'
+              key: 'raritan.env.tamper.name[{#SNMPINDEX}]'
+              delay: '{$RARITAN.ENV.INVENTORY}'
+              history: 30d
+              value_type: TEXT
+              trends: '0'
+            - uuid: 6cbfa288fc3a484697dc64c4afce7c3e
+              name: 'Tamper state [{#NAME}]'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.13742.8.2.1.1.1.2.{#SNMPINDEX}'
+              key: 'raritan.env.tamper.state[{#SNMPINDEX}]'
+              delay: '{$RARITAN.ENV.POLL}'
+              history: 30d
+              trends: 90d
+              valuemap:
+                name: 'Raritan sensor state'
+              trigger_prototypes:
+                - uuid: 80cc40c9831d4cd1b391f87f6ad17a08
+                  expression: 'last(/Raritan Environmental by SNMP/raritan.env.tamper.state[{#SNMPINDEX}])=9 or last(/Raritan Environmental by SNMP/raritan.env.tamper.state[{#SNMPINDEX}])=11'
+                  name: 'Tamper alarm [{#NAME}]'
+                  priority: WARNING
+            - uuid: 516a933b48134413b02bc4427374ba72
+              name: 'Tamper sensor type {#NAME}'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.13742.8.1.2.1.1.2.{#SNMPINDEX}'
+              key: 'raritan.env.tamper.type[{#SNMPINDEX}]'
+              delay: '{$RARITAN.ENV.INVENTORY}'
+              history: 30d
+              value_type: TEXT
+              trends: '0'
+        - uuid: bdb461fe18854c9194ec4888db53f100
+          name: 'Temperature discovery'
+          type: SNMP_AGENT
+          snmp_oid: 'discovery[{#NAME},1.3.6.1.4.1.13742.8.1.2.1.1.4,{#TYPE},1.3.6.1.4.1.13742.8.1.2.1.1.2,{#DIGITS},1.3.6.1.4.1.13742.8.1.2.1.1.12]'
+          key: raritan.env.temperature.discovery
+          delay: '{$RARITAN.ENV.DISCOVERY}'
+          filter:
+            evaltype: AND
+            conditions:
+              - macro: '{#TYPE}'
+                value: ^10$
+                formulaid: A
+          lifetime: 30d
+          item_prototypes:
+            - uuid: 0f52d146b5be42209919a8c6672aad7f
+              name: 'Temperature decimal digits {#NAME}'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.13742.8.1.2.1.1.12.{#SNMPINDEX}'
+              key: 'raritan.env.temperature.digits[{#SNMPINDEX}]'
+              delay: '{$RARITAN.ENV.INVENTORY}'
+              history: 30d
+              value_type: TEXT
+              trends: '0'
+            - uuid: 5d47ee9fefbc48d8a465c0bdd4ee5b39
+              name: 'Temperature name {#NAME}'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.13742.8.1.2.1.1.4.{#SNMPINDEX}'
+              key: 'raritan.env.temperature.name[{#SNMPINDEX}]'
+              delay: '{$RARITAN.ENV.INVENTORY}'
+              history: 30d
+              value_type: TEXT
+              trends: '0'
+            - uuid: b96ad9bcf928450d80c40b3d73707028
+              name: 'Temperature state [{#NAME}]'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.13742.8.2.1.1.1.2.{#SNMPINDEX}'
+              key: 'raritan.env.temperature.state[{#SNMPINDEX}]'
+              delay: '{$RARITAN.ENV.POLL}'
+              history: 30d
+              trends: 90d
+              valuemap:
+                name: 'Raritan sensor state'
+              trigger_prototypes:
+                - uuid: d6e7c19ff78a4e58a9dbdb48fffd9976
+                  expression: 'last(/Raritan Environmental by SNMP/raritan.env.temperature.state[{#SNMPINDEX}])=2 or last(/Raritan Environmental by SNMP/raritan.env.temperature.state[{#SNMPINDEX}])=6 or last(/Raritan Environmental by SNMP/raritan.env.temperature.state[{#SNMPINDEX}])=14 or last(/Raritan Environmental by SNMP/raritan.env.temperature.state[{#SNMPINDEX}])=26 or last(/Raritan Environmental by SNMP/raritan.env.temperature.state[{#SNMPINDEX}])=28'
+                  name: 'Temperature [{#NAME}] is in critical state'
+                  priority: HIGH
+                - uuid: 551767f0f6704ccc946af071cbe54bc8
+                  expression: 'last(/Raritan Environmental by SNMP/raritan.env.temperature.state[{#SNMPINDEX}])=3 or last(/Raritan Environmental by SNMP/raritan.env.temperature.state[{#SNMPINDEX}])=5 or last(/Raritan Environmental by SNMP/raritan.env.temperature.state[{#SNMPINDEX}])=27'
+                  name: 'Temperature [{#NAME}] is in warning state'
+                  priority: DISASTER
+            - uuid: 710145e9f4a84135a581bf43c56c585c
+              name: 'Temperature sensor type {#NAME}'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.13742.8.1.2.1.1.2.{#SNMPINDEX}'
+              key: 'raritan.env.temperature.type[{#SNMPINDEX}]'
+              delay: '{$RARITAN.ENV.INVENTORY}'
+              history: 30d
+              value_type: TEXT
+              trends: '0'
+            - uuid: 77ec2f91e3244cb7a56350a78b3473ce
+              name: 'Temperature value [{#NAME}]'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.13742.8.2.1.1.1.3.{#SNMPINDEX}'
+              key: 'raritan.env.temperature.value[{#SNMPINDEX}]'
+              delay: '{$RARITAN.ENV.POLL}'
+              history: 30d
+              value_type: FLOAT
+              trends: 90d
+              preprocessing:
+                - type: JAVASCRIPT
+                  parameters:
+                    - 'var d = Number(''{#DIGITS}''); if (isNaN(d) || d < 0) d = 0; var n = Number(value); if (isNaN(n)) throw ''NaN''; return n / Math.pow(10, d);'
+              trigger_prototypes:
+                - uuid: 3aa514e05ef0429791ae0a6175fb152e
+                  expression: 'min(/Raritan Environmental by SNMP/raritan.env.temperature.value[{#SNMPINDEX}],5m)<=15'
+                  name: 'Temperature [{#NAME}] is in Lower critical state'
+                  priority: DISASTER
+                - uuid: c4c1783ade5449c89619d4796e210629
+                  expression: 'min(/Raritan Environmental by SNMP/raritan.env.temperature.value[{#SNMPINDEX}],5m)<=18'
+                  name: 'Temperature [{#NAME}] is in Lower warning state'
+                  priority: DISASTER
+                - uuid: 7ae7544a0b8f4473adb464228ab4d59f
+                  expression: 'min(/Raritan Environmental by SNMP/raritan.env.temperature.value[{#SNMPINDEX}],5m)>=28'
+                  name: 'Temperature [{#NAME}] is in Upper critical state'
+                  priority: DISASTER
+                - uuid: 3f54f497fd4747a7ae037dfe4650931b
+                  expression: 'min(/Raritan Environmental by SNMP/raritan.env.temperature.value[{#SNMPINDEX}],5m)>=25'
+                  name: 'Temperature [{#NAME}] is in Upper warning state'
+                  priority: DISASTER
+        - uuid: 0bfb7bcf2b9c49f393e03092231cf6ee
+          name: 'Vibration discovery'
+          type: SNMP_AGENT
+          snmp_oid: 'discovery[{#NAME},1.3.6.1.4.1.13742.8.1.2.1.1.4,{#TYPE},1.3.6.1.4.1.13742.8.1.2.1.1.2]'
+          key: raritan.env.vibration.discovery
+          delay: '{$RARITAN.ENV.DISCOVERY}'
+          filter:
+            evaltype: AND
+            conditions:
+              - macro: '{#TYPE}'
+                value: ^16$
+                formulaid: A
+          lifetime: 30d
+          item_prototypes:
+            - uuid: 2084252f5bda4602afaf6e2d00ea8d28
+              name: 'Vibration name {#NAME}'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.13742.8.1.2.1.1.4.{#SNMPINDEX}'
+              key: 'raritan.env.vibration.name[{#SNMPINDEX}]'
+              delay: '{$RARITAN.ENV.INVENTORY}'
+              history: 30d
+              value_type: TEXT
+              trends: '0'
+            - uuid: 33a7374d44544a9abb097fe606781434
+              name: 'Vibration state [{#NAME}]'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.13742.8.2.1.1.1.2.{#SNMPINDEX}'
+              key: 'raritan.env.vibration.state[{#SNMPINDEX}]'
+              delay: '{$RARITAN.ENV.POLL}'
+              history: 30d
+              trends: 90d
+              valuemap:
+                name: 'Raritan sensor state'
+              trigger_prototypes:
+                - uuid: 31ed04c1a9d245db8559580fe813b0a1
+                  expression: 'last(/Raritan Environmental by SNMP/raritan.env.vibration.state[{#SNMPINDEX}])=9 or last(/Raritan Environmental by SNMP/raritan.env.vibration.state[{#SNMPINDEX}])=11'
+                  name: 'Vibration alarm [{#NAME}]'
+                  priority: WARNING
+            - uuid: 2cd9cf0be2a741f38f0dcf0f3b0e8c50
+              name: 'Vibration sensor type {#NAME}'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.13742.8.1.2.1.1.2.{#SNMPINDEX}'
+              key: 'raritan.env.vibration.type[{#SNMPINDEX}]'
+              delay: '{$RARITAN.ENV.INVENTORY}'
+              history: 30d
+              value_type: TEXT
+              trends: '0'
+        - uuid: 3eed5e004847483daa443361c2c8cacd
+          name: 'Water leak discovery'
+          type: SNMP_AGENT
+          snmp_oid: 'discovery[{#NAME},1.3.6.1.4.1.13742.8.1.2.1.1.4,{#TYPE},1.3.6.1.4.1.13742.8.1.2.1.1.2]'
+          key: raritan.env.water.discovery
+          delay: '{$RARITAN.ENV.DISCOVERY}'
+          filter:
+            evaltype: AND
+            conditions:
+              - macro: '{#TYPE}'
+                value: ^17$
+                formulaid: A
+          lifetime: 30d
+          item_prototypes:
+            - uuid: c688bf66e02b4006ad4e2162af09a2b0
+              name: 'Water leak name {#NAME}'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.13742.8.1.2.1.1.4.{#SNMPINDEX}'
+              key: 'raritan.env.water.name[{#SNMPINDEX}]'
+              delay: '{$RARITAN.ENV.INVENTORY}'
+              history: 30d
+              value_type: TEXT
+              trends: '0'
+            - uuid: f1a92baa0d0740018d3b6e3eb3568ad4
+              name: 'Water leak state [{#NAME}]'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.13742.8.2.1.1.1.2.{#SNMPINDEX}'
+              key: 'raritan.env.water.state[{#SNMPINDEX}]'
+              delay: '{$RARITAN.ENV.POLL}'
+              history: 30d
+              trends: 90d
+              valuemap:
+                name: 'Raritan sensor state'
+              trigger_prototypes:
+                - uuid: 5752886a52b94649bf060b78f805a5fe
+                  expression: 'last(/Raritan Environmental by SNMP/raritan.env.water.state[{#SNMPINDEX}])=9 or last(/Raritan Environmental by SNMP/raritan.env.water.state[{#SNMPINDEX}])=11'
+                  name: 'Water leak alarm [{#NAME}]'
+                  priority: HIGH
+            - uuid: 40eec55328544760b934e26a1cf7f441
+              name: 'Water leak sensor type {#NAME}'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.13742.8.1.2.1.1.2.{#SNMPINDEX}'
+              key: 'raritan.env.water.type[{#SNMPINDEX}]'
+              delay: '{$RARITAN.ENV.INVENTORY}'
+              history: 30d
+              value_type: TEXT
+              trends: '0'
+      macros:
+        - macro: '{$RARITAN.ENV.DISCOVERY}'
+          value: 1h
+          description: 'Discovery interval for sensors and packages.'
+        - macro: '{$RARITAN.ENV.INVENTORY}'
+          value: 1d
+          description: 'Refresh interval for low-change inventory data.'
+        - macro: '{$RARITAN.ENV.POLL}'
+          value: 5m
+          description: 'Default polling interval for live measurements.'
+        - macro: '{$SNMP.TIMEOUT}'
+          value: 5m
+      valuemaps:
+        - uuid: fc11db78d894427598549684426c0fe0
+          name: 'Raritan sensor state'
+          mappings:
+            - value: '-1'
+              newvalue: unavailable
+            - value: '0'
+              newvalue: open
+            - value: '1'
+              newvalue: closed
+            - value: '2'
+              newvalue: 'below lower critical'
+            - value: '3'
+              newvalue: 'below lower warning'
+            - value: '4'
+              newvalue: normal
+            - value: '5'
+              newvalue: 'above upper warning'
+            - value: '6'
+              newvalue: 'above upper critical'
+            - value: '7'
+              newvalue: 'on'
+            - value: '8'
+              newvalue: 'off'
+            - value: '9'
+              newvalue: detected
+            - value: '10'
+              newvalue: 'not detected'
+            - value: '11'
+              newvalue: alarmed
+            - value: '12'
+              newvalue: ok
+            - value: '14'
+              newvalue: fail
+            - value: '15'
+              newvalue: 'yes'
+            - value: '16'
+              newvalue: 'no'
+            - value: '17'
+              newvalue: standby
+            - value: '18'
+              newvalue: one
+            - value: '19'
+              newvalue: two
+            - value: '20'
+              newvalue: 'in sync'
+            - value: '21'
+              newvalue: 'out of sync'
+            - value: '22'
+              newvalue: 'i1 open fault'
+            - value: '23'
+              newvalue: 'i1 short fault'
+            - value: '24'
+              newvalue: 'i2 open fault'
+            - value: '25'
+              newvalue: 'i2 short fault'
+            - value: '26'
+              newvalue: fault
+            - value: '27'
+              newvalue: warning
+            - value: '28'
+              newvalue: critical
+            - value: '29'
+              newvalue: 'self test'
+            - value: '30'
+              newvalue: 'non redundant'
+        - uuid: 16e014e3d176454bb9a93b1dfcba6832
+          name: 'Raritan switchable'
+          mappings:
+            - value: '0'
+              newvalue: 'no'
+            - value: '1'
+              newvalue: 'yes'
+        - uuid: 3e79b9ab4bfd42c4b1b45ab370da06e5
+          name: 'Service state'
+          mappings:
+            - value: '0'
+              newvalue: Down
+            - value: '1'
+              newvalue: Up
+        - uuid: c9b822521317419e8cdc0bc846b02028
+          name: zabbix.host.available
+          mappings:
+            - value: '0'
+              newvalue: 'not available'
+            - value: '1'
+              newvalue: available
+            - value: '2'
+              newvalue: unknown
