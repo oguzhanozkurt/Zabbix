@@ -4,7 +4,7 @@ This repository provides a Zabbix 7.0 template to monitor **VMware vSAN** enviro
 
 - Template name: **Template VMware vSAN by API**
 - Zabbix export: **7.0**
-- File: `template_vmware_vsan_by_api_zabbix_7_0_fixed_uuidv4.yaml`
+- File: `template_vmware_vsan_by_api_zabbix_7_0.yaml`
 - Collector script: `zbx_vsan_api.py`
 - Collection method: **External check** → **JSON payload** → **Dependent items** → **LLD** → **Item/trigger prototypes**
 
