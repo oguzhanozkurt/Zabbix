@@ -144,7 +144,7 @@ Zabbix UI:
 Import:
 
 ~~~text
-template_vmware_vsan_by_api_zabbix_7_0_fixed_uuidv4.yaml
+template_vmware_vsan_by_api_zabbix_7_0.yaml
 ~~~
 
 After import, the template name should be:
