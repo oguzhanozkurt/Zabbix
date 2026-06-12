@@ -1,0 +1,3079 @@
+zabbix_export:
+  version: '7.0'
+  template_groups:
+  - uuid: 5975901e4d364c088895b06d333067ab
+    name: Templates/Virtualization
+  templates:
+  - uuid: aa91686fc92147388981e222943e85fa
+    template: Template VMware vSAN by API
+    name: Template VMware vSAN by API
+    description: Full vSAN monitoring template for Zabbix 7.0. It expects a single external collector JSON payload and uses dependent items, LLD rules and item/trigger prototypes for vSAN health, capacity, resync, disk groups, capacity disks, VM/vDisk performance and vSAN network metrics. The collector script is not embedded in this export.
+    vendor:
+      name: ChatGPT
+      version: '1.0'
+    groups:
+    - name: Templates/Virtualization
+    items:
+    - uuid: d89e37c72f4b4ffa83562b8d9577dfbe
+      name: 'vSAN: API raw data'
+      type: EXTERNAL
+      key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+      delay: '{$VSAN.UPDATE.INTERVAL}'
+      history: 1d
+      value_type: TEXT
+      trends: '0'
+      description: Raw JSON returned by zbx_vsan_api.py. The script must be placed under Zabbix ExternalScripts directory on the server or proxy running this item.
+      tags:
+      - tag: component
+        value: vsan
+      - tag: scope
+        value: raw
+    - uuid: dd0c77f68a3b42198258d7b19c5d00b3
+      name: 'vSAN collector: Status'
+      type: DEPENDENT
+      key: vsan.collector.status
+      delay: '0'
+      history: 30d
+      trends: '0'
+      valuemap:
+        name: vSAN collector status
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.collector.status
+      master_item:
+        key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+      tags:
+      - tag: component
+        value: vsan
+      - tag: scope
+        value: collector
+      triggers:
+      - uuid: 49ed0b64d6e94570a8b260b4bf72974e
+        expression: last(/Template VMware vSAN by API/vsan.collector.status)<>1
+        name: vSAN collector failed on {HOST.NAME}
+        priority: HIGH
+        manual_close: 'YES'
+        tags:
+        - tag: scope
+          value: availability
+        - tag: component
+          value: vsan
+    - uuid: 6b9c2d46b29941de8e455639e9faf3a5
+      name: 'vSAN collector: Message'
+      type: DEPENDENT
+      key: vsan.collector.message
+      delay: '0'
+      history: 7d
+      value_type: TEXT
+      trends: '0'
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.collector.message
+      master_item:
+        key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+      tags:
+      - tag: component
+        value: vsan
+      - tag: scope
+        value: collector
+    - uuid: 09a6520c0eb54caab91739c131e514ee
+      name: 'vSAN collector: Duration'
+      type: DEPENDENT
+      key: vsan.collector.duration
+      delay: '0'
+      history: 30d
+      value_type: FLOAT
+      trends: 90d
+      units: s
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.collector.duration_sec
+      master_item:
+        key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+      tags:
+      - tag: component
+        value: vsan
+      - tag: scope
+        value: collector
+      triggers:
+      - uuid: 35fec9ea06b74b6da502e9346f6f838d
+        expression: min(/Template VMware vSAN by API/vsan.collector.duration,15m)>{$VSAN.COLLECTOR.DURATION.MAX}
+        name: vSAN collector is slow on {HOST.NAME}
+        priority: WARNING
+        manual_close: 'YES'
+        tags:
+        - tag: scope
+          value: performance
+        - tag: component
+          value: vsan
+    - uuid: 3bf80caf24a24ec0ad727fed7a63105b
+      name: 'vSAN collector: Last successful timestamp'
+      type: DEPENDENT
+      key: vsan.collector.timestamp
+      delay: '0'
+      history: 30d
+      trends: '0'
+      units: unixtime
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.collector.timestamp
+      master_item:
+        key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+      tags:
+      - tag: component
+        value: vsan
+      - tag: scope
+        value: collector
+      triggers:
+      - uuid: 9c694827e0e24bf09516dfb207b99760
+        expression: nodata(/Template VMware vSAN by API/vsan.collector.timestamp,{$VSAN.DATA.MAXAGE})=1
+        name: vSAN API data is stale on {HOST.NAME}
+        priority: HIGH
+        manual_close: 'YES'
+        tags:
+        - tag: scope
+          value: availability
+        - tag: component
+          value: vsan
+    - uuid: e2bacc64725f4ec3ba1a37037b4228a1
+      name: 'vSAN collector: Clusters total'
+      type: DEPENDENT
+      key: vsan.collector.clusters_total
+      delay: '0'
+      history: 30d
+      trends: '0'
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.collector.clusters_total
+      master_item:
+        key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+      tags:
+      - tag: component
+        value: vsan
+      - tag: scope
+        value: collector
+    discovery_rules:
+    - uuid: b64a3b135ffd43fda46860289f70b923
+      name: 'vSAN: Cluster discovery'
+      type: DEPENDENT
+      key: vsan.cluster.discovery
+      delay: '0'
+      lifetime: 30d
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.lld.clusters
+      master_item:
+        key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+      filter:
+        evaltype: AND
+        conditions:
+        - macro: '{#CLUSTER.NAME}'
+          value: '{$VSAN.CLUSTER.MATCHES}'
+          formulaid: A
+        - macro: '{#CLUSTER.NAME}'
+          value: '{$VSAN.CLUSTER.NOT_MATCHES}'
+          operator: NOT_MATCHES_REGEX
+          formulaid: B
+      description: Discovers vSAN clusters returned by the collector.
+      item_prototypes:
+      - uuid: 3719c96a87064251a218abe9d3e9290b
+        name: 'vSAN cluster [{#CLUSTER.NAME}]: Health'
+        type: DEPENDENT
+        key: vsan.cluster.health["{#CLUSTER.NAME}"]
+        delay: '0'
+        history: 30d
+        trends: '0'
+        valuemap:
+          name: vSAN health status
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.clusters[?(@.name=="{#CLUSTER.NAME}")].health.first()
+        master_item:
+          key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+        tags:
+        - tag: component
+          value: vsan
+        - tag: scope
+          value: cluster
+        - tag: cluster
+          value: '{#CLUSTER.NAME}'
+      - uuid: 13f2024c5bae466bb5129c103f9d04fe
+        name: 'vSAN cluster [{#CLUSTER.NAME}]: Capacity total'
+        type: DEPENDENT
+        key: vsan.cluster.capacity.total["{#CLUSTER.NAME}"]
+        delay: '0'
+        history: 30d
+        trends: 365d
+        units: B
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.clusters[?(@.name=="{#CLUSTER.NAME}")].capacity_total_bytes.first()
+        master_item:
+          key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+        tags:
+        - tag: component
+          value: vsan
+        - tag: scope
+          value: cluster
+        - tag: cluster
+          value: '{#CLUSTER.NAME}'
+      - uuid: 23a92d4a294340faadd0b09b167bf2fa
+        name: 'vSAN cluster [{#CLUSTER.NAME}]: Capacity used'
+        type: DEPENDENT
+        key: vsan.cluster.capacity.used["{#CLUSTER.NAME}"]
+        delay: '0'
+        history: 30d
+        trends: 365d
+        units: B
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.clusters[?(@.name=="{#CLUSTER.NAME}")].capacity_used_bytes.first()
+        master_item:
+          key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+        tags:
+        - tag: component
+          value: vsan
+        - tag: scope
+          value: cluster
+        - tag: cluster
+          value: '{#CLUSTER.NAME}'
+      - uuid: 187f22db0471450abcca997255f29347
+        name: 'vSAN cluster [{#CLUSTER.NAME}]: Capacity free'
+        type: DEPENDENT
+        key: vsan.cluster.capacity.free["{#CLUSTER.NAME}"]
+        delay: '0'
+        history: 30d
+        trends: 365d
+        units: B
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.clusters[?(@.name=="{#CLUSTER.NAME}")].capacity_free_bytes.first()
+        master_item:
+          key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+        tags:
+        - tag: component
+          value: vsan
+        - tag: scope
+          value: cluster
+        - tag: cluster
+          value: '{#CLUSTER.NAME}'
+      - uuid: 8470916fbaaa4c78bee8bd5a3d54d80d
+        name: 'vSAN cluster [{#CLUSTER.NAME}]: Capacity used percentage'
+        type: DEPENDENT
+        key: vsan.cluster.capacity.used_pct["{#CLUSTER.NAME}"]
+        delay: '0'
+        history: 30d
+        value_type: FLOAT
+        trends: 365d
+        units: '%'
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.clusters[?(@.name=="{#CLUSTER.NAME}")].capacity_used_pct.first()
+        master_item:
+          key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+        tags:
+        - tag: component
+          value: vsan
+        - tag: scope
+          value: cluster
+        - tag: cluster
+          value: '{#CLUSTER.NAME}'
+      - uuid: 1f5c121b1fba4e0fa8caebb25aad1f8b
+        name: 'vSAN cluster [{#CLUSTER.NAME}]: Deduplication ratio'
+        type: DEPENDENT
+        key: vsan.cluster.dedup_ratio["{#CLUSTER.NAME}"]
+        delay: '0'
+        history: 30d
+        value_type: FLOAT
+        trends: 180d
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.clusters[?(@.name=="{#CLUSTER.NAME}")].dedup_ratio.first()
+        master_item:
+          key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+        tags:
+        - tag: component
+          value: vsan
+        - tag: scope
+          value: cluster
+        - tag: cluster
+          value: '{#CLUSTER.NAME}'
+      - uuid: 77f7f2107cae4606afb1ce3af54f469d
+        name: 'vSAN cluster [{#CLUSTER.NAME}]: Compression ratio'
+        type: DEPENDENT
+        key: vsan.cluster.compression_ratio["{#CLUSTER.NAME}"]
+        delay: '0'
+        history: 30d
+        value_type: FLOAT
+        trends: 180d
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.clusters[?(@.name=="{#CLUSTER.NAME}")].compression_ratio.first()
+        master_item:
+          key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+        tags:
+        - tag: component
+          value: vsan
+        - tag: scope
+          value: cluster
+        - tag: cluster
+          value: '{#CLUSTER.NAME}'
+      - uuid: 597d3a441ea24a719af2a9a975b0093e
+        name: 'vSAN cluster [{#CLUSTER.NAME}]: Resync components'
+        type: DEPENDENT
+        key: vsan.cluster.resync.components["{#CLUSTER.NAME}"]
+        delay: '0'
+        history: 30d
+        trends: '0'
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.clusters[?(@.name=="{#CLUSTER.NAME}")].resync_components.first()
+        master_item:
+          key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+        tags:
+        - tag: component
+          value: vsan
+        - tag: scope
+          value: cluster
+        - tag: cluster
+          value: '{#CLUSTER.NAME}'
+      - uuid: 920d6c6ec8254fe9bd07c672365b03a7
+        name: 'vSAN cluster [{#CLUSTER.NAME}]: Resync bytes remaining'
+        type: DEPENDENT
+        key: vsan.cluster.resync.bytes_remaining["{#CLUSTER.NAME}"]
+        delay: '0'
+        history: 30d
+        trends: '0'
+        units: B
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.clusters[?(@.name=="{#CLUSTER.NAME}")].resync_bytes_remaining.first()
+        master_item:
+          key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+        tags:
+        - tag: component
+          value: vsan
+        - tag: scope
+          value: cluster
+        - tag: cluster
+          value: '{#CLUSTER.NAME}'
+      - uuid: 9358c249456b44d0910c72d3fabde842
+        name: 'vSAN cluster [{#CLUSTER.NAME}]: Resync ETA'
+        type: DEPENDENT
+        key: vsan.cluster.resync.eta["{#CLUSTER.NAME}"]
+        delay: '0'
+        history: 30d
+        trends: '0'
+        units: s
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.clusters[?(@.name=="{#CLUSTER.NAME}")].resync_eta_sec.first()
+        master_item:
+          key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+        tags:
+        - tag: component
+          value: vsan
+        - tag: scope
+          value: cluster
+        - tag: cluster
+          value: '{#CLUSTER.NAME}'
+      - uuid: 74adeafec97a41eab4981fb616fd148e
+        name: 'vSAN cluster [{#CLUSTER.NAME}]: Inaccessible objects'
+        type: DEPENDENT
+        key: vsan.cluster.objects.inaccessible["{#CLUSTER.NAME}"]
+        delay: '0'
+        history: 30d
+        trends: '0'
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.clusters[?(@.name=="{#CLUSTER.NAME}")].inaccessible_objects.first()
+        master_item:
+          key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+        tags:
+        - tag: component
+          value: vsan
+        - tag: scope
+          value: cluster
+        - tag: cluster
+          value: '{#CLUSTER.NAME}'
+      - uuid: f93782934afd446295e3f5ec9b0bf93c
+        name: 'vSAN cluster [{#CLUSTER.NAME}]: Non-compliant objects'
+        type: DEPENDENT
+        key: vsan.cluster.objects.noncompliant["{#CLUSTER.NAME}"]
+        delay: '0'
+        history: 30d
+        trends: '0'
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.clusters[?(@.name=="{#CLUSTER.NAME}")].noncompliant_objects.first()
+        master_item:
+          key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+        tags:
+        - tag: component
+          value: vsan
+        - tag: scope
+          value: cluster
+        - tag: cluster
+          value: '{#CLUSTER.NAME}'
+      - uuid: ba86432337d746938852f8ded5843dab
+        name: 'vSAN cluster [{#CLUSTER.NAME}]: Reduced availability objects'
+        type: DEPENDENT
+        key: vsan.cluster.objects.reduced_availability["{#CLUSTER.NAME}"]
+        delay: '0'
+        history: 30d
+        trends: '0'
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.clusters[?(@.name=="{#CLUSTER.NAME}")].reduced_availability_objects.first()
+        master_item:
+          key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+        tags:
+        - tag: component
+          value: vsan
+        - tag: scope
+          value: cluster
+        - tag: cluster
+          value: '{#CLUSTER.NAME}'
+      - uuid: b7c8f45b4aa946bfa2ec303f4cdbe5cf
+        name: 'vSAN cluster [{#CLUSTER.NAME}]: Object count'
+        type: DEPENDENT
+        key: vsan.cluster.object_count["{#CLUSTER.NAME}"]
+        delay: '0'
+        history: 30d
+        trends: '0'
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.clusters[?(@.name=="{#CLUSTER.NAME}")].object_count.first()
+        master_item:
+          key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+        tags:
+        - tag: component
+          value: vsan
+        - tag: scope
+          value: cluster
+        - tag: cluster
+          value: '{#CLUSTER.NAME}'
+      - uuid: f373b326ecbb4cd1a83ebd2874e1ccf7
+        name: 'vSAN cluster [{#CLUSTER.NAME}]: Performance service health'
+        type: DEPENDENT
+        key: vsan.cluster.perf_service.health["{#CLUSTER.NAME}"]
+        delay: '0'
+        history: 30d
+        trends: '0'
+        valuemap:
+          name: vSAN health status
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.clusters[?(@.name=="{#CLUSTER.NAME}")].perf_service_health.first()
+        master_item:
+          key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+        tags:
+        - tag: component
+          value: vsan
+        - tag: scope
+          value: cluster
+        - tag: cluster
+          value: '{#CLUSTER.NAME}'
+      - uuid: 7c32d73db8974da2b20dea2631caea38
+        name: 'vSAN cluster [{#CLUSTER.NAME}]: Read latency'
+        type: DEPENDENT
+        key: vsan.cluster.read_latency["{#CLUSTER.NAME}"]
+        delay: '0'
+        history: 30d
+        value_type: FLOAT
+        trends: 180d
+        units: ms
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.clusters[?(@.name=="{#CLUSTER.NAME}")].read_latency_ms.first()
+        master_item:
+          key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+        tags:
+        - tag: component
+          value: vsan
+        - tag: scope
+          value: cluster
+        - tag: cluster
+          value: '{#CLUSTER.NAME}'
+      - uuid: edd3492461534c9ba3935b19ad825e38
+        name: 'vSAN cluster [{#CLUSTER.NAME}]: Write latency'
+        type: DEPENDENT
+        key: vsan.cluster.write_latency["{#CLUSTER.NAME}"]
+        delay: '0'
+        history: 30d
+        value_type: FLOAT
+        trends: 180d
+        units: ms
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.clusters[?(@.name=="{#CLUSTER.NAME}")].write_latency_ms.first()
+        master_item:
+          key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+        tags:
+        - tag: component
+          value: vsan
+        - tag: scope
+          value: cluster
+        - tag: cluster
+          value: '{#CLUSTER.NAME}'
+      - uuid: b20f8f71979748a1aeb7e15d3a5fb3ab
+        name: 'vSAN cluster [{#CLUSTER.NAME}]: Read IOPS'
+        type: DEPENDENT
+        key: vsan.cluster.read_iops["{#CLUSTER.NAME}"]
+        delay: '0'
+        history: 30d
+        value_type: FLOAT
+        trends: 180d
+        units: '!iops'
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.clusters[?(@.name=="{#CLUSTER.NAME}")].read_iops.first()
+        master_item:
+          key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+        tags:
+        - tag: component
+          value: vsan
+        - tag: scope
+          value: cluster
+        - tag: cluster
+          value: '{#CLUSTER.NAME}'
+      - uuid: f154d89a5f59425a8fcdc103321294c0
+        name: 'vSAN cluster [{#CLUSTER.NAME}]: Write IOPS'
+        type: DEPENDENT
+        key: vsan.cluster.write_iops["{#CLUSTER.NAME}"]
+        delay: '0'
+        history: 30d
+        value_type: FLOAT
+        trends: 180d
+        units: '!iops'
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.clusters[?(@.name=="{#CLUSTER.NAME}")].write_iops.first()
+        master_item:
+          key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+        tags:
+        - tag: component
+          value: vsan
+        - tag: scope
+          value: cluster
+        - tag: cluster
+          value: '{#CLUSTER.NAME}'
+      - uuid: e9c60a198cc849d5b343926447f77f55
+        name: 'vSAN cluster [{#CLUSTER.NAME}]: Read throughput'
+        type: DEPENDENT
+        key: vsan.cluster.read_bps["{#CLUSTER.NAME}"]
+        delay: '0'
+        history: 30d
+        value_type: FLOAT
+        trends: 180d
+        units: Bps
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.clusters[?(@.name=="{#CLUSTER.NAME}")].read_throughput_bps.first()
+        master_item:
+          key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+        tags:
+        - tag: component
+          value: vsan
+        - tag: scope
+          value: cluster
+        - tag: cluster
+          value: '{#CLUSTER.NAME}'
+      - uuid: 6da4fe7af0d441c98c2b63e34872ce10
+        name: 'vSAN cluster [{#CLUSTER.NAME}]: Write throughput'
+        type: DEPENDENT
+        key: vsan.cluster.write_bps["{#CLUSTER.NAME}"]
+        delay: '0'
+        history: 30d
+        value_type: FLOAT
+        trends: 180d
+        units: Bps
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.clusters[?(@.name=="{#CLUSTER.NAME}")].write_throughput_bps.first()
+        master_item:
+          key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+        tags:
+        - tag: component
+          value: vsan
+        - tag: scope
+          value: cluster
+        - tag: cluster
+          value: '{#CLUSTER.NAME}'
+      - uuid: dadf3bab32c245d48d2b5ec46cfb6431
+        name: 'vSAN cluster [{#CLUSTER.NAME}]: Network RX'
+        type: DEPENDENT
+        key: vsan.cluster.network.rx_bps["{#CLUSTER.NAME}"]
+        delay: '0'
+        history: 30d
+        value_type: FLOAT
+        trends: 180d
+        units: Bps
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.clusters[?(@.name=="{#CLUSTER.NAME}")].network_rx_bps.first()
+        master_item:
+          key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+        tags:
+        - tag: component
+          value: vsan
+        - tag: scope
+          value: cluster
+        - tag: cluster
+          value: '{#CLUSTER.NAME}'
+      - uuid: fcace4dd9a814447aea501400b4c80e9
+        name: 'vSAN cluster [{#CLUSTER.NAME}]: Network TX'
+        type: DEPENDENT
+        key: vsan.cluster.network.tx_bps["{#CLUSTER.NAME}"]
+        delay: '0'
+        history: 30d
+        value_type: FLOAT
+        trends: 180d
+        units: Bps
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.clusters[?(@.name=="{#CLUSTER.NAME}")].network_tx_bps.first()
+        master_item:
+          key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+        tags:
+        - tag: component
+          value: vsan
+        - tag: scope
+          value: cluster
+        - tag: cluster
+          value: '{#CLUSTER.NAME}'
+      - uuid: 66c3953917d44abd8d07854490ae4988
+        name: 'vSAN cluster [{#CLUSTER.NAME}]: Network errors'
+        type: DEPENDENT
+        key: vsan.cluster.network.errors["{#CLUSTER.NAME}"]
+        delay: '0'
+        history: 30d
+        trends: '0'
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.clusters[?(@.name=="{#CLUSTER.NAME}")].network_errors.first()
+        master_item:
+          key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+        tags:
+        - tag: component
+          value: vsan
+        - tag: scope
+          value: cluster
+        - tag: cluster
+          value: '{#CLUSTER.NAME}'
+      - uuid: 840e56f2b1694ebda086d35a55de6314
+        name: 'vSAN cluster [{#CLUSTER.NAME}]: Network drops'
+        type: DEPENDENT
+        key: vsan.cluster.network.drops["{#CLUSTER.NAME}"]
+        delay: '0'
+        history: 30d
+        trends: '0'
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.clusters[?(@.name=="{#CLUSTER.NAME}")].network_drops.first()
+        master_item:
+          key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+        tags:
+        - tag: component
+          value: vsan
+        - tag: scope
+          value: cluster
+        - tag: cluster
+          value: '{#CLUSTER.NAME}'
+      - uuid: 00f65d553efc4402b7a881339099f4c4
+        name: 'vSAN cluster [{#CLUSTER.NAME}]: Rebalance running'
+        type: DEPENDENT
+        key: vsan.cluster.rebalance.running["{#CLUSTER.NAME}"]
+        delay: '0'
+        history: 30d
+        trends: '0'
+        valuemap:
+          name: Yes/No
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.clusters[?(@.name=="{#CLUSTER.NAME}")].rebalance_running.first()
+        master_item:
+          key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+        tags:
+        - tag: component
+          value: vsan
+        - tag: scope
+          value: cluster
+        - tag: cluster
+          value: '{#CLUSTER.NAME}'
+      - uuid: 51417087a496442ab8d30c2e2fe37b68
+        name: 'vSAN cluster [{#CLUSTER.NAME}]: Congestion'
+        type: DEPENDENT
+        key: vsan.cluster.congestion["{#CLUSTER.NAME}"]
+        delay: '0'
+        history: 30d
+        value_type: FLOAT
+        trends: 180d
+        units: '%'
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.clusters[?(@.name=="{#CLUSTER.NAME}")].congestion.first()
+        master_item:
+          key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+        tags:
+        - tag: component
+          value: vsan
+        - tag: scope
+          value: cluster
+        - tag: cluster
+          value: '{#CLUSTER.NAME}'
+      trigger_prototypes:
+      - uuid: 060270d0a7ce4f7bb0330e9dab5145ed
+        expression: last(/Template VMware vSAN by API/vsan.cluster.health["{#CLUSTER.NAME}"])=2
+        name: vSAN cluster [{#CLUSTER.NAME}] health is warning
+        priority: AVERAGE
+        manual_close: 'YES'
+        tags:
+        - tag: scope
+          value: availability
+        - tag: component
+          value: vsan
+      - uuid: 5c72c809109f4ad1b7b86e430b1e4051
+        expression: last(/Template VMware vSAN by API/vsan.cluster.health["{#CLUSTER.NAME}"])=3
+        name: vSAN cluster [{#CLUSTER.NAME}] health is critical
+        priority: HIGH
+        manual_close: 'YES'
+        tags:
+        - tag: scope
+          value: availability
+        - tag: component
+          value: vsan
+      - uuid: 835bcfdd314e4d36be9288aeb2e44f22
+        expression: min(/Template VMware vSAN by API/vsan.cluster.capacity.used_pct["{#CLUSTER.NAME}"],15m)>{$VSAN.CAPACITY.HIGH}
+        name: vSAN cluster [{#CLUSTER.NAME}] capacity usage is high
+        priority: HIGH
+        event_name: 'vSAN cluster [{#CLUSTER.NAME}] capacity usage is over {$VSAN.CAPACITY.HIGH}%: {ITEM.VALUE}'
+        manual_close: 'YES'
+        tags:
+        - tag: scope
+          value: capacity
+        - tag: component
+          value: vsan
+      - uuid: eae02658258b4469820e13f8b77af7df
+        expression: min(/Template VMware vSAN by API/vsan.cluster.capacity.used_pct["{#CLUSTER.NAME}"],15m)>{$VSAN.CAPACITY.DISASTER}
+        name: vSAN cluster [{#CLUSTER.NAME}] capacity usage is disaster level
+        priority: DISASTER
+        event_name: 'vSAN cluster [{#CLUSTER.NAME}] capacity usage is over {$VSAN.CAPACITY.DISASTER}%: {ITEM.VALUE}'
+        manual_close: 'YES'
+        tags:
+        - tag: scope
+          value: capacity
+        - tag: component
+          value: vsan
+      - uuid: 0bb00fc3f8dc48128b5533d149251501
+        expression: min(/Template VMware vSAN by API/vsan.cluster.resync.components["{#CLUSTER.NAME}"],15m)>0
+        name: vSAN cluster [{#CLUSTER.NAME}] has resyncing components
+        priority: WARNING
+        manual_close: 'YES'
+        tags:
+        - tag: scope
+          value: availability
+        - tag: component
+          value: vsan
+      - uuid: bdff61f72a1e45f38cb991b265d4eec3
+        expression: min(/Template VMware vSAN by API/vsan.cluster.resync.components["{#CLUSTER.NAME}"],{$VSAN.RESYNC.MAX.TIME})>0
+        name: vSAN cluster [{#CLUSTER.NAME}] resync is running too long
+        priority: AVERAGE
+        manual_close: 'YES'
+        tags:
+        - tag: scope
+          value: availability
+        - tag: component
+          value: vsan
+      - uuid: 26df907c69e646e694005f65ab2cd2ae
+        expression: last(/Template VMware vSAN by API/vsan.cluster.objects.inaccessible["{#CLUSTER.NAME}"])>0
+        name: vSAN cluster [{#CLUSTER.NAME}] has inaccessible objects
+        priority: DISASTER
+        manual_close: 'YES'
+        tags:
+        - tag: scope
+          value: availability
+        - tag: component
+          value: vsan
+      - uuid: fb2a56325bce49d68eb6e3f5ea5bc5df
+        expression: min(/Template VMware vSAN by API/vsan.cluster.objects.noncompliant["{#CLUSTER.NAME}"],15m)>0
+        name: vSAN cluster [{#CLUSTER.NAME}] has non-compliant objects
+        priority: HIGH
+        manual_close: 'YES'
+        tags:
+        - tag: scope
+          value: availability
+        - tag: component
+          value: vsan
+      - uuid: c3db147aa7f04f8f8a5ff36aebb4556e
+        expression: min(/Template VMware vSAN by API/vsan.cluster.objects.reduced_availability["{#CLUSTER.NAME}"],15m)>0
+        name: vSAN cluster [{#CLUSTER.NAME}] has objects with reduced availability
+        priority: AVERAGE
+        manual_close: 'YES'
+        tags:
+        - tag: scope
+          value: availability
+        - tag: component
+          value: vsan
+      - uuid: a98735b4c7e14013a7c77507fe621cf0
+        expression: last(/Template VMware vSAN by API/vsan.cluster.perf_service.health["{#CLUSTER.NAME}"])<>1
+        name: vSAN cluster [{#CLUSTER.NAME}] performance service is not healthy
+        priority: HIGH
+        manual_close: 'YES'
+        tags:
+        - tag: scope
+          value: availability
+        - tag: component
+          value: vsan
+      - uuid: e9b960991bd34818b64192b4ada03880
+        expression: avg(/Template VMware vSAN by API/vsan.cluster.read_latency["{#CLUSTER.NAME}"],5m)>{$VSAN.LATENCY.HIGH}
+        name: vSAN cluster [{#CLUSTER.NAME}] read latency is high
+        priority: HIGH
+        manual_close: 'YES'
+        tags:
+        - tag: scope
+          value: performance
+        - tag: component
+          value: vsan
+      - uuid: b9803726712b47648168a1161f5397c8
+        expression: avg(/Template VMware vSAN by API/vsan.cluster.read_latency["{#CLUSTER.NAME}"],5m)>{$VSAN.LATENCY.DISASTER}
+        name: vSAN cluster [{#CLUSTER.NAME}] read latency is disaster level
+        priority: DISASTER
+        manual_close: 'YES'
+        tags:
+        - tag: scope
+          value: performance
+        - tag: component
+          value: vsan
+      - uuid: eedd51e4ebaa46c59026a681c2b0e9dc
+        expression: avg(/Template VMware vSAN by API/vsan.cluster.write_latency["{#CLUSTER.NAME}"],5m)>{$VSAN.LATENCY.HIGH}
+        name: vSAN cluster [{#CLUSTER.NAME}] write latency is high
+        priority: HIGH
+        manual_close: 'YES'
+        tags:
+        - tag: scope
+          value: performance
+        - tag: component
+          value: vsan
+      - uuid: a3c55379f920415783f4f919e310c544
+        expression: avg(/Template VMware vSAN by API/vsan.cluster.write_latency["{#CLUSTER.NAME}"],5m)>{$VSAN.LATENCY.DISASTER}
+        name: vSAN cluster [{#CLUSTER.NAME}] write latency is disaster level
+        priority: DISASTER
+        manual_close: 'YES'
+        tags:
+        - tag: scope
+          value: performance
+        - tag: component
+          value: vsan
+      - uuid: 398741c8ee054a8198c9f68bd15821a4
+        expression: min(/Template VMware vSAN by API/vsan.cluster.network.errors["{#CLUSTER.NAME}"],5m)>{$VSAN.NET.ERROR.MAX}
+        name: vSAN cluster [{#CLUSTER.NAME}] has network errors
+        priority: HIGH
+        manual_close: 'YES'
+        tags:
+        - tag: scope
+          value: network
+        - tag: component
+          value: vsan
+      - uuid: 0ff6d5d9bdc242d4bda6d246e24e0cc8
+        expression: min(/Template VMware vSAN by API/vsan.cluster.network.drops["{#CLUSTER.NAME}"],5m)>{$VSAN.NET.ERROR.MAX}
+        name: vSAN cluster [{#CLUSTER.NAME}] has network drops
+        priority: HIGH
+        manual_close: 'YES'
+        tags:
+        - tag: scope
+          value: network
+        - tag: component
+          value: vsan
+      - uuid: c374f7cef3194f3ca6bc00eeb936431b
+        expression: last(/Template VMware vSAN by API/vsan.cluster.rebalance.running["{#CLUSTER.NAME}"])=1
+        name: vSAN cluster [{#CLUSTER.NAME}] rebalance is running
+        priority: INFO
+        manual_close: 'YES'
+        tags:
+        - tag: scope
+          value: notice
+        - tag: component
+          value: vsan
+      - uuid: ab3026c226c54b94a37ae7711be6792a
+        expression: avg(/Template VMware vSAN by API/vsan.cluster.congestion["{#CLUSTER.NAME}"],5m)>{$VSAN.CONGESTION.HIGH}
+        name: vSAN cluster [{#CLUSTER.NAME}] congestion is high
+        priority: HIGH
+        manual_close: 'YES'
+        tags:
+        - tag: scope
+          value: performance
+        - tag: component
+          value: vsan
+    - uuid: a2a5c1dbc62142dc9bcf3756890ed438
+      name: 'vSAN: Host discovery'
+      type: DEPENDENT
+      key: vsan.host.discovery
+      delay: '0'
+      lifetime: 30d
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.lld.hosts
+      master_item:
+        key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+      filter:
+        evaltype: AND
+        conditions:
+        - macro: '{#CLUSTER.NAME}'
+          value: '{$VSAN.CLUSTER.MATCHES}'
+          formulaid: A
+        - macro: '{#CLUSTER.NAME}'
+          value: '{$VSAN.CLUSTER.NOT_MATCHES}'
+          operator: NOT_MATCHES_REGEX
+          formulaid: B
+      description: Discovers ESXi hosts participating in vSAN.
+      item_prototypes:
+      - uuid: de46e5839a4241afa1de38ec4a784690
+        name: 'vSAN host [{#HOST.NAME}]: Health'
+        type: DEPENDENT
+        key: vsan.host.health["{#CLUSTER.NAME}","{#HOST.NAME}"]
+        delay: '0'
+        history: 30d
+        trends: '0'
+        valuemap:
+          name: vSAN health status
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.hosts[?(@.cluster=="{#CLUSTER.NAME}" && @.name=="{#HOST.NAME}")].health.first()
+        master_item:
+          key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+        tags:
+        - tag: component
+          value: vsan
+        - tag: scope
+          value: host
+        - tag: cluster
+          value: '{#CLUSTER.NAME}'
+        - tag: host
+          value: '{#HOST.NAME}'
+      - uuid: 5910008336914211a2469bfc017073e9
+        name: 'vSAN host [{#HOST.NAME}]: Contributing stats'
+        type: DEPENDENT
+        key: vsan.host.contributing_stats["{#CLUSTER.NAME}","{#HOST.NAME}"]
+        delay: '0'
+        history: 30d
+        trends: '0'
+        valuemap:
+          name: Yes/No
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.hosts[?(@.cluster=="{#CLUSTER.NAME}" && @.name=="{#HOST.NAME}")].contributing_stats.first()
+        master_item:
+          key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+        tags:
+        - tag: component
+          value: vsan
+        - tag: scope
+          value: host
+        - tag: cluster
+          value: '{#CLUSTER.NAME}'
+        - tag: host
+          value: '{#HOST.NAME}'
+      - uuid: 9908a0b7fcf94870bda4b6d4745d6b5e
+        name: 'vSAN host [{#HOST.NAME}]: Maintenance mode'
+        type: DEPENDENT
+        key: vsan.host.maintenance_mode["{#CLUSTER.NAME}","{#HOST.NAME}"]
+        delay: '0'
+        history: 30d
+        trends: '0'
+        valuemap:
+          name: Yes/No
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.hosts[?(@.cluster=="{#CLUSTER.NAME}" && @.name=="{#HOST.NAME}")].maintenance_mode.first()
+        master_item:
+          key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+        tags:
+        - tag: component
+          value: vsan
+        - tag: scope
+          value: host
+        - tag: cluster
+          value: '{#CLUSTER.NAME}'
+        - tag: host
+          value: '{#HOST.NAME}'
+      - uuid: ede5b4fb3ea14ffb9016d2857f5d9cb9
+        name: 'vSAN host [{#HOST.NAME}]: Disk group count'
+        type: DEPENDENT
+        key: vsan.host.diskgroup_count["{#CLUSTER.NAME}","{#HOST.NAME}"]
+        delay: '0'
+        history: 30d
+        trends: '0'
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.hosts[?(@.cluster=="{#CLUSTER.NAME}" && @.name=="{#HOST.NAME}")].diskgroup_count.first()
+        master_item:
+          key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+        tags:
+        - tag: component
+          value: vsan
+        - tag: scope
+          value: host
+        - tag: cluster
+          value: '{#CLUSTER.NAME}'
+        - tag: host
+          value: '{#HOST.NAME}'
+      - uuid: 8ea67f8a1ebf4aa08beed8570b68e2aa
+        name: 'vSAN host [{#HOST.NAME}]: Failed disk count'
+        type: DEPENDENT
+        key: vsan.host.disk.failed["{#CLUSTER.NAME}","{#HOST.NAME}"]
+        delay: '0'
+        history: 30d
+        trends: '0'
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.hosts[?(@.cluster=="{#CLUSTER.NAME}" && @.name=="{#HOST.NAME}")].failed_disk_count.first()
+        master_item:
+          key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+        tags:
+        - tag: component
+          value: vsan
+        - tag: scope
+          value: host
+        - tag: cluster
+          value: '{#CLUSTER.NAME}'
+        - tag: host
+          value: '{#HOST.NAME}'
+      - uuid: 34328abb47e14ef697424bb7ac23e6a2
+        name: 'vSAN host [{#HOST.NAME}]: Degraded disk count'
+        type: DEPENDENT
+        key: vsan.host.disk.degraded["{#CLUSTER.NAME}","{#HOST.NAME}"]
+        delay: '0'
+        history: 30d
+        trends: '0'
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.hosts[?(@.cluster=="{#CLUSTER.NAME}" && @.name=="{#HOST.NAME}")].degraded_disk_count.first()
+        master_item:
+          key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+        tags:
+        - tag: component
+          value: vsan
+        - tag: scope
+          value: host
+        - tag: cluster
+          value: '{#CLUSTER.NAME}'
+        - tag: host
+          value: '{#HOST.NAME}'
+      - uuid: 04fff657e6194714abd7b1ee89846d91
+        name: 'vSAN host [{#HOST.NAME}]: Network errors'
+        type: DEPENDENT
+        key: vsan.host.network.errors["{#CLUSTER.NAME}","{#HOST.NAME}"]
+        delay: '0'
+        history: 30d
+        trends: '0'
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.hosts[?(@.cluster=="{#CLUSTER.NAME}" && @.name=="{#HOST.NAME}")].network_errors.first()
+        master_item:
+          key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+        tags:
+        - tag: component
+          value: vsan
+        - tag: scope
+          value: host
+        - tag: cluster
+          value: '{#CLUSTER.NAME}'
+        - tag: host
+          value: '{#HOST.NAME}'
+      - uuid: 5789a1ce60ba44cc9d91eaf0c925531f
+        name: 'vSAN host [{#HOST.NAME}]: Network drops'
+        type: DEPENDENT
+        key: vsan.host.network.drops["{#CLUSTER.NAME}","{#HOST.NAME}"]
+        delay: '0'
+        history: 30d
+        trends: '0'
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.hosts[?(@.cluster=="{#CLUSTER.NAME}" && @.name=="{#HOST.NAME}")].network_drops.first()
+        master_item:
+          key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+        tags:
+        - tag: component
+          value: vsan
+        - tag: scope
+          value: host
+        - tag: cluster
+          value: '{#CLUSTER.NAME}'
+        - tag: host
+          value: '{#HOST.NAME}'
+      - uuid: 643fe3c3d35a4706a3caced6c64170ce
+        name: 'vSAN host [{#HOST.NAME}]: Read latency'
+        type: DEPENDENT
+        key: vsan.host.read_latency["{#CLUSTER.NAME}","{#HOST.NAME}"]
+        delay: '0'
+        history: 30d
+        value_type: FLOAT
+        trends: 180d
+        units: ms
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.hosts[?(@.cluster=="{#CLUSTER.NAME}" && @.name=="{#HOST.NAME}")].read_latency_ms.first()
+        master_item:
+          key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+        tags:
+        - tag: component
+          value: vsan
+        - tag: scope
+          value: host
+        - tag: cluster
+          value: '{#CLUSTER.NAME}'
+        - tag: host
+          value: '{#HOST.NAME}'
+      - uuid: 2a82bef4ac21466bb92a80e8346ee36a
+        name: 'vSAN host [{#HOST.NAME}]: Write latency'
+        type: DEPENDENT
+        key: vsan.host.write_latency["{#CLUSTER.NAME}","{#HOST.NAME}"]
+        delay: '0'
+        history: 30d
+        value_type: FLOAT
+        trends: 180d
+        units: ms
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.hosts[?(@.cluster=="{#CLUSTER.NAME}" && @.name=="{#HOST.NAME}")].write_latency_ms.first()
+        master_item:
+          key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+        tags:
+        - tag: component
+          value: vsan
+        - tag: scope
+          value: host
+        - tag: cluster
+          value: '{#CLUSTER.NAME}'
+        - tag: host
+          value: '{#HOST.NAME}'
+      - uuid: 122cb3dd7ae7410ea111f60075514087
+        name: 'vSAN host [{#HOST.NAME}]: Read IOPS'
+        type: DEPENDENT
+        key: vsan.host.read_iops["{#CLUSTER.NAME}","{#HOST.NAME}"]
+        delay: '0'
+        history: 30d
+        value_type: FLOAT
+        trends: 180d
+        units: '!iops'
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.hosts[?(@.cluster=="{#CLUSTER.NAME}" && @.name=="{#HOST.NAME}")].read_iops.first()
+        master_item:
+          key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+        tags:
+        - tag: component
+          value: vsan
+        - tag: scope
+          value: host
+        - tag: cluster
+          value: '{#CLUSTER.NAME}'
+        - tag: host
+          value: '{#HOST.NAME}'
+      - uuid: f83b495b29b845f496de11e676e1f8bf
+        name: 'vSAN host [{#HOST.NAME}]: Write IOPS'
+        type: DEPENDENT
+        key: vsan.host.write_iops["{#CLUSTER.NAME}","{#HOST.NAME}"]
+        delay: '0'
+        history: 30d
+        value_type: FLOAT
+        trends: 180d
+        units: '!iops'
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.hosts[?(@.cluster=="{#CLUSTER.NAME}" && @.name=="{#HOST.NAME}")].write_iops.first()
+        master_item:
+          key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+        tags:
+        - tag: component
+          value: vsan
+        - tag: scope
+          value: host
+        - tag: cluster
+          value: '{#CLUSTER.NAME}'
+        - tag: host
+          value: '{#HOST.NAME}'
+      - uuid: 196662ac2aef44a99e5fd8fc2eee855c
+        name: 'vSAN host [{#HOST.NAME}]: Read throughput'
+        type: DEPENDENT
+        key: vsan.host.read_bps["{#CLUSTER.NAME}","{#HOST.NAME}"]
+        delay: '0'
+        history: 30d
+        value_type: FLOAT
+        trends: 180d
+        units: Bps
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.hosts[?(@.cluster=="{#CLUSTER.NAME}" && @.name=="{#HOST.NAME}")].read_throughput_bps.first()
+        master_item:
+          key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+        tags:
+        - tag: component
+          value: vsan
+        - tag: scope
+          value: host
+        - tag: cluster
+          value: '{#CLUSTER.NAME}'
+        - tag: host
+          value: '{#HOST.NAME}'
+      - uuid: 379aa945b1264a68bb9d6a64acf522e7
+        name: 'vSAN host [{#HOST.NAME}]: Write throughput'
+        type: DEPENDENT
+        key: vsan.host.write_bps["{#CLUSTER.NAME}","{#HOST.NAME}"]
+        delay: '0'
+        history: 30d
+        value_type: FLOAT
+        trends: 180d
+        units: Bps
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.hosts[?(@.cluster=="{#CLUSTER.NAME}" && @.name=="{#HOST.NAME}")].write_throughput_bps.first()
+        master_item:
+          key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+        tags:
+        - tag: component
+          value: vsan
+        - tag: scope
+          value: host
+        - tag: cluster
+          value: '{#CLUSTER.NAME}'
+        - tag: host
+          value: '{#HOST.NAME}'
+      - uuid: 35dc6447104e428d89de65c4dcb2db5c
+        name: 'vSAN host [{#HOST.NAME}]: Network RX'
+        type: DEPENDENT
+        key: vsan.host.network.rx_bps["{#CLUSTER.NAME}","{#HOST.NAME}"]
+        delay: '0'
+        history: 30d
+        value_type: FLOAT
+        trends: 180d
+        units: Bps
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.hosts[?(@.cluster=="{#CLUSTER.NAME}" && @.name=="{#HOST.NAME}")].network_rx_bps.first()
+        master_item:
+          key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+        tags:
+        - tag: component
+          value: vsan
+        - tag: scope
+          value: host
+        - tag: cluster
+          value: '{#CLUSTER.NAME}'
+        - tag: host
+          value: '{#HOST.NAME}'
+      - uuid: d74bd193404d4ef983dda7782b7cb006
+        name: 'vSAN host [{#HOST.NAME}]: Network TX'
+        type: DEPENDENT
+        key: vsan.host.network.tx_bps["{#CLUSTER.NAME}","{#HOST.NAME}"]
+        delay: '0'
+        history: 30d
+        value_type: FLOAT
+        trends: 180d
+        units: Bps
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.hosts[?(@.cluster=="{#CLUSTER.NAME}" && @.name=="{#HOST.NAME}")].network_tx_bps.first()
+        master_item:
+          key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+        tags:
+        - tag: component
+          value: vsan
+        - tag: scope
+          value: host
+        - tag: cluster
+          value: '{#CLUSTER.NAME}'
+        - tag: host
+          value: '{#HOST.NAME}'
+      trigger_prototypes:
+      - uuid: 010c9e5dcf92404791cebf0a45cdf6c6
+        expression: last(/Template VMware vSAN by API/vsan.host.health["{#CLUSTER.NAME}","{#HOST.NAME}"])<>1
+        name: vSAN host [{#HOST.NAME}] health is not OK
+        priority: HIGH
+        manual_close: 'YES'
+        tags:
+        - tag: scope
+          value: availability
+        - tag: component
+          value: vsan
+      - uuid: 63f4e81229274963b76c69977df64678
+        expression: last(/Template VMware vSAN by API/vsan.host.contributing_stats["{#CLUSTER.NAME}","{#HOST.NAME}"])=0
+        name: vSAN host [{#HOST.NAME}] is not contributing stats
+        priority: AVERAGE
+        manual_close: 'YES'
+        tags:
+        - tag: scope
+          value: availability
+        - tag: component
+          value: vsan
+      - uuid: 71937d35c75b4369b6ab5d2701ca0fbd
+        expression: last(/Template VMware vSAN by API/vsan.host.disk.failed["{#CLUSTER.NAME}","{#HOST.NAME}"])>0
+        name: vSAN host [{#HOST.NAME}] has failed disk
+        priority: DISASTER
+        manual_close: 'YES'
+        tags:
+        - tag: scope
+          value: availability
+        - tag: component
+          value: vsan
+      - uuid: afac9cb4442e4d4984517bcbebef5722
+        expression: last(/Template VMware vSAN by API/vsan.host.disk.degraded["{#CLUSTER.NAME}","{#HOST.NAME}"])>0
+        name: vSAN host [{#HOST.NAME}] has degraded disk
+        priority: HIGH
+        manual_close: 'YES'
+        tags:
+        - tag: scope
+          value: availability
+        - tag: component
+          value: vsan
+      - uuid: 11c05fe995034099b3d639a6b66a958a
+        expression: min(/Template VMware vSAN by API/vsan.host.network.errors["{#CLUSTER.NAME}","{#HOST.NAME}"],5m)>{$VSAN.NET.ERROR.MAX}
+        name: vSAN host [{#HOST.NAME}] has network errors
+        priority: HIGH
+        manual_close: 'YES'
+        tags:
+        - tag: scope
+          value: network
+        - tag: component
+          value: vsan
+      - uuid: 10ee19d5d7e042ba924975428a37684b
+        expression: min(/Template VMware vSAN by API/vsan.host.network.drops["{#CLUSTER.NAME}","{#HOST.NAME}"],5m)>{$VSAN.NET.ERROR.MAX}
+        name: vSAN host [{#HOST.NAME}] has network drops
+        priority: HIGH
+        manual_close: 'YES'
+        tags:
+        - tag: scope
+          value: network
+        - tag: component
+          value: vsan
+    - uuid: 7a8131cb023945fa911d6603553079de
+      name: 'vSAN: Disk group discovery'
+      type: DEPENDENT
+      key: vsan.diskgroup.discovery
+      delay: '0'
+      lifetime: 30d
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.lld.diskgroups
+      master_item:
+        key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+      filter:
+        evaltype: AND
+        conditions:
+        - macro: '{#CLUSTER.NAME}'
+          value: '{$VSAN.CLUSTER.MATCHES}'
+          formulaid: A
+        - macro: '{#CLUSTER.NAME}'
+          value: '{$VSAN.CLUSTER.NOT_MATCHES}'
+          operator: NOT_MATCHES_REGEX
+          formulaid: B
+      description: Discovers vSAN disk groups.
+      item_prototypes:
+      - uuid: b0ec5e8ffa3d41968ad39cbe4a952239
+        name: 'vSAN disk group [{#DISKGROUP.NAME}]: Health'
+        type: DEPENDENT
+        key: vsan.diskgroup.health["{#CLUSTER.NAME}","{#HOST.NAME}","{#DISKGROUP.UUID}"]
+        delay: '0'
+        history: 30d
+        trends: '0'
+        valuemap:
+          name: vSAN health status
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.diskgroups[?(@.cluster=="{#CLUSTER.NAME}" && @.host=="{#HOST.NAME}" && @.uuid=="{#DISKGROUP.UUID}")].health.first()
+        master_item:
+          key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+        tags:
+        - tag: component
+          value: vsan
+        - tag: scope
+          value: diskgroup
+        - tag: cluster
+          value: '{#CLUSTER.NAME}'
+        - tag: host
+          value: '{#HOST.NAME}'
+        - tag: diskgroup
+          value: '{#DISKGROUP.UUID}'
+      - uuid: 9148736c868248deba9d6136c16b7874
+        name: 'vSAN disk group [{#DISKGROUP.NAME}]: Used percentage'
+        type: DEPENDENT
+        key: vsan.diskgroup.used_pct["{#CLUSTER.NAME}","{#HOST.NAME}","{#DISKGROUP.UUID}"]
+        delay: '0'
+        history: 30d
+        value_type: FLOAT
+        trends: 365d
+        units: '%'
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.diskgroups[?(@.cluster=="{#CLUSTER.NAME}" && @.host=="{#HOST.NAME}" && @.uuid=="{#DISKGROUP.UUID}")].used_pct.first()
+        master_item:
+          key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+        tags:
+        - tag: component
+          value: vsan
+        - tag: scope
+          value: diskgroup
+        - tag: cluster
+          value: '{#CLUSTER.NAME}'
+        - tag: host
+          value: '{#HOST.NAME}'
+        - tag: diskgroup
+          value: '{#DISKGROUP.UUID}'
+      - uuid: 73be432d102a40d6b2e8da251450e646
+        name: 'vSAN disk group [{#DISKGROUP.NAME}]: Capacity'
+        type: DEPENDENT
+        key: vsan.diskgroup.capacity["{#CLUSTER.NAME}","{#HOST.NAME}","{#DISKGROUP.UUID}"]
+        delay: '0'
+        history: 30d
+        trends: 365d
+        units: B
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.diskgroups[?(@.cluster=="{#CLUSTER.NAME}" && @.host=="{#HOST.NAME}" && @.uuid=="{#DISKGROUP.UUID}")].capacity_bytes.first()
+        master_item:
+          key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+        tags:
+        - tag: component
+          value: vsan
+        - tag: scope
+          value: diskgroup
+        - tag: cluster
+          value: '{#CLUSTER.NAME}'
+        - tag: host
+          value: '{#HOST.NAME}'
+        - tag: diskgroup
+          value: '{#DISKGROUP.UUID}'
+      - uuid: b3346e0cd99749f390f3fb1aefa52876
+        name: 'vSAN disk group [{#DISKGROUP.NAME}]: Used'
+        type: DEPENDENT
+        key: vsan.diskgroup.used["{#CLUSTER.NAME}","{#HOST.NAME}","{#DISKGROUP.UUID}"]
+        delay: '0'
+        history: 30d
+        trends: 365d
+        units: B
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.diskgroups[?(@.cluster=="{#CLUSTER.NAME}" && @.host=="{#HOST.NAME}" && @.uuid=="{#DISKGROUP.UUID}")].used_bytes.first()
+        master_item:
+          key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+        tags:
+        - tag: component
+          value: vsan
+        - tag: scope
+          value: diskgroup
+        - tag: cluster
+          value: '{#CLUSTER.NAME}'
+        - tag: host
+          value: '{#HOST.NAME}'
+        - tag: diskgroup
+          value: '{#DISKGROUP.UUID}'
+      - uuid: 22b3e555a8e849ae84068537e566777e
+        name: 'vSAN disk group [{#DISKGROUP.NAME}]: Free'
+        type: DEPENDENT
+        key: vsan.diskgroup.free["{#CLUSTER.NAME}","{#HOST.NAME}","{#DISKGROUP.UUID}"]
+        delay: '0'
+        history: 30d
+        trends: 365d
+        units: B
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.diskgroups[?(@.cluster=="{#CLUSTER.NAME}" && @.host=="{#HOST.NAME}" && @.uuid=="{#DISKGROUP.UUID}")].free_bytes.first()
+        master_item:
+          key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+        tags:
+        - tag: component
+          value: vsan
+        - tag: scope
+          value: diskgroup
+        - tag: cluster
+          value: '{#CLUSTER.NAME}'
+        - tag: host
+          value: '{#HOST.NAME}'
+        - tag: diskgroup
+          value: '{#DISKGROUP.UUID}'
+      - uuid: a047ba13577d47f19c15ee7506a7817c
+        name: 'vSAN disk group [{#DISKGROUP.NAME}]: Cache disk health'
+        type: DEPENDENT
+        key: vsan.diskgroup.cache.health["{#CLUSTER.NAME}","{#HOST.NAME}","{#DISKGROUP.UUID}"]
+        delay: '0'
+        history: 30d
+        trends: '0'
+        valuemap:
+          name: vSAN health status
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.diskgroups[?(@.cluster=="{#CLUSTER.NAME}" && @.host=="{#HOST.NAME}" && @.uuid=="{#DISKGROUP.UUID}")].cache_disk_health.first()
+        master_item:
+          key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+        tags:
+        - tag: component
+          value: vsan
+        - tag: scope
+          value: diskgroup
+        - tag: cluster
+          value: '{#CLUSTER.NAME}'
+        - tag: host
+          value: '{#HOST.NAME}'
+        - tag: diskgroup
+          value: '{#DISKGROUP.UUID}'
+      - uuid: 29246a00fde144b6acc059b2d725955f
+        name: 'vSAN disk group [{#DISKGROUP.NAME}]: Capacity disk count'
+        type: DEPENDENT
+        key: vsan.diskgroup.capacity_disk_count["{#CLUSTER.NAME}","{#HOST.NAME}","{#DISKGROUP.UUID}"]
+        delay: '0'
+        history: 30d
+        trends: '0'
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.diskgroups[?(@.cluster=="{#CLUSTER.NAME}" && @.host=="{#HOST.NAME}" && @.uuid=="{#DISKGROUP.UUID}")].capacity_disk_count.first()
+        master_item:
+          key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+        tags:
+        - tag: component
+          value: vsan
+        - tag: scope
+          value: diskgroup
+        - tag: cluster
+          value: '{#CLUSTER.NAME}'
+        - tag: host
+          value: '{#HOST.NAME}'
+        - tag: diskgroup
+          value: '{#DISKGROUP.UUID}'
+      - uuid: 01109cf55a0d46b6bbf232c9a76b4560
+        name: 'vSAN disk group [{#DISKGROUP.NAME}]: Failed disk count'
+        type: DEPENDENT
+        key: vsan.diskgroup.disk.failed["{#CLUSTER.NAME}","{#HOST.NAME}","{#DISKGROUP.UUID}"]
+        delay: '0'
+        history: 30d
+        trends: '0'
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.diskgroups[?(@.cluster=="{#CLUSTER.NAME}" && @.host=="{#HOST.NAME}" && @.uuid=="{#DISKGROUP.UUID}")].failed_disk_count.first()
+        master_item:
+          key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+        tags:
+        - tag: component
+          value: vsan
+        - tag: scope
+          value: diskgroup
+        - tag: cluster
+          value: '{#CLUSTER.NAME}'
+        - tag: host
+          value: '{#HOST.NAME}'
+        - tag: diskgroup
+          value: '{#DISKGROUP.UUID}'
+      - uuid: 8958348c89924406b10f3ff14232125f
+        name: 'vSAN disk group [{#DISKGROUP.NAME}]: Read latency'
+        type: DEPENDENT
+        key: vsan.diskgroup.read_latency["{#CLUSTER.NAME}","{#HOST.NAME}","{#DISKGROUP.UUID}"]
+        delay: '0'
+        history: 30d
+        value_type: FLOAT
+        trends: 180d
+        units: ms
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.diskgroups[?(@.cluster=="{#CLUSTER.NAME}" && @.host=="{#HOST.NAME}" && @.uuid=="{#DISKGROUP.UUID}")].read_latency_ms.first()
+        master_item:
+          key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+        tags:
+        - tag: component
+          value: vsan
+        - tag: scope
+          value: diskgroup
+        - tag: cluster
+          value: '{#CLUSTER.NAME}'
+        - tag: host
+          value: '{#HOST.NAME}'
+        - tag: diskgroup
+          value: '{#DISKGROUP.UUID}'
+      - uuid: 213212dfad584a7bad0f1f9c30df3857
+        name: 'vSAN disk group [{#DISKGROUP.NAME}]: Write latency'
+        type: DEPENDENT
+        key: vsan.diskgroup.write_latency["{#CLUSTER.NAME}","{#HOST.NAME}","{#DISKGROUP.UUID}"]
+        delay: '0'
+        history: 30d
+        value_type: FLOAT
+        trends: 180d
+        units: ms
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.diskgroups[?(@.cluster=="{#CLUSTER.NAME}" && @.host=="{#HOST.NAME}" && @.uuid=="{#DISKGROUP.UUID}")].write_latency_ms.first()
+        master_item:
+          key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+        tags:
+        - tag: component
+          value: vsan
+        - tag: scope
+          value: diskgroup
+        - tag: cluster
+          value: '{#CLUSTER.NAME}'
+        - tag: host
+          value: '{#HOST.NAME}'
+        - tag: diskgroup
+          value: '{#DISKGROUP.UUID}'
+      - uuid: fe7aa732a80140e4afa53a6c4e4d830f
+        name: 'vSAN disk group [{#DISKGROUP.NAME}]: Read IOPS'
+        type: DEPENDENT
+        key: vsan.diskgroup.read_iops["{#CLUSTER.NAME}","{#HOST.NAME}","{#DISKGROUP.UUID}"]
+        delay: '0'
+        history: 30d
+        value_type: FLOAT
+        trends: 180d
+        units: '!iops'
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.diskgroups[?(@.cluster=="{#CLUSTER.NAME}" && @.host=="{#HOST.NAME}" && @.uuid=="{#DISKGROUP.UUID}")].read_iops.first()
+        master_item:
+          key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+        tags:
+        - tag: component
+          value: vsan
+        - tag: scope
+          value: diskgroup
+        - tag: cluster
+          value: '{#CLUSTER.NAME}'
+        - tag: host
+          value: '{#HOST.NAME}'
+        - tag: diskgroup
+          value: '{#DISKGROUP.UUID}'
+      - uuid: ae814c7ca48a4e5795d1395af45c6d54
+        name: 'vSAN disk group [{#DISKGROUP.NAME}]: Write IOPS'
+        type: DEPENDENT
+        key: vsan.diskgroup.write_iops["{#CLUSTER.NAME}","{#HOST.NAME}","{#DISKGROUP.UUID}"]
+        delay: '0'
+        history: 30d
+        value_type: FLOAT
+        trends: 180d
+        units: '!iops'
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.diskgroups[?(@.cluster=="{#CLUSTER.NAME}" && @.host=="{#HOST.NAME}" && @.uuid=="{#DISKGROUP.UUID}")].write_iops.first()
+        master_item:
+          key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+        tags:
+        - tag: component
+          value: vsan
+        - tag: scope
+          value: diskgroup
+        - tag: cluster
+          value: '{#CLUSTER.NAME}'
+        - tag: host
+          value: '{#HOST.NAME}'
+        - tag: diskgroup
+          value: '{#DISKGROUP.UUID}'
+      - uuid: c10d9d50f7294921a71af1c911d804ba
+        name: 'vSAN disk group [{#DISKGROUP.NAME}]: Read throughput'
+        type: DEPENDENT
+        key: vsan.diskgroup.read_bps["{#CLUSTER.NAME}","{#HOST.NAME}","{#DISKGROUP.UUID}"]
+        delay: '0'
+        history: 30d
+        value_type: FLOAT
+        trends: 180d
+        units: Bps
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.diskgroups[?(@.cluster=="{#CLUSTER.NAME}" && @.host=="{#HOST.NAME}" && @.uuid=="{#DISKGROUP.UUID}")].read_throughput_bps.first()
+        master_item:
+          key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+        tags:
+        - tag: component
+          value: vsan
+        - tag: scope
+          value: diskgroup
+        - tag: cluster
+          value: '{#CLUSTER.NAME}'
+        - tag: host
+          value: '{#HOST.NAME}'
+        - tag: diskgroup
+          value: '{#DISKGROUP.UUID}'
+      - uuid: 086d2607205d4e03b95a6e9ec1a016d7
+        name: 'vSAN disk group [{#DISKGROUP.NAME}]: Write throughput'
+        type: DEPENDENT
+        key: vsan.diskgroup.write_bps["{#CLUSTER.NAME}","{#HOST.NAME}","{#DISKGROUP.UUID}"]
+        delay: '0'
+        history: 30d
+        value_type: FLOAT
+        trends: 180d
+        units: Bps
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.diskgroups[?(@.cluster=="{#CLUSTER.NAME}" && @.host=="{#HOST.NAME}" && @.uuid=="{#DISKGROUP.UUID}")].write_throughput_bps.first()
+        master_item:
+          key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+        tags:
+        - tag: component
+          value: vsan
+        - tag: scope
+          value: diskgroup
+        - tag: cluster
+          value: '{#CLUSTER.NAME}'
+        - tag: host
+          value: '{#HOST.NAME}'
+        - tag: diskgroup
+          value: '{#DISKGROUP.UUID}'
+      - uuid: 225439a946984a04ba808e4a65d25928
+        name: 'vSAN disk group [{#DISKGROUP.NAME}]: Congestion'
+        type: DEPENDENT
+        key: vsan.diskgroup.congestion["{#CLUSTER.NAME}","{#HOST.NAME}","{#DISKGROUP.UUID}"]
+        delay: '0'
+        history: 30d
+        value_type: FLOAT
+        trends: 180d
+        units: '%'
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.diskgroups[?(@.cluster=="{#CLUSTER.NAME}" && @.host=="{#HOST.NAME}" && @.uuid=="{#DISKGROUP.UUID}")].congestion.first()
+        master_item:
+          key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+        tags:
+        - tag: component
+          value: vsan
+        - tag: scope
+          value: diskgroup
+        - tag: cluster
+          value: '{#CLUSTER.NAME}'
+        - tag: host
+          value: '{#HOST.NAME}'
+        - tag: diskgroup
+          value: '{#DISKGROUP.UUID}'
+      trigger_prototypes:
+      - uuid: ef9dece3bab946218acf9b2082c95a91
+        expression: last(/Template VMware vSAN by API/vsan.diskgroup.health["{#CLUSTER.NAME}","{#HOST.NAME}","{#DISKGROUP.UUID}"])<>1
+        name: vSAN disk group [{#DISKGROUP.NAME}] health is not OK
+        priority: HIGH
+        manual_close: 'YES'
+        tags:
+        - tag: scope
+          value: availability
+        - tag: component
+          value: vsan
+      - uuid: 70f8f6d0a54440809812e845c81de683
+        expression: min(/Template VMware vSAN by API/vsan.diskgroup.used_pct["{#CLUSTER.NAME}","{#HOST.NAME}","{#DISKGROUP.UUID}"],15m)>{$VSAN.DISK.USED.WARN}
+        name: vSAN disk group [{#DISKGROUP.NAME}] usage is high
+        priority: WARNING
+        manual_close: 'YES'
+        tags:
+        - tag: scope
+          value: capacity
+        - tag: component
+          value: vsan
+      - uuid: faf111e8772e4ca19a7191c38d5118d1
+        expression: min(/Template VMware vSAN by API/vsan.diskgroup.used_pct["{#CLUSTER.NAME}","{#HOST.NAME}","{#DISKGROUP.UUID}"],15m)>{$VSAN.DISK.USED.HIGH}
+        name: vSAN disk group [{#DISKGROUP.NAME}] usage is very high
+        priority: HIGH
+        manual_close: 'YES'
+        tags:
+        - tag: scope
+          value: capacity
+        - tag: component
+          value: vsan
+      - uuid: 3e61b6146b424dbdbce70e9f48a06079
+        expression: last(/Template VMware vSAN by API/vsan.diskgroup.cache.health["{#CLUSTER.NAME}","{#HOST.NAME}","{#DISKGROUP.UUID}"])<>1
+        name: vSAN disk group [{#DISKGROUP.NAME}] cache disk is not healthy
+        priority: DISASTER
+        manual_close: 'YES'
+        tags:
+        - tag: scope
+          value: availability
+        - tag: component
+          value: vsan
+      - uuid: 2929fbe1138645fca140ad2e66d1bbf4
+        expression: last(/Template VMware vSAN by API/vsan.diskgroup.disk.failed["{#CLUSTER.NAME}","{#HOST.NAME}","{#DISKGROUP.UUID}"])>0
+        name: vSAN disk group [{#DISKGROUP.NAME}] has failed disk
+        priority: DISASTER
+        manual_close: 'YES'
+        tags:
+        - tag: scope
+          value: availability
+        - tag: component
+          value: vsan
+      - uuid: 72617d7038854f39a508e8049a3c1914
+        expression: avg(/Template VMware vSAN by API/vsan.diskgroup.write_latency["{#CLUSTER.NAME}","{#HOST.NAME}","{#DISKGROUP.UUID}"],5m)>{$VSAN.LATENCY.HIGH}
+        name: vSAN disk group [{#DISKGROUP.NAME}] write latency is high
+        priority: HIGH
+        manual_close: 'YES'
+        tags:
+        - tag: scope
+          value: performance
+        - tag: component
+          value: vsan
+    - uuid: 4a6229241fcc47528010b6839ef3bedc
+      name: 'vSAN: Capacity disk discovery'
+      type: DEPENDENT
+      key: vsan.capacity_disk.discovery
+      delay: '0'
+      lifetime: 30d
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.lld.capacity_disks
+      master_item:
+        key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+      filter:
+        evaltype: AND
+        conditions:
+        - macro: '{#CLUSTER.NAME}'
+          value: '{$VSAN.CLUSTER.MATCHES}'
+          formulaid: A
+        - macro: '{#CLUSTER.NAME}'
+          value: '{$VSAN.CLUSTER.NOT_MATCHES}'
+          operator: NOT_MATCHES_REGEX
+          formulaid: B
+      description: Discovers vSAN capacity disks.
+      item_prototypes:
+      - uuid: 94262ecf70d64ede983bb7c2f4151599
+        name: 'vSAN capacity disk [{#DISK.NAME}]: Health'
+        type: DEPENDENT
+        key: vsan.capacity_disk.health["{#CLUSTER.NAME}","{#HOST.NAME}","{#DISK.UUID}"]
+        delay: '0'
+        history: 30d
+        trends: '0'
+        valuemap:
+          name: vSAN health status
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.capacity_disks[?(@.cluster=="{#CLUSTER.NAME}" && @.host=="{#HOST.NAME}" && @.uuid=="{#DISK.UUID}")].health.first()
+        master_item:
+          key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+        tags:
+        - tag: component
+          value: vsan
+        - tag: scope
+          value: capacity_disk
+        - tag: cluster
+          value: '{#CLUSTER.NAME}'
+        - tag: host
+          value: '{#HOST.NAME}'
+        - tag: disk
+          value: '{#DISK.UUID}'
+      - uuid: d1d24aefc4e34055b6a92da6e7b37c04
+        name: 'vSAN capacity disk [{#DISK.NAME}]: Used percentage'
+        type: DEPENDENT
+        key: vsan.capacity_disk.used_pct["{#CLUSTER.NAME}","{#HOST.NAME}","{#DISK.UUID}"]
+        delay: '0'
+        history: 30d
+        value_type: FLOAT
+        trends: 365d
+        units: '%'
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.capacity_disks[?(@.cluster=="{#CLUSTER.NAME}" && @.host=="{#HOST.NAME}" && @.uuid=="{#DISK.UUID}")].used_pct.first()
+        master_item:
+          key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+        tags:
+        - tag: component
+          value: vsan
+        - tag: scope
+          value: capacity_disk
+        - tag: cluster
+          value: '{#CLUSTER.NAME}'
+        - tag: host
+          value: '{#HOST.NAME}'
+        - tag: disk
+          value: '{#DISK.UUID}'
+      - uuid: 10b79fc507f64a5a9445a3ab66aa4c52
+        name: 'vSAN capacity disk [{#DISK.NAME}]: Capacity'
+        type: DEPENDENT
+        key: vsan.capacity_disk.capacity["{#CLUSTER.NAME}","{#HOST.NAME}","{#DISK.UUID}"]
+        delay: '0'
+        history: 30d
+        trends: 365d
+        units: B
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.capacity_disks[?(@.cluster=="{#CLUSTER.NAME}" && @.host=="{#HOST.NAME}" && @.uuid=="{#DISK.UUID}")].capacity_bytes.first()
+        master_item:
+          key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+        tags:
+        - tag: component
+          value: vsan
+        - tag: scope
+          value: capacity_disk
+        - tag: cluster
+          value: '{#CLUSTER.NAME}'
+        - tag: host
+          value: '{#HOST.NAME}'
+        - tag: disk
+          value: '{#DISK.UUID}'
+      - uuid: cc4c01d71a5440e7bcc1f5cca6f078be
+        name: 'vSAN capacity disk [{#DISK.NAME}]: Used'
+        type: DEPENDENT
+        key: vsan.capacity_disk.used["{#CLUSTER.NAME}","{#HOST.NAME}","{#DISK.UUID}"]
+        delay: '0'
+        history: 30d
+        trends: 365d
+        units: B
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.capacity_disks[?(@.cluster=="{#CLUSTER.NAME}" && @.host=="{#HOST.NAME}" && @.uuid=="{#DISK.UUID}")].used_bytes.first()
+        master_item:
+          key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+        tags:
+        - tag: component
+          value: vsan
+        - tag: scope
+          value: capacity_disk
+        - tag: cluster
+          value: '{#CLUSTER.NAME}'
+        - tag: host
+          value: '{#HOST.NAME}'
+        - tag: disk
+          value: '{#DISK.UUID}'
+      - uuid: c97eb19d293a48cd97921c634e93feb7
+        name: 'vSAN capacity disk [{#DISK.NAME}]: Free'
+        type: DEPENDENT
+        key: vsan.capacity_disk.free["{#CLUSTER.NAME}","{#HOST.NAME}","{#DISK.UUID}"]
+        delay: '0'
+        history: 30d
+        trends: 365d
+        units: B
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.capacity_disks[?(@.cluster=="{#CLUSTER.NAME}" && @.host=="{#HOST.NAME}" && @.uuid=="{#DISK.UUID}")].free_bytes.first()
+        master_item:
+          key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+        tags:
+        - tag: component
+          value: vsan
+        - tag: scope
+          value: capacity_disk
+        - tag: cluster
+          value: '{#CLUSTER.NAME}'
+        - tag: host
+          value: '{#HOST.NAME}'
+        - tag: disk
+          value: '{#DISK.UUID}'
+      - uuid: 423ca14ca6a44daf8b0b22c1bfa8cae6
+        name: 'vSAN capacity disk [{#DISK.NAME}]: Read latency'
+        type: DEPENDENT
+        key: vsan.capacity_disk.read_latency["{#CLUSTER.NAME}","{#HOST.NAME}","{#DISK.UUID}"]
+        delay: '0'
+        history: 30d
+        value_type: FLOAT
+        trends: 180d
+        units: ms
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.capacity_disks[?(@.cluster=="{#CLUSTER.NAME}" && @.host=="{#HOST.NAME}" && @.uuid=="{#DISK.UUID}")].read_latency_ms.first()
+        master_item:
+          key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+        tags:
+        - tag: component
+          value: vsan
+        - tag: scope
+          value: capacity_disk
+        - tag: cluster
+          value: '{#CLUSTER.NAME}'
+        - tag: host
+          value: '{#HOST.NAME}'
+        - tag: disk
+          value: '{#DISK.UUID}'
+      - uuid: 4642fc88b3dc4956904d600c640c1e9e
+        name: 'vSAN capacity disk [{#DISK.NAME}]: Write latency'
+        type: DEPENDENT
+        key: vsan.capacity_disk.write_latency["{#CLUSTER.NAME}","{#HOST.NAME}","{#DISK.UUID}"]
+        delay: '0'
+        history: 30d
+        value_type: FLOAT
+        trends: 180d
+        units: ms
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.capacity_disks[?(@.cluster=="{#CLUSTER.NAME}" && @.host=="{#HOST.NAME}" && @.uuid=="{#DISK.UUID}")].write_latency_ms.first()
+        master_item:
+          key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+        tags:
+        - tag: component
+          value: vsan
+        - tag: scope
+          value: capacity_disk
+        - tag: cluster
+          value: '{#CLUSTER.NAME}'
+        - tag: host
+          value: '{#HOST.NAME}'
+        - tag: disk
+          value: '{#DISK.UUID}'
+      - uuid: b101e66b9471468e85308f0b062da6de
+        name: 'vSAN capacity disk [{#DISK.NAME}]: Read IOPS'
+        type: DEPENDENT
+        key: vsan.capacity_disk.read_iops["{#CLUSTER.NAME}","{#HOST.NAME}","{#DISK.UUID}"]
+        delay: '0'
+        history: 30d
+        value_type: FLOAT
+        trends: 180d
+        units: '!iops'
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.capacity_disks[?(@.cluster=="{#CLUSTER.NAME}" && @.host=="{#HOST.NAME}" && @.uuid=="{#DISK.UUID}")].read_iops.first()
+        master_item:
+          key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+        tags:
+        - tag: component
+          value: vsan
+        - tag: scope
+          value: capacity_disk
+        - tag: cluster
+          value: '{#CLUSTER.NAME}'
+        - tag: host
+          value: '{#HOST.NAME}'
+        - tag: disk
+          value: '{#DISK.UUID}'
+      - uuid: 28402eb6ecb548b5b495ebde3e45c9e3
+        name: 'vSAN capacity disk [{#DISK.NAME}]: Write IOPS'
+        type: DEPENDENT
+        key: vsan.capacity_disk.write_iops["{#CLUSTER.NAME}","{#HOST.NAME}","{#DISK.UUID}"]
+        delay: '0'
+        history: 30d
+        value_type: FLOAT
+        trends: 180d
+        units: '!iops'
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.capacity_disks[?(@.cluster=="{#CLUSTER.NAME}" && @.host=="{#HOST.NAME}" && @.uuid=="{#DISK.UUID}")].write_iops.first()
+        master_item:
+          key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+        tags:
+        - tag: component
+          value: vsan
+        - tag: scope
+          value: capacity_disk
+        - tag: cluster
+          value: '{#CLUSTER.NAME}'
+        - tag: host
+          value: '{#HOST.NAME}'
+        - tag: disk
+          value: '{#DISK.UUID}'
+      - uuid: 6fbb052ca1aa4c86a77b2798a6a807fc
+        name: 'vSAN capacity disk [{#DISK.NAME}]: Read throughput'
+        type: DEPENDENT
+        key: vsan.capacity_disk.read_bps["{#CLUSTER.NAME}","{#HOST.NAME}","{#DISK.UUID}"]
+        delay: '0'
+        history: 30d
+        value_type: FLOAT
+        trends: 180d
+        units: Bps
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.capacity_disks[?(@.cluster=="{#CLUSTER.NAME}" && @.host=="{#HOST.NAME}" && @.uuid=="{#DISK.UUID}")].read_throughput_bps.first()
+        master_item:
+          key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+        tags:
+        - tag: component
+          value: vsan
+        - tag: scope
+          value: capacity_disk
+        - tag: cluster
+          value: '{#CLUSTER.NAME}'
+        - tag: host
+          value: '{#HOST.NAME}'
+        - tag: disk
+          value: '{#DISK.UUID}'
+      - uuid: fb0fc3a0a78c4af8b374fc931dcc6303
+        name: 'vSAN capacity disk [{#DISK.NAME}]: Write throughput'
+        type: DEPENDENT
+        key: vsan.capacity_disk.write_bps["{#CLUSTER.NAME}","{#HOST.NAME}","{#DISK.UUID}"]
+        delay: '0'
+        history: 30d
+        value_type: FLOAT
+        trends: 180d
+        units: Bps
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.capacity_disks[?(@.cluster=="{#CLUSTER.NAME}" && @.host=="{#HOST.NAME}" && @.uuid=="{#DISK.UUID}")].write_throughput_bps.first()
+        master_item:
+          key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+        tags:
+        - tag: component
+          value: vsan
+        - tag: scope
+          value: capacity_disk
+        - tag: cluster
+          value: '{#CLUSTER.NAME}'
+        - tag: host
+          value: '{#HOST.NAME}'
+        - tag: disk
+          value: '{#DISK.UUID}'
+      trigger_prototypes:
+      - uuid: ad477fda822441ff89714ee5e4a17185
+        expression: last(/Template VMware vSAN by API/vsan.capacity_disk.health["{#CLUSTER.NAME}","{#HOST.NAME}","{#DISK.UUID}"])<>1
+        name: vSAN capacity disk [{#DISK.NAME}] is not healthy
+        priority: DISASTER
+        manual_close: 'YES'
+        tags:
+        - tag: scope
+          value: availability
+        - tag: component
+          value: vsan
+      - uuid: a8fdc1c7b4e94cd994b259b41a856a25
+        expression: min(/Template VMware vSAN by API/vsan.capacity_disk.used_pct["{#CLUSTER.NAME}","{#HOST.NAME}","{#DISK.UUID}"],15m)>{$VSAN.CAPACITY_DISK.USED.HIGH}
+        name: vSAN capacity disk [{#DISK.NAME}] usage is high
+        priority: HIGH
+        manual_close: 'YES'
+        tags:
+        - tag: scope
+          value: capacity
+        - tag: component
+          value: vsan
+      - uuid: 0d14714f1adc4098acca6419bde5a653
+        expression: avg(/Template VMware vSAN by API/vsan.capacity_disk.write_latency["{#CLUSTER.NAME}","{#HOST.NAME}","{#DISK.UUID}"],5m)>{$VSAN.LATENCY.HIGH}
+        name: vSAN capacity disk [{#DISK.NAME}] write latency is high
+        priority: HIGH
+        manual_close: 'YES'
+        tags:
+        - tag: scope
+          value: performance
+        - tag: component
+          value: vsan
+    - uuid: 795a0c89a6ad4306a67858985308f7f2
+      name: 'vSAN: VM performance discovery'
+      type: DEPENDENT
+      key: vsan.vm.discovery
+      delay: '0'
+      lifetime: 30d
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.lld.vms
+      master_item:
+        key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+      filter:
+        evaltype: AND
+        conditions:
+        - macro: '{#CLUSTER.NAME}'
+          value: '{$VSAN.CLUSTER.MATCHES}'
+          formulaid: A
+        - macro: '{#CLUSTER.NAME}'
+          value: '{$VSAN.CLUSTER.NOT_MATCHES}'
+          operator: NOT_MATCHES_REGEX
+          formulaid: B
+      description: Discovers VMs with vSAN performance metrics. Tune LLD filtering to reduce noisy VM-level items.
+      item_prototypes:
+      - uuid: 707d9344cf244447a6a0db1523d6ddac
+        name: 'vSAN VM [{#VM.NAME}]: Read latency'
+        type: DEPENDENT
+        key: vsan.vm.read_latency["{#CLUSTER.NAME}","{#VM.ID}"]
+        delay: '0'
+        history: 30d
+        value_type: FLOAT
+        trends: 90d
+        units: ms
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.vms[?(@.cluster=="{#CLUSTER.NAME}" && @.id=="{#VM.ID}")].read_latency_ms.first()
+        master_item:
+          key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+        tags:
+        - tag: component
+          value: vsan
+        - tag: scope
+          value: vm
+        - tag: cluster
+          value: '{#CLUSTER.NAME}'
+        - tag: vm
+          value: '{#VM.NAME}'
+      - uuid: 5e6f7fe1a4ee451baba47ad6a521dc07
+        name: 'vSAN VM [{#VM.NAME}]: Write latency'
+        type: DEPENDENT
+        key: vsan.vm.write_latency["{#CLUSTER.NAME}","{#VM.ID}"]
+        delay: '0'
+        history: 30d
+        value_type: FLOAT
+        trends: 90d
+        units: ms
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.vms[?(@.cluster=="{#CLUSTER.NAME}" && @.id=="{#VM.ID}")].write_latency_ms.first()
+        master_item:
+          key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+        tags:
+        - tag: component
+          value: vsan
+        - tag: scope
+          value: vm
+        - tag: cluster
+          value: '{#CLUSTER.NAME}'
+        - tag: vm
+          value: '{#VM.NAME}'
+      - uuid: 2013b883066d448898dc8aa1d3609656
+        name: 'vSAN VM [{#VM.NAME}]: Read IOPS'
+        type: DEPENDENT
+        key: vsan.vm.read_iops["{#CLUSTER.NAME}","{#VM.ID}"]
+        delay: '0'
+        history: 30d
+        value_type: FLOAT
+        trends: 90d
+        units: '!iops'
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.vms[?(@.cluster=="{#CLUSTER.NAME}" && @.id=="{#VM.ID}")].read_iops.first()
+        master_item:
+          key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+        tags:
+        - tag: component
+          value: vsan
+        - tag: scope
+          value: vm
+        - tag: cluster
+          value: '{#CLUSTER.NAME}'
+        - tag: vm
+          value: '{#VM.NAME}'
+      - uuid: 84cf6705a5464a439327eb66fb71aea2
+        name: 'vSAN VM [{#VM.NAME}]: Write IOPS'
+        type: DEPENDENT
+        key: vsan.vm.write_iops["{#CLUSTER.NAME}","{#VM.ID}"]
+        delay: '0'
+        history: 30d
+        value_type: FLOAT
+        trends: 90d
+        units: '!iops'
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.vms[?(@.cluster=="{#CLUSTER.NAME}" && @.id=="{#VM.ID}")].write_iops.first()
+        master_item:
+          key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+        tags:
+        - tag: component
+          value: vsan
+        - tag: scope
+          value: vm
+        - tag: cluster
+          value: '{#CLUSTER.NAME}'
+        - tag: vm
+          value: '{#VM.NAME}'
+      - uuid: 90895923e8ef4eed9c1553a65fa6cad0
+        name: 'vSAN VM [{#VM.NAME}]: Read throughput'
+        type: DEPENDENT
+        key: vsan.vm.read_bps["{#CLUSTER.NAME}","{#VM.ID}"]
+        delay: '0'
+        history: 30d
+        value_type: FLOAT
+        trends: 90d
+        units: Bps
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.vms[?(@.cluster=="{#CLUSTER.NAME}" && @.id=="{#VM.ID}")].read_throughput_bps.first()
+        master_item:
+          key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+        tags:
+        - tag: component
+          value: vsan
+        - tag: scope
+          value: vm
+        - tag: cluster
+          value: '{#CLUSTER.NAME}'
+        - tag: vm
+          value: '{#VM.NAME}'
+      - uuid: 1f89419034a244b4a4bccce96778d8e0
+        name: 'vSAN VM [{#VM.NAME}]: Write throughput'
+        type: DEPENDENT
+        key: vsan.vm.write_bps["{#CLUSTER.NAME}","{#VM.ID}"]
+        delay: '0'
+        history: 30d
+        value_type: FLOAT
+        trends: 90d
+        units: Bps
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.vms[?(@.cluster=="{#CLUSTER.NAME}" && @.id=="{#VM.ID}")].write_throughput_bps.first()
+        master_item:
+          key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+        tags:
+        - tag: component
+          value: vsan
+        - tag: scope
+          value: vm
+        - tag: cluster
+          value: '{#CLUSTER.NAME}'
+        - tag: vm
+          value: '{#VM.NAME}'
+      - uuid: d59b736e55744e788c7c39329e6acf5a
+        name: 'vSAN VM [{#VM.NAME}]: Congestion'
+        type: DEPENDENT
+        key: vsan.vm.congestion["{#CLUSTER.NAME}","{#VM.ID}"]
+        delay: '0'
+        history: 30d
+        value_type: FLOAT
+        trends: 90d
+        units: '%'
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.vms[?(@.cluster=="{#CLUSTER.NAME}" && @.id=="{#VM.ID}")].congestion.first()
+        master_item:
+          key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+        tags:
+        - tag: component
+          value: vsan
+        - tag: scope
+          value: vm
+        - tag: cluster
+          value: '{#CLUSTER.NAME}'
+        - tag: vm
+          value: '{#VM.NAME}'
+      trigger_prototypes:
+      - uuid: 21371623a89d41c5b51b4594d97bbc37
+        expression: avg(/Template VMware vSAN by API/vsan.vm.write_latency["{#CLUSTER.NAME}","{#VM.ID}"],5m)>{$VSAN.VM.LATENCY.HIGH}
+        name: vSAN VM [{#VM.NAME}] write latency is high
+        priority: AVERAGE
+        manual_close: 'YES'
+        tags:
+        - tag: scope
+          value: performance
+        - tag: component
+          value: vsan
+    - uuid: 21f65a8739044904a162093654ed602e
+      name: 'vSAN: Virtual disk performance discovery'
+      type: DEPENDENT
+      key: vsan.vdisk.discovery
+      delay: '0'
+      lifetime: 30d
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.lld.virtual_disks
+      master_item:
+        key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+      filter:
+        evaltype: AND
+        conditions:
+        - macro: '{#CLUSTER.NAME}'
+          value: '{$VSAN.CLUSTER.MATCHES}'
+          formulaid: A
+        - macro: '{#CLUSTER.NAME}'
+          value: '{$VSAN.CLUSTER.NOT_MATCHES}'
+          operator: NOT_MATCHES_REGEX
+          formulaid: B
+      description: Discovers VM virtual disks with vSAN performance metrics.
+      item_prototypes:
+      - uuid: 197773404e7049a980dd4ccacbf0cf57
+        name: 'vSAN virtual disk [{#VM.NAME}/{#VDISK.NAME}]: Read latency'
+        type: DEPENDENT
+        key: vsan.vdisk.read_latency["{#CLUSTER.NAME}","{#VM.ID}","{#VDISK.ID}"]
+        delay: '0'
+        history: 30d
+        value_type: FLOAT
+        trends: 90d
+        units: ms
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.virtual_disks[?(@.cluster=="{#CLUSTER.NAME}" && @.vm_id=="{#VM.ID}" && @.id=="{#VDISK.ID}")].read_latency_ms.first()
+        master_item:
+          key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+        tags:
+        - tag: component
+          value: vsan
+        - tag: scope
+          value: virtual_disk
+        - tag: cluster
+          value: '{#CLUSTER.NAME}'
+        - tag: vm
+          value: '{#VM.NAME}'
+        - tag: disk
+          value: '{#VDISK.ID}'
+      - uuid: 7e55abdfc17246b5b0c056c2e6c3bb5c
+        name: 'vSAN virtual disk [{#VM.NAME}/{#VDISK.NAME}]: Write latency'
+        type: DEPENDENT
+        key: vsan.vdisk.write_latency["{#CLUSTER.NAME}","{#VM.ID}","{#VDISK.ID}"]
+        delay: '0'
+        history: 30d
+        value_type: FLOAT
+        trends: 90d
+        units: ms
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.virtual_disks[?(@.cluster=="{#CLUSTER.NAME}" && @.vm_id=="{#VM.ID}" && @.id=="{#VDISK.ID}")].write_latency_ms.first()
+        master_item:
+          key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+        tags:
+        - tag: component
+          value: vsan
+        - tag: scope
+          value: virtual_disk
+        - tag: cluster
+          value: '{#CLUSTER.NAME}'
+        - tag: vm
+          value: '{#VM.NAME}'
+        - tag: disk
+          value: '{#VDISK.ID}'
+      - uuid: dda19ccf4b574baabf71afdffebff81d
+        name: 'vSAN virtual disk [{#VM.NAME}/{#VDISK.NAME}]: Read IOPS'
+        type: DEPENDENT
+        key: vsan.vdisk.read_iops["{#CLUSTER.NAME}","{#VM.ID}","{#VDISK.ID}"]
+        delay: '0'
+        history: 30d
+        value_type: FLOAT
+        trends: 90d
+        units: '!iops'
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.virtual_disks[?(@.cluster=="{#CLUSTER.NAME}" && @.vm_id=="{#VM.ID}" && @.id=="{#VDISK.ID}")].read_iops.first()
+        master_item:
+          key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+        tags:
+        - tag: component
+          value: vsan
+        - tag: scope
+          value: virtual_disk
+        - tag: cluster
+          value: '{#CLUSTER.NAME}'
+        - tag: vm
+          value: '{#VM.NAME}'
+        - tag: disk
+          value: '{#VDISK.ID}'
+      - uuid: 5a372343c02f4b908cd42b7b18ead91e
+        name: 'vSAN virtual disk [{#VM.NAME}/{#VDISK.NAME}]: Write IOPS'
+        type: DEPENDENT
+        key: vsan.vdisk.write_iops["{#CLUSTER.NAME}","{#VM.ID}","{#VDISK.ID}"]
+        delay: '0'
+        history: 30d
+        value_type: FLOAT
+        trends: 90d
+        units: '!iops'
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.virtual_disks[?(@.cluster=="{#CLUSTER.NAME}" && @.vm_id=="{#VM.ID}" && @.id=="{#VDISK.ID}")].write_iops.first()
+        master_item:
+          key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+        tags:
+        - tag: component
+          value: vsan
+        - tag: scope
+          value: virtual_disk
+        - tag: cluster
+          value: '{#CLUSTER.NAME}'
+        - tag: vm
+          value: '{#VM.NAME}'
+        - tag: disk
+          value: '{#VDISK.ID}'
+      - uuid: 4792cb145ca44c5b9f0145d99b12001d
+        name: 'vSAN virtual disk [{#VM.NAME}/{#VDISK.NAME}]: Read throughput'
+        type: DEPENDENT
+        key: vsan.vdisk.read_bps["{#CLUSTER.NAME}","{#VM.ID}","{#VDISK.ID}"]
+        delay: '0'
+        history: 30d
+        value_type: FLOAT
+        trends: 90d
+        units: Bps
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.virtual_disks[?(@.cluster=="{#CLUSTER.NAME}" && @.vm_id=="{#VM.ID}" && @.id=="{#VDISK.ID}")].read_throughput_bps.first()
+        master_item:
+          key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+        tags:
+        - tag: component
+          value: vsan
+        - tag: scope
+          value: virtual_disk
+        - tag: cluster
+          value: '{#CLUSTER.NAME}'
+        - tag: vm
+          value: '{#VM.NAME}'
+        - tag: disk
+          value: '{#VDISK.ID}'
+      - uuid: 95abf8b736514f1096968a37e9b73464
+        name: 'vSAN virtual disk [{#VM.NAME}/{#VDISK.NAME}]: Write throughput'
+        type: DEPENDENT
+        key: vsan.vdisk.write_bps["{#CLUSTER.NAME}","{#VM.ID}","{#VDISK.ID}"]
+        delay: '0'
+        history: 30d
+        value_type: FLOAT
+        trends: 90d
+        units: Bps
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.virtual_disks[?(@.cluster=="{#CLUSTER.NAME}" && @.vm_id=="{#VM.ID}" && @.id=="{#VDISK.ID}")].write_throughput_bps.first()
+        master_item:
+          key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+        tags:
+        - tag: component
+          value: vsan
+        - tag: scope
+          value: virtual_disk
+        - tag: cluster
+          value: '{#CLUSTER.NAME}'
+        - tag: vm
+          value: '{#VM.NAME}'
+        - tag: disk
+          value: '{#VDISK.ID}'
+      - uuid: aa82234a87e24823bd4f235c0d6ea8f4
+        name: 'vSAN virtual disk [{#VM.NAME}/{#VDISK.NAME}]: Congestion'
+        type: DEPENDENT
+        key: vsan.vdisk.congestion["{#CLUSTER.NAME}","{#VM.ID}","{#VDISK.ID}"]
+        delay: '0'
+        history: 30d
+        value_type: FLOAT
+        trends: 90d
+        units: '%'
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.virtual_disks[?(@.cluster=="{#CLUSTER.NAME}" && @.vm_id=="{#VM.ID}" && @.id=="{#VDISK.ID}")].congestion.first()
+        master_item:
+          key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+        tags:
+        - tag: component
+          value: vsan
+        - tag: scope
+          value: virtual_disk
+        - tag: cluster
+          value: '{#CLUSTER.NAME}'
+        - tag: vm
+          value: '{#VM.NAME}'
+        - tag: disk
+          value: '{#VDISK.ID}'
+      trigger_prototypes:
+      - uuid: 8cda5369b68948ff95da39f232b9b9d7
+        expression: avg(/Template VMware vSAN by API/vsan.vdisk.write_latency["{#CLUSTER.NAME}","{#VM.ID}","{#VDISK.ID}"],5m)>{$VSAN.VDISK.LATENCY.HIGH}
+        name: vSAN virtual disk [{#VM.NAME}/{#VDISK.NAME}] write latency is high
+        priority: AVERAGE
+        manual_close: 'YES'
+        tags:
+        - tag: scope
+          value: performance
+        - tag: component
+          value: vsan
+    - uuid: 0bd7297aba9d4b31b73c27b24f85672d
+      name: 'vSAN: Network discovery'
+      type: DEPENDENT
+      key: vsan.network.discovery
+      delay: '0'
+      lifetime: 30d
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.lld.networks
+      master_item:
+        key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+      filter:
+        evaltype: AND
+        conditions:
+        - macro: '{#CLUSTER.NAME}'
+          value: '{$VSAN.CLUSTER.MATCHES}'
+          formulaid: A
+        - macro: '{#CLUSTER.NAME}'
+          value: '{$VSAN.CLUSTER.NOT_MATCHES}'
+          operator: NOT_MATCHES_REGEX
+          formulaid: B
+      description: Discovers vSAN VMkernel or physical network interfaces/paths returned by collector.
+      item_prototypes:
+      - uuid: 548ee93ec03b4220bde644dc3d7ec469
+        name: 'vSAN network [{#HOST.NAME}/{#IF.NAME}]: Health'
+        type: DEPENDENT
+        key: vsan.network.health["{#CLUSTER.NAME}","{#HOST.NAME}","{#IF.NAME}"]
+        delay: '0'
+        history: 30d
+        trends: '0'
+        valuemap:
+          name: vSAN health status
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.networks[?(@.cluster=="{#CLUSTER.NAME}" && @.host=="{#HOST.NAME}" && @.ifname=="{#IF.NAME}")].health.first()
+        master_item:
+          key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+        tags:
+        - tag: component
+          value: vsan
+        - tag: scope
+          value: network
+        - tag: cluster
+          value: '{#CLUSTER.NAME}'
+        - tag: host
+          value: '{#HOST.NAME}'
+        - tag: interface
+          value: '{#IF.NAME}'
+      - uuid: 546f51c3503d44568428c9348ebd3207
+        name: 'vSAN network [{#HOST.NAME}/{#IF.NAME}]: RX throughput'
+        type: DEPENDENT
+        key: vsan.network.rx_bps["{#CLUSTER.NAME}","{#HOST.NAME}","{#IF.NAME}"]
+        delay: '0'
+        history: 30d
+        value_type: FLOAT
+        trends: 90d
+        units: Bps
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.networks[?(@.cluster=="{#CLUSTER.NAME}" && @.host=="{#HOST.NAME}" && @.ifname=="{#IF.NAME}")].rx_bps.first()
+        master_item:
+          key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+        tags:
+        - tag: component
+          value: vsan
+        - tag: scope
+          value: network
+        - tag: cluster
+          value: '{#CLUSTER.NAME}'
+        - tag: host
+          value: '{#HOST.NAME}'
+        - tag: interface
+          value: '{#IF.NAME}'
+      - uuid: 9c6597fec3124c1fb5814da200d97adf
+        name: 'vSAN network [{#HOST.NAME}/{#IF.NAME}]: TX throughput'
+        type: DEPENDENT
+        key: vsan.network.tx_bps["{#CLUSTER.NAME}","{#HOST.NAME}","{#IF.NAME}"]
+        delay: '0'
+        history: 30d
+        value_type: FLOAT
+        trends: 90d
+        units: Bps
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.networks[?(@.cluster=="{#CLUSTER.NAME}" && @.host=="{#HOST.NAME}" && @.ifname=="{#IF.NAME}")].tx_bps.first()
+        master_item:
+          key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+        tags:
+        - tag: component
+          value: vsan
+        - tag: scope
+          value: network
+        - tag: cluster
+          value: '{#CLUSTER.NAME}'
+        - tag: host
+          value: '{#HOST.NAME}'
+        - tag: interface
+          value: '{#IF.NAME}'
+      - uuid: 816eabbc82b348cb8a0a189da8823262
+        name: 'vSAN network [{#HOST.NAME}/{#IF.NAME}]: RX packets'
+        type: DEPENDENT
+        key: vsan.network.rx_packets["{#CLUSTER.NAME}","{#HOST.NAME}","{#IF.NAME}"]
+        delay: '0'
+        history: 30d
+        value_type: FLOAT
+        trends: 90d
+        units: pps
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.networks[?(@.cluster=="{#CLUSTER.NAME}" && @.host=="{#HOST.NAME}" && @.ifname=="{#IF.NAME}")].rx_packets.first()
+        master_item:
+          key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+        tags:
+        - tag: component
+          value: vsan
+        - tag: scope
+          value: network
+        - tag: cluster
+          value: '{#CLUSTER.NAME}'
+        - tag: host
+          value: '{#HOST.NAME}'
+        - tag: interface
+          value: '{#IF.NAME}'
+      - uuid: ce92c7fa4e0b4f94b721fde15a4b556c
+        name: 'vSAN network [{#HOST.NAME}/{#IF.NAME}]: TX packets'
+        type: DEPENDENT
+        key: vsan.network.tx_packets["{#CLUSTER.NAME}","{#HOST.NAME}","{#IF.NAME}"]
+        delay: '0'
+        history: 30d
+        value_type: FLOAT
+        trends: 90d
+        units: pps
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.networks[?(@.cluster=="{#CLUSTER.NAME}" && @.host=="{#HOST.NAME}" && @.ifname=="{#IF.NAME}")].tx_packets.first()
+        master_item:
+          key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+        tags:
+        - tag: component
+          value: vsan
+        - tag: scope
+          value: network
+        - tag: cluster
+          value: '{#CLUSTER.NAME}'
+        - tag: host
+          value: '{#HOST.NAME}'
+        - tag: interface
+          value: '{#IF.NAME}'
+      - uuid: 860fab24c71f4397bc5d446cfc830003
+        name: 'vSAN network [{#HOST.NAME}/{#IF.NAME}]: Utilization'
+        type: DEPENDENT
+        key: vsan.network.util_pct["{#CLUSTER.NAME}","{#HOST.NAME}","{#IF.NAME}"]
+        delay: '0'
+        history: 30d
+        value_type: FLOAT
+        trends: 90d
+        units: '%'
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.networks[?(@.cluster=="{#CLUSTER.NAME}" && @.host=="{#HOST.NAME}" && @.ifname=="{#IF.NAME}")].util_pct.first()
+        master_item:
+          key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+        tags:
+        - tag: component
+          value: vsan
+        - tag: scope
+          value: network
+        - tag: cluster
+          value: '{#CLUSTER.NAME}'
+        - tag: host
+          value: '{#HOST.NAME}'
+        - tag: interface
+          value: '{#IF.NAME}'
+      - uuid: 324c3cc8d84142ad86d7902f08e43620
+        name: 'vSAN network [{#HOST.NAME}/{#IF.NAME}]: Errors'
+        type: DEPENDENT
+        key: vsan.network.errors["{#CLUSTER.NAME}","{#HOST.NAME}","{#IF.NAME}"]
+        delay: '0'
+        history: 30d
+        trends: '0'
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.networks[?(@.cluster=="{#CLUSTER.NAME}" && @.host=="{#HOST.NAME}" && @.ifname=="{#IF.NAME}")].errors.first()
+        master_item:
+          key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+        tags:
+        - tag: component
+          value: vsan
+        - tag: scope
+          value: network
+        - tag: cluster
+          value: '{#CLUSTER.NAME}'
+        - tag: host
+          value: '{#HOST.NAME}'
+        - tag: interface
+          value: '{#IF.NAME}'
+      - uuid: fb333de875df410abd083f955be5b633
+        name: 'vSAN network [{#HOST.NAME}/{#IF.NAME}]: Drops'
+        type: DEPENDENT
+        key: vsan.network.drops["{#CLUSTER.NAME}","{#HOST.NAME}","{#IF.NAME}"]
+        delay: '0'
+        history: 30d
+        trends: '0'
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.networks[?(@.cluster=="{#CLUSTER.NAME}" && @.host=="{#HOST.NAME}" && @.ifname=="{#IF.NAME}")].drops.first()
+        master_item:
+          key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+        tags:
+        - tag: component
+          value: vsan
+        - tag: scope
+          value: network
+        - tag: cluster
+          value: '{#CLUSTER.NAME}'
+        - tag: host
+          value: '{#HOST.NAME}'
+        - tag: interface
+          value: '{#IF.NAME}'
+      trigger_prototypes:
+      - uuid: d51c26c925e248b593949b3c19d2f6e8
+        expression: last(/Template VMware vSAN by API/vsan.network.health["{#CLUSTER.NAME}","{#HOST.NAME}","{#IF.NAME}"])<>1
+        name: vSAN network [{#HOST.NAME}/{#IF.NAME}] health is not OK
+        priority: HIGH
+        manual_close: 'YES'
+        tags:
+        - tag: scope
+          value: network
+        - tag: component
+          value: vsan
+      - uuid: e8673d10a90443f9a10fd13b16c2cbe7
+        expression: avg(/Template VMware vSAN by API/vsan.network.util_pct["{#CLUSTER.NAME}","{#HOST.NAME}","{#IF.NAME}"],5m)>{$VSAN.NET.UTIL.WARN}
+        name: vSAN network [{#HOST.NAME}/{#IF.NAME}] utilization is high
+        priority: WARNING
+        manual_close: 'YES'
+        tags:
+        - tag: scope
+          value: network
+        - tag: component
+          value: vsan
+      - uuid: 3676b09f52ba4bdbb8fd5204ee2e3ae8
+        expression: min(/Template VMware vSAN by API/vsan.network.errors["{#CLUSTER.NAME}","{#HOST.NAME}","{#IF.NAME}"],5m)>{$VSAN.NET.ERROR.MAX}
+        name: vSAN network [{#HOST.NAME}/{#IF.NAME}] has errors
+        priority: HIGH
+        manual_close: 'YES'
+        tags:
+        - tag: scope
+          value: network
+        - tag: component
+          value: vsan
+      - uuid: 9c6699763cb3413ab1c5da5afaf3d6b4
+        expression: min(/Template VMware vSAN by API/vsan.network.drops["{#CLUSTER.NAME}","{#HOST.NAME}","{#IF.NAME}"],5m)>{$VSAN.NET.ERROR.MAX}
+        name: vSAN network [{#HOST.NAME}/{#IF.NAME}] has drops
+        priority: HIGH
+        manual_close: 'YES'
+        tags:
+        - tag: scope
+          value: network
+        - tag: component
+          value: vsan
+    - uuid: 3197781502f6427c9c4b281420c44cfd
+      name: 'vSAN: Health check discovery'
+      type: DEPENDENT
+      key: vsan.health_check.discovery
+      delay: '0'
+      lifetime: 30d
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.lld.health_checks
+      master_item:
+        key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+      filter:
+        evaltype: AND
+        conditions:
+        - macro: '{#CLUSTER.NAME}'
+          value: '{$VSAN.CLUSTER.MATCHES}'
+          formulaid: A
+        - macro: '{#CLUSTER.NAME}'
+          value: '{$VSAN.CLUSTER.NOT_MATCHES}'
+          operator: NOT_MATCHES_REGEX
+          formulaid: B
+      description: Discovers individual vSAN health checks.
+      item_prototypes:
+      - uuid: 9e9a2cf75e864f1dbca517e8ff05c243
+        name: 'vSAN health [{#CLUSTER.NAME}]: {#CHECK.GROUP} - {#CHECK.NAME}'
+        type: DEPENDENT
+        key: vsan.health_check.status["{#CLUSTER.NAME}","{#CHECK.ID}"]
+        delay: '0'
+        history: 30d
+        trends: '0'
+        valuemap:
+          name: vSAN health status
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.health_checks[?(@.cluster=="{#CLUSTER.NAME}" && @.id=="{#CHECK.ID}")].status.first()
+        master_item:
+          key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+        tags:
+        - tag: component
+          value: vsan
+        - tag: scope
+          value: health
+        - tag: cluster
+          value: '{#CLUSTER.NAME}'
+        - tag: check_group
+          value: '{#CHECK.GROUP}'
+      - uuid: 359b8c362317461e9849e81ef433fe9d
+        name: 'vSAN health [{#CLUSTER.NAME}]: {#CHECK.NAME} message'
+        type: DEPENDENT
+        key: vsan.health_check.message["{#CLUSTER.NAME}","{#CHECK.ID}"]
+        delay: '0'
+        history: 7d
+        value_type: TEXT
+        trends: '0'
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.health_checks[?(@.cluster=="{#CLUSTER.NAME}" && @.id=="{#CHECK.ID}")].message.first()
+        master_item:
+          key: zbx_vsan_api.py["{$VMWARE.URL}","{$VMWARE.USER}","{$VMWARE.PASSWORD}","{$VSAN.CLUSTER.MATCHES}","{$VSAN.CLUSTER.NOT_MATCHES}","{$VSAN.API.TIMEOUT}"]
+        tags:
+        - tag: component
+          value: vsan
+        - tag: scope
+          value: health
+        - tag: cluster
+          value: '{#CLUSTER.NAME}'
+        - tag: check_group
+          value: '{#CHECK.GROUP}'
+      trigger_prototypes:
+      - uuid: f2fdf7284a2e44d1a138edc1c6a46ce2
+        expression: last(/Template VMware vSAN by API/vsan.health_check.status["{#CLUSTER.NAME}","{#CHECK.ID}"])=2
+        name: 'vSAN health check warning: [{#CLUSTER.NAME}] {#CHECK.GROUP} - {#CHECK.NAME}'
+        priority: AVERAGE
+        manual_close: 'YES'
+        tags:
+        - tag: scope
+          value: availability
+        - tag: component
+          value: vsan
+      - uuid: 4f38e13d14f9445a8463f76d5b68b998
+        expression: last(/Template VMware vSAN by API/vsan.health_check.status["{#CLUSTER.NAME}","{#CHECK.ID}"])=3
+        name: 'vSAN health check failed: [{#CLUSTER.NAME}] {#CHECK.GROUP} - {#CHECK.NAME}'
+        priority: HIGH
+        manual_close: 'YES'
+        tags:
+        - tag: scope
+          value: availability
+        - tag: component
+          value: vsan
+    macros:
+    - macro: '{$VMWARE.URL}'
+      value: https://vcenter.example.local/sdk
+      description: vCenter SDK URL used by the external vSAN collector.
+    - macro: '{$VMWARE.USER}'
+      value: zabbix-readonly@vsphere.local
+      description: Read-only vCenter user with vSAN visibility.
+    - macro: '{$VMWARE.PASSWORD}'
+      type: SECRET_TEXT
+      description: Password for {$VMWARE.USER}. Set at host level.
+    - macro: '{$VSAN.CLUSTER.MATCHES}'
+      value: .*
+      description: Regex filter for vSAN clusters to include.
+    - macro: '{$VSAN.CLUSTER.NOT_MATCHES}'
+      value: CHANGE_IF_NEEDED
+      description: Regex filter for vSAN clusters to exclude.
+    - macro: '{$VSAN.UPDATE.INTERVAL}'
+      value: 5m
+      description: Master collector interval.
+    - macro: '{$VSAN.API.TIMEOUT}'
+      value: '60'
+      description: Timeout passed to external collector in seconds.
+    - macro: '{$VSAN.DATA.MAXAGE}'
+      value: 15m
+      description: Maximum age without collector timestamp before stale data alarm.
+    - macro: '{$VSAN.COLLECTOR.DURATION.MAX}'
+      value: '30'
+      description: Collector runtime threshold in seconds.
+    - macro: '{$VSAN.CAPACITY.HIGH}'
+      value: '85'
+      description: Cluster capacity used percent high threshold.
+    - macro: '{$VSAN.CAPACITY.DISASTER}'
+      value: '90'
+      description: Cluster capacity used percent disaster threshold.
+    - macro: '{$VSAN.DISK.USED.WARN}'
+      value: '80'
+      description: Disk group used percent warning threshold.
+    - macro: '{$VSAN.DISK.USED.HIGH}'
+      value: '90'
+      description: Disk group used percent high threshold.
+    - macro: '{$VSAN.CAPACITY_DISK.USED.HIGH}'
+      value: '90'
+      description: Capacity disk used percent high threshold.
+    - macro: '{$VSAN.LATENCY.HIGH}'
+      value: '50'
+      description: Cluster/diskgroup/disk latency high threshold in ms.
+    - macro: '{$VSAN.LATENCY.DISASTER}'
+      value: '100'
+      description: Cluster latency disaster threshold in ms.
+    - macro: '{$VSAN.VM.LATENCY.HIGH}'
+      value: '50'
+      description: VM latency threshold in ms.
+    - macro: '{$VSAN.VDISK.LATENCY.HIGH}'
+      value: '50'
+      description: Virtual disk latency threshold in ms.
+    - macro: '{$VSAN.RESYNC.MAX.TIME}'
+      value: 1h
+      description: If resync components stay above zero for this period, trigger an alarm.
+    - macro: '{$VSAN.NET.ERROR.MAX}'
+      value: '0'
+      description: Network errors/drops threshold.
+    - macro: '{$VSAN.NET.UTIL.WARN}'
+      value: '80'
+      description: Network utilization warning threshold.
+    - macro: '{$VSAN.CONGESTION.HIGH}'
+      value: '30'
+      description: vSAN congestion percent threshold.
+    valuemaps:
+    - uuid: d6599e96de2948c08d7279ff9be45a84
+      name: vSAN health status
+      mappings:
+      - value: '0'
+        newvalue: Unknown
+      - value: '1'
+        newvalue: OK
+      - value: '2'
+        newvalue: Warning
+      - value: '3'
+        newvalue: Critical
+    - uuid: 694b242d8da14d6a914496d8cfce4be5
+      name: vSAN collector status
+      mappings:
+      - value: '0'
+        newvalue: Failed
+      - value: '1'
+        newvalue: OK
+    - uuid: f004160e71ad411ba63a3cf5f8721a83
+      name: Yes/No
+      mappings:
+      - value: '0'
+        newvalue: 'No'
+      - value: '1'
+        newvalue: 'Yes'
