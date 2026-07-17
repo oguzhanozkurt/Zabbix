@@ -1,923 +1,979 @@
 zabbix_export:
   version: '7.0'
   template_groups:
-  - uuid: c7ac606335bc41fdbc031879db964801
-    name: Templates/Databases
+    - uuid: c7ac606335bc41fdbc031879db964801
+      name: Templates/Databases
   templates:
-  - uuid: a102c1bef0784d72ade44d3d75940643
-    template: Template PostgreSQL Replication Source
-    name: Template PostgreSQL Replication Source
-    description: Monitors PostgreSQL pg_stat_replication and pg_replication_slots.
-      Designed for primary nodes and standby leaders that stream to downstream replicas.
-    groups:
-    - name: Templates/Databases
-    items:
-    - uuid: c7d7144e437b4221aa9b1235af9f26c4
-      name: PostgreSQL replication slots raw
-      type: ZABBIX_PASSIVE
-      key: pgsql.custom.query[{$PG.CONN.URI},{$PG.CONN.USER},{$PG.CONN.PASSWORD},{$PG.CONN.DB},zbx_pg_replication_slots]
-      delay: 1m
-      history: '0'
-      value_type: TEXT
-      trends: '0'
-      tags:
-      - tag: component
-        value: Replication
-    - uuid: 7a802e28c793454c9b6ddf0dfb50dbf8
-      name: PostgreSQL replication clients raw
-      type: ZABBIX_PASSIVE
-      key: pgsql.custom.query[{$PG.CONN.URI},{$PG.CONN.USER},{$PG.CONN.PASSWORD},{$PG.CONN.DB},zbx_pg_replication_clients]
-      delay: 1m
-      history: '0'
-      value_type: TEXT
-      trends: '0'
-      tags:
-      - tag: component
-        value: Replication
-    discovery_rules:
-    - uuid: 39726c4d809240dab701489ced804f2c
-      name: PostgreSQL replication slots discovery
-      type: DEPENDENT
-      key: pgsql.replication.slots.discovery
-      delay: '0'
-      lifetime: 30d
-      enabled_lifetime_type: DISABLE_NEVER
-      master_item:
-        key: pgsql.custom.query[{$PG.CONN.URI},{$PG.CONN.USER},{$PG.CONN.PASSWORD},{$PG.CONN.DB},zbx_pg_replication_slots]
-      preprocessing:
-      - type: JSONPATH
-        parameters:
-        - $[*]
-      lld_macro_paths:
-      - lld_macro: '{#SLOT_NAME}'
-        path: $.slot_name
-      - lld_macro: '{#SLOT_TYPE}'
-        path: $.slot_type
-      item_prototypes:
-      - uuid: efa84a9aab274577969b2a688a006bb5
-        name: 'PostgreSQL slot {#SLOT_NAME}: active'
-        type: DEPENDENT
-        key: pgsql.replication.slot.active[{#SLOT_NAME}]
-        delay: '0'
-        history: 30d
-        description: 'Numeric: 1=active, 0=inactive.'
-        preprocessing:
-        - type: JAVASCRIPT
-          parameters:
-          - "var data = JSON.parse(value);\nvar slot = \"{#SLOT_NAME}\";\nfor (var\
-            \ i = 0; i < data.length; i++) {\n    if (String(data[i].slot_name) ===\
-            \ slot) {\n        var v = data[i]['active'];\n        if (v === undefined\
-            \ || v === null || v === '') return 0;\n        return v;\n    }\n}\n\
-            return 0;"
-        master_item:
-          key: pgsql.custom.query[{$PG.CONN.URI},{$PG.CONN.USER},{$PG.CONN.PASSWORD},{$PG.CONN.DB},zbx_pg_replication_slots]
-        tags:
-        - tag: component
-          value: Replication
-      - uuid: dc1156ef99f8498897e1c514c8d8be6f
-        name: 'PostgreSQL slot {#SLOT_NAME}: retained WAL'
-        type: DEPENDENT
-        key: pgsql.replication.slot.retained_wal.bytes[{#SLOT_NAME}]
-        delay: '0'
-        history: 30d
-        units: B
-        description: Bytes retained by this replication slot.
-        preprocessing:
-        - type: JAVASCRIPT
-          parameters:
-          - "var data = JSON.parse(value);\nvar slot = \"{#SLOT_NAME}\";\nfor (var\
-            \ i = 0; i < data.length; i++) {\n    if (String(data[i].slot_name) ===\
-            \ slot) {\n        var v = data[i]['retained_wal_bytes'];\n        if\
-            \ (v === undefined || v === null || v === '') return 0;\n        return\
-            \ v;\n    }\n}\nreturn 0;"
-        master_item:
-          key: pgsql.custom.query[{$PG.CONN.URI},{$PG.CONN.USER},{$PG.CONN.PASSWORD},{$PG.CONN.DB},zbx_pg_replication_slots]
-        tags:
-        - tag: component
-          value: Replication
-      - uuid: 6cefbfb0647646118e4b822ba812e1e0
-        name: 'PostgreSQL slot {#SLOT_NAME}: safe WAL size'
-        type: DEPENDENT
-        key: pgsql.replication.slot.safe_wal_size.bytes[{#SLOT_NAME}]
-        delay: '0'
-        history: 30d
-        value_type: FLOAT
-        units: B
-        description: Remaining safe WAL size before the slot may become lost. -1 means
-          unlimited or unavailable.
-        preprocessing:
-        - type: JAVASCRIPT
-          parameters:
-          - "var data = JSON.parse(value);\nvar slot = \"{#SLOT_NAME}\";\nfor (var\
-            \ i = 0; i < data.length; i++) {\n    if (String(data[i].slot_name) ===\
-            \ slot) {\n        var v = data[i]['safe_wal_size_bytes'];\n        if\
-            \ (v === undefined || v === null || v === '') return 0;\n        return\
-            \ v;\n    }\n}\nreturn 0;"
-        master_item:
-          key: pgsql.custom.query[{$PG.CONN.URI},{$PG.CONN.USER},{$PG.CONN.PASSWORD},{$PG.CONN.DB},zbx_pg_replication_slots]
-        tags:
-        - tag: component
-          value: Replication
-      - uuid: a3f6b54c81764570b1d05f6fbd360363
-        name: 'PostgreSQL slot {#SLOT_NAME}: WAL status'
-        type: DEPENDENT
-        key: pgsql.replication.slot.wal_status[{#SLOT_NAME}]
-        delay: '0'
-        history: 30d
-        value_type: TEXT
-        trends: '0'
-        preprocessing:
-        - type: JAVASCRIPT
-          parameters:
-          - "var data = JSON.parse(value);\nvar slot = \"{#SLOT_NAME}\";\nfor (var\
-            \ i = 0; i < data.length; i++) {\n    if (String(data[i].slot_name) ===\
-            \ slot) {\n        var v = data[i]['wal_status'];\n        if (v === undefined\
-            \ || v === null || v === '') return 'missing';\n        return v;\n  \
-            \  }\n}\nreturn 'missing';"
-        master_item:
-          key: pgsql.custom.query[{$PG.CONN.URI},{$PG.CONN.USER},{$PG.CONN.PASSWORD},{$PG.CONN.DB},zbx_pg_replication_slots]
-        tags:
-        - tag: component
-          value: Replication
-      - uuid: c56a94077de44ca9975cd93e025cfcf4
-        name: 'PostgreSQL slot {#SLOT_NAME}: type'
-        type: DEPENDENT
-        key: pgsql.replication.slot.type[{#SLOT_NAME}]
-        delay: '0'
-        history: 30d
-        value_type: TEXT
-        trends: '0'
-        preprocessing:
-        - type: JAVASCRIPT
-          parameters:
-          - "var data = JSON.parse(value);\nvar slot = \"{#SLOT_NAME}\";\nfor (var\
-            \ i = 0; i < data.length; i++) {\n    if (String(data[i].slot_name) ===\
-            \ slot) {\n        var v = data[i]['slot_type'];\n        if (v === undefined\
-            \ || v === null || v === '') return 'missing';\n        return v;\n  \
-            \  }\n}\nreturn 'missing';"
-        master_item:
-          key: pgsql.custom.query[{$PG.CONN.URI},{$PG.CONN.USER},{$PG.CONN.PASSWORD},{$PG.CONN.DB},zbx_pg_replication_slots]
-        tags:
-        - tag: component
-          value: Replication
-      trigger_prototypes:
-      - uuid: 540243042ddd42dd8cd12c6aeea559af
-        expression: min(/Template PostgreSQL Replication Source/pgsql.replication.slot.retained_wal.bytes[{#SLOT_NAME}],5m)>{$PG.SLOT.RETAINED.HIGH}
-        recovery_mode: RECOVERY_EXPRESSION
-        recovery_expression: max(/Template PostgreSQL Replication Source/pgsql.replication.slot.retained_wal.bytes[{#SLOT_NAME}],5m)<{$PG.SLOT.RETAINED.WARN}
-        name: 'PostgreSQL slot {#SLOT_NAME}: retained WAL is high'
-        priority: HIGH
-        manual_close: 'YES'
-      - uuid: 775d0b655a8240c2a967e481b9c7cfec
-        expression: min(/Template PostgreSQL Replication Source/pgsql.replication.slot.retained_wal.bytes[{#SLOT_NAME}],5m)>{$PG.SLOT.RETAINED.DISASTER}
-        recovery_mode: RECOVERY_EXPRESSION
-        recovery_expression: max(/Template PostgreSQL Replication Source/pgsql.replication.slot.retained_wal.bytes[{#SLOT_NAME}],5m)<{$PG.SLOT.RETAINED.HIGH}
-        name: 'PostgreSQL slot {#SLOT_NAME}: retained WAL is critical'
-        priority: DISASTER
-        manual_close: 'YES'
-      - uuid: bc2a772948714322ab786102824b745c
-        expression: min(/Template PostgreSQL Replication Source/pgsql.replication.slot.active[{#SLOT_NAME}],{$PG.SLOT.INACTIVE.TIME})=0
-        name: 'PostgreSQL slot {#SLOT_NAME}: inactive'
-        priority: HIGH
-        manual_close: 'YES'
-      - uuid: 4bc90b20c8bd42908ebaf03193928d77
-        expression: last(/Template PostgreSQL Replication Source/pgsql.replication.slot.wal_status[{#SLOT_NAME}])="extended"
-        name: 'PostgreSQL slot {#SLOT_NAME}: WAL status is extended'
-        priority: HIGH
-        manual_close: 'YES'
-      - uuid: 92e2d2bac66e4da2b1b5ce37a37619c2
-        expression: last(/Template PostgreSQL Replication Source/pgsql.replication.slot.wal_status[{#SLOT_NAME}])="lost"
-        name: 'PostgreSQL slot {#SLOT_NAME}: WAL status is lost'
-        priority: DISASTER
-        manual_close: 'YES'
-    - uuid: ce35c9eee7024744be1a33707f2ad31e
-      name: PostgreSQL replication clients discovery
-      type: DEPENDENT
-      key: pgsql.replication.clients.discovery
-      delay: '0'
-      lifetime: 30d
-      enabled_lifetime_type: DISABLE_NEVER
-      master_item:
-        key: pgsql.custom.query[{$PG.CONN.URI},{$PG.CONN.USER},{$PG.CONN.PASSWORD},{$PG.CONN.DB},zbx_pg_replication_clients]
-      preprocessing:
-      - type: JSONPATH
-        parameters:
-        - $[*]
-      lld_macro_paths:
-      - lld_macro: '{#APP_NAME}'
-        path: $.application_name
-      - lld_macro: '{#CLIENT_ADDR}'
-        path: $.client_addr
-      item_prototypes:
-      - uuid: 4c7efd4359b64e3399255a5cc22aa31d
-        name: 'PostgreSQL replication client {#APP_NAME}/{#CLIENT_ADDR}: state'
-        type: DEPENDENT
-        key: pgsql.replication.client.state[{#APP_NAME},{#CLIENT_ADDR}]
-        delay: '0'
-        history: 30d
-        value_type: TEXT
-        trends: '0'
-        preprocessing:
-        - type: JAVASCRIPT
-          parameters:
-          - "var data = JSON.parse(value);\nvar app = \"{#APP_NAME}\";\nvar addr =\
-            \ \"{#CLIENT_ADDR}\";\nfor (var i = 0; i < data.length; i++) {\n    if\
-            \ (String(data[i].application_name) === app && String(data[i].client_addr)\
-            \ === addr) {\n        var v = data[i]['state'];\n        if (v === undefined\
-            \ || v === null || v === '') return 'missing';\n        return v;\n  \
-            \  }\n}\nreturn 'missing';"
-        master_item:
-          key: pgsql.custom.query[{$PG.CONN.URI},{$PG.CONN.USER},{$PG.CONN.PASSWORD},{$PG.CONN.DB},zbx_pg_replication_clients]
-        tags:
-        - tag: component
-          value: Replication
-      - uuid: 698f8ac0c3714e258ec4e9cc950c3e47
-        name: 'PostgreSQL replication client {#APP_NAME}/{#CLIENT_ADDR}: sync state'
-        type: DEPENDENT
-        key: pgsql.replication.client.sync_state[{#APP_NAME},{#CLIENT_ADDR}]
-        delay: '0'
-        history: 30d
-        value_type: TEXT
-        trends: '0'
-        preprocessing:
-        - type: JAVASCRIPT
-          parameters:
-          - "var data = JSON.parse(value);\nvar app = \"{#APP_NAME}\";\nvar addr =\
-            \ \"{#CLIENT_ADDR}\";\nfor (var i = 0; i < data.length; i++) {\n    if\
-            \ (String(data[i].application_name) === app && String(data[i].client_addr)\
-            \ === addr) {\n        var v = data[i]['sync_state'];\n        if (v ===\
-            \ undefined || v === null || v === '') return 'missing';\n        return\
-            \ v;\n    }\n}\nreturn 'missing';"
-        master_item:
-          key: pgsql.custom.query[{$PG.CONN.URI},{$PG.CONN.USER},{$PG.CONN.PASSWORD},{$PG.CONN.DB},zbx_pg_replication_clients]
-        tags:
-        - tag: component
-          value: Replication
-      - uuid: 1e6eacb09e3d454d9abcb3aab3fbf791
-        name: 'PostgreSQL replication client {#APP_NAME}/{#CLIENT_ADDR}: current to
-          sent lag'
-        type: DEPENDENT
-        key: pgsql.replication.client.current_to_sent_lag_bytes[{#APP_NAME},{#CLIENT_ADDR}]
-        delay: '0'
-        history: 30d
-        units: B
-        preprocessing:
-        - type: JAVASCRIPT
-          parameters:
-          - "var data = JSON.parse(value);\nvar app = \"{#APP_NAME}\";\nvar addr =\
-            \ \"{#CLIENT_ADDR}\";\nfor (var i = 0; i < data.length; i++) {\n    if\
-            \ (String(data[i].application_name) === app && String(data[i].client_addr)\
-            \ === addr) {\n        var v = data[i]['current_to_sent_lag_bytes'];\n\
-            \        if (v === undefined || v === null || v === '') return 0;\n  \
-            \      return v;\n    }\n}\nreturn 0;"
-        master_item:
-          key: pgsql.custom.query[{$PG.CONN.URI},{$PG.CONN.USER},{$PG.CONN.PASSWORD},{$PG.CONN.DB},zbx_pg_replication_clients]
-        tags:
-        - tag: component
-          value: Replication
-      - uuid: fa7fb55c10284089887779b88d21f7ac
-        name: 'PostgreSQL replication client {#APP_NAME}/{#CLIENT_ADDR}: sent to write
-          lag'
-        type: DEPENDENT
-        key: pgsql.replication.client.sent_to_write_lag_bytes[{#APP_NAME},{#CLIENT_ADDR}]
-        delay: '0'
-        history: 30d
-        units: B
-        preprocessing:
-        - type: JAVASCRIPT
-          parameters:
-          - "var data = JSON.parse(value);\nvar app = \"{#APP_NAME}\";\nvar addr =\
-            \ \"{#CLIENT_ADDR}\";\nfor (var i = 0; i < data.length; i++) {\n    if\
-            \ (String(data[i].application_name) === app && String(data[i].client_addr)\
-            \ === addr) {\n        var v = data[i]['sent_to_write_lag_bytes'];\n \
-            \       if (v === undefined || v === null || v === '') return 0;\n   \
-            \     return v;\n    }\n}\nreturn 0;"
-        master_item:
-          key: pgsql.custom.query[{$PG.CONN.URI},{$PG.CONN.USER},{$PG.CONN.PASSWORD},{$PG.CONN.DB},zbx_pg_replication_clients]
-        tags:
-        - tag: component
-          value: Replication
-      - uuid: d54a2e30292f4bae855c2ab20d6d5c5f
-        name: 'PostgreSQL replication client {#APP_NAME}/{#CLIENT_ADDR}: write to
-          flush lag'
-        type: DEPENDENT
-        key: pgsql.replication.client.write_to_flush_lag_bytes[{#APP_NAME},{#CLIENT_ADDR}]
-        delay: '0'
-        history: 30d
-        units: B
-        preprocessing:
-        - type: JAVASCRIPT
-          parameters:
-          - "var data = JSON.parse(value);\nvar app = \"{#APP_NAME}\";\nvar addr =\
-            \ \"{#CLIENT_ADDR}\";\nfor (var i = 0; i < data.length; i++) {\n    if\
-            \ (String(data[i].application_name) === app && String(data[i].client_addr)\
-            \ === addr) {\n        var v = data[i]['write_to_flush_lag_bytes'];\n\
-            \        if (v === undefined || v === null || v === '') return 0;\n  \
-            \      return v;\n    }\n}\nreturn 0;"
-        master_item:
-          key: pgsql.custom.query[{$PG.CONN.URI},{$PG.CONN.USER},{$PG.CONN.PASSWORD},{$PG.CONN.DB},zbx_pg_replication_clients]
-        tags:
-        - tag: component
-          value: Replication
-      - uuid: 713119df96c54444af3e62c740bb5bb8
-        name: 'PostgreSQL replication client {#APP_NAME}/{#CLIENT_ADDR}: flush to
-          replay lag'
-        type: DEPENDENT
-        key: pgsql.replication.client.flush_to_replay_lag_bytes[{#APP_NAME},{#CLIENT_ADDR}]
-        delay: '0'
-        history: 30d
-        units: B
-        preprocessing:
-        - type: JAVASCRIPT
-          parameters:
-          - "var data = JSON.parse(value);\nvar app = \"{#APP_NAME}\";\nvar addr =\
-            \ \"{#CLIENT_ADDR}\";\nfor (var i = 0; i < data.length; i++) {\n    if\
-            \ (String(data[i].application_name) === app && String(data[i].client_addr)\
-            \ === addr) {\n        var v = data[i]['flush_to_replay_lag_bytes'];\n\
-            \        if (v === undefined || v === null || v === '') return 0;\n  \
-            \      return v;\n    }\n}\nreturn 0;"
-        master_item:
-          key: pgsql.custom.query[{$PG.CONN.URI},{$PG.CONN.USER},{$PG.CONN.PASSWORD},{$PG.CONN.DB},zbx_pg_replication_clients]
-        tags:
-        - tag: component
-          value: Replication
-      - uuid: e02116f481274ef4815cabe12401559d
-        name: 'PostgreSQL replication client {#APP_NAME}/{#CLIENT_ADDR}: total replay
-          lag'
-        type: DEPENDENT
-        key: pgsql.replication.client.total_replay_lag_bytes[{#APP_NAME},{#CLIENT_ADDR}]
-        delay: '0'
-        history: 30d
-        units: B
-        preprocessing:
-        - type: JAVASCRIPT
-          parameters:
-          - "var data = JSON.parse(value);\nvar app = \"{#APP_NAME}\";\nvar addr =\
-            \ \"{#CLIENT_ADDR}\";\nfor (var i = 0; i < data.length; i++) {\n    if\
-            \ (String(data[i].application_name) === app && String(data[i].client_addr)\
-            \ === addr) {\n        var v = data[i]['total_replay_lag_bytes'];\n  \
-            \      if (v === undefined || v === null || v === '') return 0;\n    \
-            \    return v;\n    }\n}\nreturn 0;"
-        master_item:
-          key: pgsql.custom.query[{$PG.CONN.URI},{$PG.CONN.USER},{$PG.CONN.PASSWORD},{$PG.CONN.DB},zbx_pg_replication_clients]
-        tags:
-        - tag: component
-          value: Replication
-      - uuid: 8eeb58f06e174cb5a53f3bd871828e6f
-        name: 'PostgreSQL replication client {#APP_NAME}/{#CLIENT_ADDR}: write lag
-          seconds'
-        type: DEPENDENT
-        key: pgsql.replication.client.write_lag_sec[{#APP_NAME},{#CLIENT_ADDR}]
-        delay: '0'
-        history: 30d
-        units: s
-        preprocessing:
-        - type: JAVASCRIPT
-          parameters:
-          - "var data = JSON.parse(value);\nvar app = \"{#APP_NAME}\";\nvar addr =\
-            \ \"{#CLIENT_ADDR}\";\nfor (var i = 0; i < data.length; i++) {\n    if\
-            \ (String(data[i].application_name) === app && String(data[i].client_addr)\
-            \ === addr) {\n        var v = data[i]['write_lag_sec'];\n        if (v\
-            \ === undefined || v === null || v === '') return 0;\n        return v;\n\
-            \    }\n}\nreturn 0;"
-        master_item:
-          key: pgsql.custom.query[{$PG.CONN.URI},{$PG.CONN.USER},{$PG.CONN.PASSWORD},{$PG.CONN.DB},zbx_pg_replication_clients]
-        tags:
-        - tag: component
-          value: Replication
-      - uuid: 072133c8a2274e87a98c818fe89f7e1e
-        name: 'PostgreSQL replication client {#APP_NAME}/{#CLIENT_ADDR}: flush lag
-          seconds'
-        type: DEPENDENT
-        key: pgsql.replication.client.flush_lag_sec[{#APP_NAME},{#CLIENT_ADDR}]
-        delay: '0'
-        history: 30d
-        units: s
-        preprocessing:
-        - type: JAVASCRIPT
-          parameters:
-          - "var data = JSON.parse(value);\nvar app = \"{#APP_NAME}\";\nvar addr =\
-            \ \"{#CLIENT_ADDR}\";\nfor (var i = 0; i < data.length; i++) {\n    if\
-            \ (String(data[i].application_name) === app && String(data[i].client_addr)\
-            \ === addr) {\n        var v = data[i]['flush_lag_sec'];\n        if (v\
-            \ === undefined || v === null || v === '') return 0;\n        return v;\n\
-            \    }\n}\nreturn 0;"
-        master_item:
-          key: pgsql.custom.query[{$PG.CONN.URI},{$PG.CONN.USER},{$PG.CONN.PASSWORD},{$PG.CONN.DB},zbx_pg_replication_clients]
-        tags:
-        - tag: component
-          value: Replication
-      - uuid: 82a5201e435040acaf397f72dec9ded8
-        name: 'PostgreSQL replication client {#APP_NAME}/{#CLIENT_ADDR}: replay lag
-          seconds'
-        type: DEPENDENT
-        key: pgsql.replication.client.replay_lag_sec[{#APP_NAME},{#CLIENT_ADDR}]
-        delay: '0'
-        history: 30d
-        units: s
-        preprocessing:
-        - type: JAVASCRIPT
-          parameters:
-          - "var data = JSON.parse(value);\nvar app = \"{#APP_NAME}\";\nvar addr =\
-            \ \"{#CLIENT_ADDR}\";\nfor (var i = 0; i < data.length; i++) {\n    if\
-            \ (String(data[i].application_name) === app && String(data[i].client_addr)\
-            \ === addr) {\n        var v = data[i]['replay_lag_sec'];\n        if\
-            \ (v === undefined || v === null || v === '') return 0;\n        return\
-            \ v;\n    }\n}\nreturn 0;"
-        master_item:
-          key: pgsql.custom.query[{$PG.CONN.URI},{$PG.CONN.USER},{$PG.CONN.PASSWORD},{$PG.CONN.DB},zbx_pg_replication_clients]
-        tags:
-        - tag: component
-          value: Replication
-      trigger_prototypes:
-      - uuid: b29b0ba9bfd94b5886f1abce7f473491
-        expression: last(/Template PostgreSQL Replication Source/pgsql.replication.client.state[{#APP_NAME},{#CLIENT_ADDR}])<>"streaming"
-          and last(/Template PostgreSQL Replication Source/pgsql.replication.client.state[{#APP_NAME},{#CLIENT_ADDR}])<>"catchup"
-          and last(/Template PostgreSQL Replication Source/pgsql.replication.client.state[{#APP_NAME},{#CLIENT_ADDR}])<>"backup"
-        name: 'PostgreSQL replication client {#APP_NAME}/{#CLIENT_ADDR}: state is
-          not healthy'
-        priority: HIGH
-        manual_close: 'YES'
-      - uuid: 069cad7067474a27b4ff9f3e25ae2bc5
-        expression: min(/Template PostgreSQL Replication Source/pgsql.replication.client.total_replay_lag_bytes[{#APP_NAME},{#CLIENT_ADDR}],5m)>{$PG.REPL.LAG.HIGH}
-        recovery_mode: RECOVERY_EXPRESSION
-        recovery_expression: max(/Template PostgreSQL Replication Source/pgsql.replication.client.total_replay_lag_bytes[{#APP_NAME},{#CLIENT_ADDR}],5m)<{$PG.REPL.LAG.WARN}
-        name: 'PostgreSQL replication client {#APP_NAME}/{#CLIENT_ADDR}: total replay
-          lag is high'
-        priority: HIGH
-        manual_close: 'YES'
-      - uuid: 586187fc2550498b9a1b13fb27198339
-        expression: min(/Template PostgreSQL Replication Source/pgsql.replication.client.total_replay_lag_bytes[{#APP_NAME},{#CLIENT_ADDR}],5m)>{$PG.REPL.LAG.DISASTER}
-        recovery_mode: RECOVERY_EXPRESSION
-        recovery_expression: max(/Template PostgreSQL Replication Source/pgsql.replication.client.total_replay_lag_bytes[{#APP_NAME},{#CLIENT_ADDR}],5m)<{$PG.REPL.LAG.HIGH}
-        name: 'PostgreSQL replication client {#APP_NAME}/{#CLIENT_ADDR}: total replay
-          lag is critical'
-        priority: DISASTER
-        manual_close: 'YES'
-      - uuid: e3fcae2b353d436ea111faaa3bca3f2f
-        expression: min(/Template PostgreSQL Replication Source/pgsql.replication.client.current_to_sent_lag_bytes[{#APP_NAME},{#CLIENT_ADDR}],5m)>{$PG.REPL.LAG.WARN}
-        name: 'PostgreSQL replication client {#APP_NAME}/{#CLIENT_ADDR}: primary cannot
-          send WAL fast enough'
-        priority: WARNING
-        manual_close: 'YES'
-      - uuid: b17c2f66a1a34c299fa65875ee39e2b9
-        expression: min(/Template PostgreSQL Replication Source/pgsql.replication.client.replay_lag_sec[{#APP_NAME},{#CLIENT_ADDR}],5m)>{$PG.REPL.TIME.HIGH}
-        name: 'PostgreSQL replication client {#APP_NAME}/{#CLIENT_ADDR}: time replay
-          lag is high'
-        priority: HIGH
-        manual_close: 'YES'
-    macros:
-    - macro: '{$PG.CONN.URI}'
-      value: tcp://127.0.0.1:5432
-      description: PostgreSQL connection URI used by Zabbix agent 2 PostgreSQL plugin.
-    - macro: '{$PG.CONN.USER}'
-      value: zabbix
-      description: PostgreSQL monitoring user.
-    - macro: '{$PG.CONN.PASSWORD}'
-      value: ''
-      description: PostgreSQL monitoring user password. Set this as a secret macro
-        on the host.
-    - macro: '{$PG.CONN.DB}'
-      value: postgres
-      description: PostgreSQL database name used by Zabbix agent 2 PostgreSQL plugin.
-    - macro: '{$PG.REPL.LAG.WARN}'
-      value: '5368709120'
-      description: Replication byte lag warning threshold, default 5GB.
-    - macro: '{$PG.REPL.LAG.HIGH}'
-      value: '21474836480'
-      description: Replication byte lag high threshold, default 20GB.
-    - macro: '{$PG.REPL.LAG.DISASTER}'
-      value: '53687091200'
-      description: Replication byte lag disaster threshold, default 50GB.
-    - macro: '{$PG.REPL.TIME.WARN}'
-      value: '900'
-      description: Replication time lag warning threshold in seconds, default 15 minutes.
-    - macro: '{$PG.REPL.TIME.HIGH}'
-      value: '1800'
-      description: Replication time lag high threshold in seconds, default 30 minutes.
-    - macro: '{$PG.SLOT.RETAINED.WARN}'
-      value: '10737418240'
-      description: Slot retained WAL warning threshold, default 10GB.
-    - macro: '{$PG.SLOT.RETAINED.HIGH}'
-      value: '32212254720'
-      description: Slot retained WAL high threshold, default 30GB.
-    - macro: '{$PG.SLOT.RETAINED.DISASTER}'
-      value: '85899345920'
-      description: Slot retained WAL disaster threshold, default 80GB.
-    - macro: '{$PG.SLOT.INACTIVE.TIME}'
-      value: 10m
-      description: How long a discovered slot may stay inactive before alerting.
-  - uuid: 58f1c43958484c3f8ca536262cfa99bc
-    template: Template PostgreSQL WAL and Disk
-    name: Template PostgreSQL WAL and Disk
-    description: Monitors PostgreSQL pg_wal directory size, data filesystem usage,
-      and WAL-related configuration values.
-    groups:
-    - name: Templates/Databases
-    items:
-    - uuid: 51c4021b3edb45b8baf78d89cbd37586
-      name: PostgreSQL pg_wal directory size
-      type: ZABBIX_PASSIVE
-      key: vfs.dir.size[{$PG.DATA_DIR}/pg_wal]
-      delay: 5m
-      history: 30d
-      units: B
-      tags:
-      - tag: component
-        value: WAL
-      triggers:
-      - uuid: 1d8dbfc8af984f1dbfbd727ded4e8b00
-        expression: min(/Template PostgreSQL WAL and Disk/vfs.dir.size[{$PG.DATA_DIR}/pg_wal],5m)>{$PG.WAL.SIZE.HIGH}
-        recovery_mode: RECOVERY_EXPRESSION
-        recovery_expression: max(/Template PostgreSQL WAL and Disk/vfs.dir.size[{$PG.DATA_DIR}/pg_wal],5m)<{$PG.WAL.SIZE.WARN}
-        name: PostgreSQL pg_wal directory size is high
-        priority: HIGH
-        manual_close: 'YES'
-      - uuid: 87dd5bd6c47a4dd4bc275208296bf548
-        expression: min(/Template PostgreSQL WAL and Disk/vfs.dir.size[{$PG.DATA_DIR}/pg_wal],5m)>{$PG.WAL.SIZE.DISASTER}
-        recovery_mode: RECOVERY_EXPRESSION
-        recovery_expression: max(/Template PostgreSQL WAL and Disk/vfs.dir.size[{$PG.DATA_DIR}/pg_wal],5m)<{$PG.WAL.SIZE.HIGH}
-        name: PostgreSQL pg_wal directory size is critical
-        priority: DISASTER
-        manual_close: 'YES'
-    - uuid: bf03b092793d4108b7a0f9a5dbc4873c
-      name: PostgreSQL data filesystem used percent
-      type: ZABBIX_PASSIVE
-      key: vfs.fs.size[{$PG.FS.MOUNT},pused]
-      delay: 1m
-      history: 30d
-      units: '%'
-      tags:
-      - tag: component
-        value: Disk
-      triggers:
-      - uuid: 676d65bf1399431c9eca6264805db5c5
-        expression: min(/Template PostgreSQL WAL and Disk/vfs.fs.size[{$PG.FS.MOUNT},pused],5m)>{$PG.FS.PUSED.HIGH}
-        recovery_mode: RECOVERY_EXPRESSION
-        recovery_expression: max(/Template PostgreSQL WAL and Disk/vfs.fs.size[{$PG.FS.MOUNT},pused],5m)<{$PG.FS.PUSED.WARN}
-        name: PostgreSQL data filesystem usage is high
-        priority: HIGH
-        manual_close: 'YES'
-      - uuid: 612c02cba1dc4dd89b6a5a3402fb0d2e
-        expression: min(/Template PostgreSQL WAL and Disk/vfs.fs.size[{$PG.FS.MOUNT},pused],5m)>{$PG.FS.PUSED.DISASTER}
-        name: PostgreSQL data filesystem usage is critical
-        priority: DISASTER
-        manual_close: 'YES'
-    - uuid: 45a3da17d49e4757a30f1037a6276a54
-      name: PostgreSQL data filesystem free
-      type: ZABBIX_PASSIVE
-      key: vfs.fs.size[{$PG.FS.MOUNT},free]
-      delay: 1m
-      history: 30d
-      units: B
-      tags:
-      - tag: component
-        value: Disk
-    - uuid: 02e4091f746a4cb79f3dced73e49115d
-      name: PostgreSQL data filesystem total
-      type: ZABBIX_PASSIVE
-      key: vfs.fs.size[{$PG.FS.MOUNT},total]
-      delay: 5m
-      history: 30d
-      units: B
-      tags:
-      - tag: component
-        value: Disk
-    - uuid: f50917ccc5c942df800def465ff5a777
-      name: PostgreSQL WAL settings raw
-      type: ZABBIX_PASSIVE
-      key: pgsql.custom.query[{$PG.CONN.URI},{$PG.CONN.USER},{$PG.CONN.PASSWORD},{$PG.CONN.DB},zbx_pg_wal_settings]
-      delay: 5m
-      history: '0'
-      value_type: TEXT
-      trends: '0'
-      tags:
-      - tag: component
-        value: WAL
-    - uuid: d584f430262f4344aef6169b813655c4
-      name: 'PostgreSQL setting: wal_keep_size'
-      type: DEPENDENT
-      key: pgsql.setting.wal_keep_size.bytes
-      delay: '0'
-      history: 30d
-      units: B
-      preprocessing:
-      - type: JSONPATH
-        parameters:
-        - $[?(@.name=="wal_keep_size")].setting_bytes.first()
-        error_handler: CUSTOM_VALUE
-        error_handler_params: '0'
-      master_item:
-        key: pgsql.custom.query[{$PG.CONN.URI},{$PG.CONN.USER},{$PG.CONN.PASSWORD},{$PG.CONN.DB},zbx_pg_wal_settings]
-      tags:
-      - tag: component
-        value: WAL
-      triggers:
-      - uuid: 11d00fe7b59e45b896b6288b3a63d754
-        expression: last(/Template PostgreSQL WAL and Disk/pgsql.setting.wal_keep_size.bytes)<>{$PG.WAL_KEEP_SIZE.EXPECTED}
-        name: PostgreSQL wal_keep_size is not expected
-        priority: WARNING
-        manual_close: 'YES'
-    - uuid: 76bb192373564d02b54719a63e3fa529
-      name: 'PostgreSQL setting: max_wal_size'
-      type: DEPENDENT
-      key: pgsql.setting.max_wal_size.bytes
-      delay: '0'
-      history: 30d
-      units: B
-      preprocessing:
-      - type: JSONPATH
-        parameters:
-        - $[?(@.name=="max_wal_size")].setting_bytes.first()
-        error_handler: CUSTOM_VALUE
-        error_handler_params: '0'
-      master_item:
-        key: pgsql.custom.query[{$PG.CONN.URI},{$PG.CONN.USER},{$PG.CONN.PASSWORD},{$PG.CONN.DB},zbx_pg_wal_settings]
-      tags:
-      - tag: component
-        value: WAL
-    - uuid: 0928b2a259a54273b155bd703408a84e
-      name: 'PostgreSQL setting: min_wal_size'
-      type: DEPENDENT
-      key: pgsql.setting.min_wal_size.bytes
-      delay: '0'
-      history: 30d
-      units: B
-      preprocessing:
-      - type: JSONPATH
-        parameters:
-        - $[?(@.name=="min_wal_size")].setting_bytes.first()
-        error_handler: CUSTOM_VALUE
-        error_handler_params: '0'
-      master_item:
-        key: pgsql.custom.query[{$PG.CONN.URI},{$PG.CONN.USER},{$PG.CONN.PASSWORD},{$PG.CONN.DB},zbx_pg_wal_settings]
-      tags:
-      - tag: component
-        value: WAL
-    - uuid: 82550aeb3cd74ed9b970770fe04ad736
-      name: 'PostgreSQL setting: max_slot_wal_keep_size'
-      type: DEPENDENT
-      key: pgsql.setting.max_slot_wal_keep_size.bytes
-      delay: '0'
-      history: 30d
-      value_type: FLOAT
-      units: B
-      preprocessing:
-      - type: JSONPATH
-        parameters:
-        - $[?(@.name=="max_slot_wal_keep_size")].setting_bytes.first()
-        error_handler: CUSTOM_VALUE
-        error_handler_params: '0'
-      master_item:
-        key: pgsql.custom.query[{$PG.CONN.URI},{$PG.CONN.USER},{$PG.CONN.PASSWORD},{$PG.CONN.DB},zbx_pg_wal_settings]
-      tags:
-      - tag: component
-        value: WAL
-      triggers:
-      - uuid: 67a6438747684cad978f87c2e7ac62cb
-        expression: last(/Template PostgreSQL WAL and Disk/pgsql.setting.max_slot_wal_keep_size.bytes)=-1
-        name: PostgreSQL max_slot_wal_keep_size is unlimited
-        priority: WARNING
-        manual_close: 'YES'
-    macros:
-    - macro: '{$PG.CONN.URI}'
-      value: tcp://127.0.0.1:5432
-      description: PostgreSQL connection URI used by Zabbix agent 2 PostgreSQL plugin.
-    - macro: '{$PG.CONN.USER}'
-      value: zabbix
-      description: PostgreSQL monitoring user.
-    - macro: '{$PG.CONN.PASSWORD}'
-      value: ''
-      description: PostgreSQL monitoring user password. Set this as a secret macro
-        on the host.
-    - macro: '{$PG.CONN.DB}'
-      value: postgres
-      description: PostgreSQL database name used by Zabbix agent 2 PostgreSQL plugin.
-    - macro: '{$PG.DATA_DIR}'
-      value: /var/lib/psql/17/data
-      description: PostgreSQL data directory.
-    - macro: '{$PG.FS.MOUNT}'
-      value: /var/lib/psql
-      description: Filesystem mount containing PostgreSQL data directory.
-    - macro: '{$PG.WAL.SIZE.WARN}'
-      value: '68719476736'
-      description: pg_wal size warning threshold, default 64GB.
-    - macro: '{$PG.WAL.SIZE.HIGH}'
-      value: '137438953472'
-      description: pg_wal size high threshold, default 128GB.
-    - macro: '{$PG.WAL.SIZE.DISASTER}'
-      value: '214748364800'
-      description: pg_wal size disaster threshold, default 200GB.
-    - macro: '{$PG.FS.PUSED.WARN}'
-      value: '80'
-      description: Data filesystem warning used percent.
-    - macro: '{$PG.FS.PUSED.HIGH}'
-      value: '90'
-      description: Data filesystem high used percent.
-    - macro: '{$PG.FS.PUSED.DISASTER}'
-      value: '95'
-      description: Data filesystem disaster used percent.
-    - macro: '{$PG.WAL_KEEP_SIZE.EXPECTED}'
-      value: '34359738368'
-      description: Expected wal_keep_size in bytes. Default 32GB.
-  - uuid: e889aa5843ce482f8c50dcadbdafe6b0
-    template: Template PostgreSQL Standby Receiver
-    name: Template PostgreSQL Standby Receiver
-    description: Monitors PostgreSQL standby receiver state, receive/replay gap and
-      replay delay. Apply only to standby nodes.
-    groups:
-    - name: Templates/Databases
-    items:
-    - uuid: 6c791baa6fb64a11b71bbf49aa176fdb
-      name: PostgreSQL standby receiver raw
-      type: ZABBIX_PASSIVE
-      key: pgsql.custom.query[{$PG.CONN.URI},{$PG.CONN.USER},{$PG.CONN.PASSWORD},{$PG.CONN.DB},zbx_pg_standby_receiver]
-      delay: 1m
-      history: '0'
-      value_type: TEXT
-      trends: '0'
-      tags:
-      - tag: component
-        value: Standby
-    - uuid: 9ad8f267d84646db991f36df201402f9
-      name: 'PostgreSQL standby: in recovery'
-      type: DEPENDENT
-      key: pgsql.standby.in_recovery
-      delay: '0'
-      history: 30d
-      preprocessing:
-      - type: JSONPATH
-        parameters:
-        - $[0].in_recovery
-        error_handler: CUSTOM_VALUE
-        error_handler_params: '0'
-      master_item:
-        key: pgsql.custom.query[{$PG.CONN.URI},{$PG.CONN.USER},{$PG.CONN.PASSWORD},{$PG.CONN.DB},zbx_pg_standby_receiver]
-      tags:
-      - tag: component
-        value: Standby
-      triggers:
-      - uuid: 9b5a37b11bf14584ae13aaed4c889225
-        expression: last(/Template PostgreSQL Standby Receiver/pgsql.standby.in_recovery)<>1
-        name: 'PostgreSQL standby: node is not in recovery mode'
-        priority: DISASTER
-        manual_close: 'YES'
-    - uuid: c84ad7dae9ab45779a4c2050b7d84242
-      name: 'PostgreSQL standby: WAL receiver status'
-      type: DEPENDENT
-      key: pgsql.standby.wal_receiver.status
-      delay: '0'
-      history: 30d
-      value_type: TEXT
-      trends: '0'
-      preprocessing:
-      - type: JSONPATH
-        parameters:
-        - $[0].status
-        error_handler: CUSTOM_VALUE
-        error_handler_params: missing
-      master_item:
-        key: pgsql.custom.query[{$PG.CONN.URI},{$PG.CONN.USER},{$PG.CONN.PASSWORD},{$PG.CONN.DB},zbx_pg_standby_receiver]
-      tags:
-      - tag: component
-        value: Standby
-      triggers:
-      - uuid: 4567945c238246b1b0b7f1286d2337ef
-        expression: last(/Template PostgreSQL Standby Receiver/pgsql.standby.wal_receiver.status)<>"streaming"
-        name: 'PostgreSQL standby: WAL receiver is not streaming'
-        priority: HIGH
-        manual_close: 'YES'
-    - uuid: 944ad8a7de2847eea47552955bc5bed0
-      name: 'PostgreSQL standby: WAL receiver slot name'
-      type: DEPENDENT
-      key: pgsql.standby.wal_receiver.slot_name
-      delay: '0'
-      history: 30d
-      value_type: TEXT
-      trends: '0'
-      preprocessing:
-      - type: JSONPATH
-        parameters:
-        - $[0].slot_name
-        error_handler: CUSTOM_VALUE
-        error_handler_params: missing
-      master_item:
-        key: pgsql.custom.query[{$PG.CONN.URI},{$PG.CONN.USER},{$PG.CONN.PASSWORD},{$PG.CONN.DB},zbx_pg_standby_receiver]
-      tags:
-      - tag: component
-        value: Standby
-    - uuid: f0e8fb3ea2844d9aa719355e7dbf2189
-      name: 'PostgreSQL standby: WAL receiver sender host'
-      type: DEPENDENT
-      key: pgsql.standby.wal_receiver.sender_host
-      delay: '0'
-      history: 30d
-      value_type: TEXT
-      trends: '0'
-      preprocessing:
-      - type: JSONPATH
-        parameters:
-        - $[0].sender_host
-        error_handler: CUSTOM_VALUE
-        error_handler_params: missing
-      master_item:
-        key: pgsql.custom.query[{$PG.CONN.URI},{$PG.CONN.USER},{$PG.CONN.PASSWORD},{$PG.CONN.DB},zbx_pg_standby_receiver]
-      tags:
-      - tag: component
-        value: Standby
-    - uuid: 2296b8b649894d4ba276800642f605af
-      name: 'PostgreSQL standby: seconds since last WAL receiver message'
-      type: DEPENDENT
-      key: pgsql.standby.wal_receiver.seconds_since_last_msg
-      delay: '0'
-      history: 30d
-      units: s
-      preprocessing:
-      - type: JSONPATH
-        parameters:
-        - $[0].seconds_since_last_msg
-        error_handler: CUSTOM_VALUE
-        error_handler_params: '0'
-      master_item:
-        key: pgsql.custom.query[{$PG.CONN.URI},{$PG.CONN.USER},{$PG.CONN.PASSWORD},{$PG.CONN.DB},zbx_pg_standby_receiver]
-      tags:
-      - tag: component
-        value: Standby
-      triggers:
-      - uuid: f40fa9b1485840d0960a9642e0a78892
-        expression: last(/Template PostgreSQL Standby Receiver/pgsql.standby.wal_receiver.seconds_since_last_msg)>{$PG.WAL.RECEIVER.MSG.MAX}
-          and last(/Template PostgreSQL Standby Receiver/pgsql.standby.wal_receiver.seconds_since_last_msg)<>-1
-        name: 'PostgreSQL standby: no recent WAL receiver message'
-        priority: HIGH
-        manual_close: 'YES'
-    - uuid: 795b8a601f434d55a2a51b7f29fc931c
-      name: 'PostgreSQL standby: receive/replay gap'
-      type: DEPENDENT
-      key: pgsql.standby.receive_replay_gap.bytes
-      delay: '0'
-      history: 30d
-      units: B
-      preprocessing:
-      - type: JSONPATH
-        parameters:
-        - $[0].receive_replay_gap_bytes
-        error_handler: CUSTOM_VALUE
-        error_handler_params: '0'
-      master_item:
-        key: pgsql.custom.query[{$PG.CONN.URI},{$PG.CONN.USER},{$PG.CONN.PASSWORD},{$PG.CONN.DB},zbx_pg_standby_receiver]
-      tags:
-      - tag: component
-        value: Standby
-      triggers:
-      - uuid: cdf9f90b59f44014bf0a3eef32224ef7
-        expression: min(/Template PostgreSQL Standby Receiver/pgsql.standby.receive_replay_gap.bytes,5m)>{$PG.STANDBY.GAP.HIGH}
-        name: 'PostgreSQL standby: receive/replay gap is high'
-        priority: HIGH
-        manual_close: 'YES'
-    - uuid: 1962fc56eae04cbc995ca8b857f01279
-      name: 'PostgreSQL standby: replay delay'
-      type: DEPENDENT
-      key: pgsql.standby.replay_delay.sec
-      delay: '0'
-      history: 30d
-      units: s
-      preprocessing:
-      - type: JSONPATH
-        parameters:
-        - $[0].replay_delay_sec
-        error_handler: CUSTOM_VALUE
-        error_handler_params: '0'
-      master_item:
-        key: pgsql.custom.query[{$PG.CONN.URI},{$PG.CONN.USER},{$PG.CONN.PASSWORD},{$PG.CONN.DB},zbx_pg_standby_receiver]
-      tags:
-      - tag: component
-        value: Standby
-      triggers:
-      - uuid: ef40f6999e6142dfb0fbd085f467da18
-        expression: min(/Template PostgreSQL Standby Receiver/pgsql.standby.replay_delay.sec,5m)>{$PG.STANDBY.REPLAY_DELAY.HIGH}
-        name: 'PostgreSQL standby: replay delay is high'
-        priority: HIGH
-        manual_close: 'YES'
-    macros:
-    - macro: '{$PG.CONN.URI}'
-      value: tcp://127.0.0.1:5432
-      description: PostgreSQL connection URI used by Zabbix agent 2 PostgreSQL plugin.
-    - macro: '{$PG.CONN.USER}'
-      value: zabbix
-      description: PostgreSQL monitoring user.
-    - macro: '{$PG.CONN.PASSWORD}'
-      value: ''
-      description: PostgreSQL monitoring user password. Set this as a secret macro
-        on the host.
-    - macro: '{$PG.CONN.DB}'
-      value: postgres
-      description: PostgreSQL database name used by Zabbix agent 2 PostgreSQL plugin.
-    - macro: '{$PG.WAL.RECEIVER.MSG.MAX}'
-      value: '300'
-      description: Maximum seconds since last WAL receiver message.
-    - macro: '{$PG.STANDBY.GAP.HIGH}'
-      value: '1073741824'
-      description: Standby receive/replay gap high threshold, default 1GB.
-    - macro: '{$PG.STANDBY.REPLAY_DELAY.HIGH}'
-      value: '1800'
-      description: Standby replay delay high threshold, default 30 minutes.
+    - uuid: a102c1bef0784d72ade44d3d75940643
+      template: 'Template PostgreSQL Replication Source'
+      name: 'Template PostgreSQL Replication Source'
+      description: 'Monitors PostgreSQL pg_stat_replication and pg_replication_slots. Designed for primary nodes and standby leaders that stream to downstream replicas.'
+      groups:
+        - name: Templates/Databases
+      items:
+        - uuid: 7a802e28c793454c9b6ddf0dfb50dbf8
+          name: 'PostgreSQL replication clients raw'
+          key: 'pgsql.custom.query[{$PG.CONN.URI},{$PG.CONN.USER},{$PG.CONN.PASSWORD},{$PG.CONN.DB},zbx_pg_replication_clients]'
+          history: '0'
+          value_type: TEXT
+          trends: '0'
+          tags:
+            - tag: component
+              value: Replication
+        - uuid: c7d7144e437b4221aa9b1235af9f26c4
+          name: 'PostgreSQL replication slots raw'
+          key: 'pgsql.custom.query[{$PG.CONN.URI},{$PG.CONN.USER},{$PG.CONN.PASSWORD},{$PG.CONN.DB},zbx_pg_replication_slots]'
+          history: '0'
+          value_type: TEXT
+          trends: '0'
+          tags:
+            - tag: component
+              value: Replication
+      discovery_rules:
+        - uuid: ce35c9eee7024744be1a33707f2ad31e
+          name: 'PostgreSQL replication clients discovery'
+          type: DEPENDENT
+          key: pgsql.replication.clients.discovery
+          delay: '0'
+          lifetime: 30d
+          enabled_lifetime_type: DISABLE_NEVER
+          item_prototypes:
+            - uuid: 1e6eacb09e3d454d9abcb3aab3fbf791
+              name: 'PostgreSQL replication client {#APP_NAME}/{#CLIENT_ADDR}: current to sent lag'
+              type: DEPENDENT
+              key: 'pgsql.replication.client.current_to_sent_lag_bytes[{#APP_NAME},{#CLIENT_ADDR}]'
+              delay: '0'
+              history: 30d
+              units: B
+              preprocessing:
+                - type: JAVASCRIPT
+                  parameters:
+                    - |
+                      var data = JSON.parse(value);
+                      var app = "{#APP_NAME}";
+                      var addr =  "{#CLIENT_ADDR}";
+                      for (var i = 0; i < data.length; i++) {
+                          if  (String(data[i].application_name) === app && String(data[i].client_addr)  === addr) {
+                              var v = data[i]['current_to_sent_lag_bytes'];
+                               if (v === undefined || v === null || v === '') return 0;
+                               return v;
+                          }
+                      }
+                      return 0;
+              master_item:
+                key: 'pgsql.custom.query[{$PG.CONN.URI},{$PG.CONN.USER},{$PG.CONN.PASSWORD},{$PG.CONN.DB},zbx_pg_replication_clients]'
+              tags:
+                - tag: component
+                  value: Replication
+              trigger_prototypes:
+                - uuid: e3fcae2b353d436ea111faaa3bca3f2f
+                  expression: 'min(/Template PostgreSQL Replication Source/pgsql.replication.client.current_to_sent_lag_bytes[{#APP_NAME},{#CLIENT_ADDR}],5m)>{$PG.REPL.LAG.WARN}'
+                  name: 'PostgreSQL replication client {#APP_NAME}/{#CLIENT_ADDR}: primary cannot send WAL fast enough'
+                  priority: HIGH
+                  manual_close: 'YES'
+            - uuid: 072133c8a2274e87a98c818fe89f7e1e
+              name: 'PostgreSQL replication client {#APP_NAME}/{#CLIENT_ADDR}: flush lag seconds'
+              type: DEPENDENT
+              key: 'pgsql.replication.client.flush_lag_sec[{#APP_NAME},{#CLIENT_ADDR}]'
+              delay: '0'
+              history: 30d
+              units: s
+              preprocessing:
+                - type: JAVASCRIPT
+                  parameters:
+                    - |
+                      var data = JSON.parse(value);
+                      var app = "{#APP_NAME}";
+                      var addr =  "{#CLIENT_ADDR}";
+                      for (var i = 0; i < data.length; i++) {
+                          if  (String(data[i].application_name) === app && String(data[i].client_addr)  === addr) {
+                              var v = data[i]['flush_lag_sec'];
+                              if (v  === undefined || v === null || v === '') return 0;
+                              return v;
+                           }
+                      }
+                      return 0;
+              master_item:
+                key: 'pgsql.custom.query[{$PG.CONN.URI},{$PG.CONN.USER},{$PG.CONN.PASSWORD},{$PG.CONN.DB},zbx_pg_replication_clients]'
+              tags:
+                - tag: component
+                  value: Replication
+            - uuid: 713119df96c54444af3e62c740bb5bb8
+              name: 'PostgreSQL replication client {#APP_NAME}/{#CLIENT_ADDR}: flush to replay lag'
+              type: DEPENDENT
+              key: 'pgsql.replication.client.flush_to_replay_lag_bytes[{#APP_NAME},{#CLIENT_ADDR}]'
+              delay: '0'
+              history: 30d
+              units: B
+              preprocessing:
+                - type: JAVASCRIPT
+                  parameters:
+                    - |
+                      var data = JSON.parse(value);
+                      var app = "{#APP_NAME}";
+                      var addr =  "{#CLIENT_ADDR}";
+                      for (var i = 0; i < data.length; i++) {
+                          if  (String(data[i].application_name) === app && String(data[i].client_addr)  === addr) {
+                              var v = data[i]['flush_to_replay_lag_bytes'];
+                               if (v === undefined || v === null || v === '') return 0;
+                               return v;
+                          }
+                      }
+                      return 0;
+              master_item:
+                key: 'pgsql.custom.query[{$PG.CONN.URI},{$PG.CONN.USER},{$PG.CONN.PASSWORD},{$PG.CONN.DB},zbx_pg_replication_clients]'
+              tags:
+                - tag: component
+                  value: Replication
+            - uuid: 82a5201e435040acaf397f72dec9ded8
+              name: 'PostgreSQL replication client {#APP_NAME}/{#CLIENT_ADDR}: replay lag seconds'
+              type: DEPENDENT
+              key: 'pgsql.replication.client.replay_lag_sec[{#APP_NAME},{#CLIENT_ADDR}]'
+              delay: '0'
+              history: 30d
+              units: s
+              preprocessing:
+                - type: JAVASCRIPT
+                  parameters:
+                    - |
+                      var data = JSON.parse(value);
+                      var app = "{#APP_NAME}";
+                      var addr =  "{#CLIENT_ADDR}";
+                      for (var i = 0; i < data.length; i++) {
+                          if  (String(data[i].application_name) === app && String(data[i].client_addr)  === addr) {
+                              var v = data[i]['replay_lag_sec'];
+                              if  (v === undefined || v === null || v === '') return 0;
+                              return  v;
+                          }
+                      }
+                      return 0;
+              master_item:
+                key: 'pgsql.custom.query[{$PG.CONN.URI},{$PG.CONN.USER},{$PG.CONN.PASSWORD},{$PG.CONN.DB},zbx_pg_replication_clients]'
+              tags:
+                - tag: component
+                  value: Replication
+              trigger_prototypes:
+                - uuid: b17c2f66a1a34c299fa65875ee39e2b9
+                  expression: 'min(/Template PostgreSQL Replication Source/pgsql.replication.client.replay_lag_sec[{#APP_NAME},{#CLIENT_ADDR}],5m)>{$PG.REPL.TIME.HIGH}'
+                  name: 'PostgreSQL replication client {#APP_NAME}/{#CLIENT_ADDR}: time replay lag is high'
+                  priority: DISASTER
+                  manual_close: 'YES'
+            - uuid: fa7fb55c10284089887779b88d21f7ac
+              name: 'PostgreSQL replication client {#APP_NAME}/{#CLIENT_ADDR}: sent to write lag'
+              type: DEPENDENT
+              key: 'pgsql.replication.client.sent_to_write_lag_bytes[{#APP_NAME},{#CLIENT_ADDR}]'
+              delay: '0'
+              history: 30d
+              units: B
+              preprocessing:
+                - type: JAVASCRIPT
+                  parameters:
+                    - |
+                      var data = JSON.parse(value);
+                      var app = "{#APP_NAME}";
+                      var addr =  "{#CLIENT_ADDR}";
+                      for (var i = 0; i < data.length; i++) {
+                          if  (String(data[i].application_name) === app && String(data[i].client_addr)  === addr) {
+                              var v = data[i]['sent_to_write_lag_bytes'];
+                               if (v === undefined || v === null || v === '') return 0;
+                               return v;
+                          }
+                      }
+                      return 0;
+              master_item:
+                key: 'pgsql.custom.query[{$PG.CONN.URI},{$PG.CONN.USER},{$PG.CONN.PASSWORD},{$PG.CONN.DB},zbx_pg_replication_clients]'
+              tags:
+                - tag: component
+                  value: Replication
+            - uuid: 4c7efd4359b64e3399255a5cc22aa31d
+              name: 'PostgreSQL replication client {#APP_NAME}/{#CLIENT_ADDR}: state'
+              type: DEPENDENT
+              key: 'pgsql.replication.client.state[{#APP_NAME},{#CLIENT_ADDR}]'
+              delay: '0'
+              history: 30d
+              value_type: TEXT
+              trends: '0'
+              preprocessing:
+                - type: JAVASCRIPT
+                  parameters:
+                    - |
+                      var data = JSON.parse(value);
+                      var app = "{#APP_NAME}";
+                      var addr =  "{#CLIENT_ADDR}";
+                      for (var i = 0; i < data.length; i++) {
+                          if  (String(data[i].application_name) === app && String(data[i].client_addr)  === addr) {
+                              var v = data[i]['state'];
+                              if (v === undefined  || v === null || v === '') return 'missing';
+                              return v;
+                           }
+                      }
+                      return 'missing';
+              master_item:
+                key: 'pgsql.custom.query[{$PG.CONN.URI},{$PG.CONN.USER},{$PG.CONN.PASSWORD},{$PG.CONN.DB},zbx_pg_replication_clients]'
+              tags:
+                - tag: component
+                  value: Replication
+              trigger_prototypes:
+                - uuid: b29b0ba9bfd94b5886f1abce7f473491
+                  expression: 'last(/Template PostgreSQL Replication Source/pgsql.replication.client.state[{#APP_NAME},{#CLIENT_ADDR}])<>"streaming" and last(/Template PostgreSQL Replication Source/pgsql.replication.client.state[{#APP_NAME},{#CLIENT_ADDR}])<>"catchup" and last(/Template PostgreSQL Replication Source/pgsql.replication.client.state[{#APP_NAME},{#CLIENT_ADDR}])<>"backup"'
+                  name: 'PostgreSQL replication client {#APP_NAME}/{#CLIENT_ADDR}: state is not healthy'
+                  priority: DISASTER
+                  manual_close: 'YES'
+            - uuid: 698f8ac0c3714e258ec4e9cc950c3e47
+              name: 'PostgreSQL replication client {#APP_NAME}/{#CLIENT_ADDR}: sync state'
+              type: DEPENDENT
+              key: 'pgsql.replication.client.sync_state[{#APP_NAME},{#CLIENT_ADDR}]'
+              delay: '0'
+              history: 30d
+              value_type: TEXT
+              trends: '0'
+              preprocessing:
+                - type: JAVASCRIPT
+                  parameters:
+                    - |
+                      var data = JSON.parse(value);
+                      var app = "{#APP_NAME}";
+                      var addr =  "{#CLIENT_ADDR}";
+                      for (var i = 0; i < data.length; i++) {
+                          if  (String(data[i].application_name) === app && String(data[i].client_addr)  === addr) {
+                              var v = data[i]['sync_state'];
+                              if (v ===  undefined || v === null || v === '') return 'missing';
+                              return  v;
+                          }
+                      }
+                      return 'missing';
+              master_item:
+                key: 'pgsql.custom.query[{$PG.CONN.URI},{$PG.CONN.USER},{$PG.CONN.PASSWORD},{$PG.CONN.DB},zbx_pg_replication_clients]'
+              tags:
+                - tag: component
+                  value: Replication
+            - uuid: e02116f481274ef4815cabe12401559d
+              name: 'PostgreSQL replication client {#APP_NAME}/{#CLIENT_ADDR}: total replay lag'
+              type: DEPENDENT
+              key: 'pgsql.replication.client.total_replay_lag_bytes[{#APP_NAME},{#CLIENT_ADDR}]'
+              delay: '0'
+              history: 30d
+              units: B
+              preprocessing:
+                - type: JAVASCRIPT
+                  parameters:
+                    - |
+                      var data = JSON.parse(value);
+                      var app = "{#APP_NAME}";
+                      var addr =  "{#CLIENT_ADDR}";
+                      for (var i = 0; i < data.length; i++) {
+                          if  (String(data[i].application_name) === app && String(data[i].client_addr)  === addr) {
+                              var v = data[i]['total_replay_lag_bytes'];
+                               if (v === undefined || v === null || v === '') return 0;
+                               return v;
+                          }
+                      }
+                      return 0;
+              master_item:
+                key: 'pgsql.custom.query[{$PG.CONN.URI},{$PG.CONN.USER},{$PG.CONN.PASSWORD},{$PG.CONN.DB},zbx_pg_replication_clients]'
+              tags:
+                - tag: component
+                  value: Replication
+              trigger_prototypes:
+                - uuid: 586187fc2550498b9a1b13fb27198339
+                  expression: 'min(/Template PostgreSQL Replication Source/pgsql.replication.client.total_replay_lag_bytes[{#APP_NAME},{#CLIENT_ADDR}],5m)>{$PG.REPL.LAG.DISASTER}'
+                  recovery_mode: RECOVERY_EXPRESSION
+                  recovery_expression: 'max(/Template PostgreSQL Replication Source/pgsql.replication.client.total_replay_lag_bytes[{#APP_NAME},{#CLIENT_ADDR}],5m)<{$PG.REPL.LAG.HIGH}'
+                  name: 'PostgreSQL replication client {#APP_NAME}/{#CLIENT_ADDR}: total replay lag is critical'
+                  priority: DISASTER
+                  manual_close: 'YES'
+                - uuid: 069cad7067474a27b4ff9f3e25ae2bc5
+                  expression: 'min(/Template PostgreSQL Replication Source/pgsql.replication.client.total_replay_lag_bytes[{#APP_NAME},{#CLIENT_ADDR}],5m)>{$PG.REPL.LAG.HIGH}'
+                  recovery_mode: RECOVERY_EXPRESSION
+                  recovery_expression: 'max(/Template PostgreSQL Replication Source/pgsql.replication.client.total_replay_lag_bytes[{#APP_NAME},{#CLIENT_ADDR}],5m)<{$PG.REPL.LAG.WARN}'
+                  name: 'PostgreSQL replication client {#APP_NAME}/{#CLIENT_ADDR}: total replay lag is high'
+                  priority: DISASTER
+                  manual_close: 'YES'
+            - uuid: 8eeb58f06e174cb5a53f3bd871828e6f
+              name: 'PostgreSQL replication client {#APP_NAME}/{#CLIENT_ADDR}: write lag seconds'
+              type: DEPENDENT
+              key: 'pgsql.replication.client.write_lag_sec[{#APP_NAME},{#CLIENT_ADDR}]'
+              delay: '0'
+              history: 30d
+              units: s
+              preprocessing:
+                - type: JAVASCRIPT
+                  parameters:
+                    - |
+                      var data = JSON.parse(value);
+                      var app = "{#APP_NAME}";
+                      var addr =  "{#CLIENT_ADDR}";
+                      for (var i = 0; i < data.length; i++) {
+                          if  (String(data[i].application_name) === app && String(data[i].client_addr)  === addr) {
+                              var v = data[i]['write_lag_sec'];
+                              if (v  === undefined || v === null || v === '') return 0;
+                              return v;
+                           }
+                      }
+                      return 0;
+              master_item:
+                key: 'pgsql.custom.query[{$PG.CONN.URI},{$PG.CONN.USER},{$PG.CONN.PASSWORD},{$PG.CONN.DB},zbx_pg_replication_clients]'
+              tags:
+                - tag: component
+                  value: Replication
+            - uuid: d54a2e30292f4bae855c2ab20d6d5c5f
+              name: 'PostgreSQL replication client {#APP_NAME}/{#CLIENT_ADDR}: write to flush lag'
+              type: DEPENDENT
+              key: 'pgsql.replication.client.write_to_flush_lag_bytes[{#APP_NAME},{#CLIENT_ADDR}]'
+              delay: '0'
+              history: 30d
+              units: B
+              preprocessing:
+                - type: JAVASCRIPT
+                  parameters:
+                    - |
+                      var data = JSON.parse(value);
+                      var app = "{#APP_NAME}";
+                      var addr =  "{#CLIENT_ADDR}";
+                      for (var i = 0; i < data.length; i++) {
+                          if  (String(data[i].application_name) === app && String(data[i].client_addr)  === addr) {
+                              var v = data[i]['write_to_flush_lag_bytes'];
+                               if (v === undefined || v === null || v === '') return 0;
+                               return v;
+                          }
+                      }
+                      return 0;
+              master_item:
+                key: 'pgsql.custom.query[{$PG.CONN.URI},{$PG.CONN.USER},{$PG.CONN.PASSWORD},{$PG.CONN.DB},zbx_pg_replication_clients]'
+              tags:
+                - tag: component
+                  value: Replication
+          master_item:
+            key: 'pgsql.custom.query[{$PG.CONN.URI},{$PG.CONN.USER},{$PG.CONN.PASSWORD},{$PG.CONN.DB},zbx_pg_replication_clients]'
+          lld_macro_paths:
+            - lld_macro: '{#APP_NAME}'
+              path: $.application_name
+            - lld_macro: '{#CLIENT_ADDR}'
+              path: $.client_addr
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - '$[*]'
+        - uuid: 39726c4d809240dab701489ced804f2c
+          name: 'PostgreSQL replication slots discovery'
+          type: DEPENDENT
+          key: pgsql.replication.slots.discovery
+          delay: '0'
+          lifetime: 30d
+          enabled_lifetime_type: DISABLE_NEVER
+          item_prototypes:
+            - uuid: efa84a9aab274577969b2a688a006bb5
+              name: 'PostgreSQL slot {#SLOT_NAME}: active'
+              type: DEPENDENT
+              key: 'pgsql.replication.slot.active[{#SLOT_NAME}]'
+              delay: '0'
+              history: 30d
+              description: 'Numeric: 1=active, 0=inactive.'
+              preprocessing:
+                - type: JAVASCRIPT
+                  parameters:
+                    - |
+                      var data = JSON.parse(value);
+                      var slot = "{#SLOT_NAME}";
+                      for (var  i = 0; i < data.length; i++) {
+                          if (String(data[i].slot_name) ===  slot) {
+                              var v = data[i]['active'];
+                              if (v === undefined  || v === null || v === '') return 0;
+                              return v;
+                          }
+                      }
+                       return 0;
+              master_item:
+                key: 'pgsql.custom.query[{$PG.CONN.URI},{$PG.CONN.USER},{$PG.CONN.PASSWORD},{$PG.CONN.DB},zbx_pg_replication_slots]'
+              tags:
+                - tag: component
+                  value: Replication
+              trigger_prototypes:
+                - uuid: bc2a772948714322ab786102824b745c
+                  expression: 'min(/Template PostgreSQL Replication Source/pgsql.replication.slot.active[{#SLOT_NAME}],{$PG.SLOT.INACTIVE.TIME})=0'
+                  name: 'PostgreSQL slot {#SLOT_NAME}: inactive'
+                  priority: HIGH
+                  manual_close: 'YES'
+            - uuid: dc1156ef99f8498897e1c514c8d8be6f
+              name: 'PostgreSQL slot {#SLOT_NAME}: retained WAL'
+              type: DEPENDENT
+              key: 'pgsql.replication.slot.retained_wal.bytes[{#SLOT_NAME}]'
+              delay: '0'
+              history: 30d
+              units: B
+              description: 'Bytes retained by this replication slot.'
+              preprocessing:
+                - type: JAVASCRIPT
+                  parameters:
+                    - |
+                      var data = JSON.parse(value);
+                      var slot = "{#SLOT_NAME}";
+                      for (var  i = 0; i < data.length; i++) {
+                          if (String(data[i].slot_name) ===  slot) {
+                              var v = data[i]['retained_wal_bytes'];
+                              if  (v === undefined || v === null || v === '') return 0;
+                              return  v;
+                          }
+                      }
+                      return 0;
+              master_item:
+                key: 'pgsql.custom.query[{$PG.CONN.URI},{$PG.CONN.USER},{$PG.CONN.PASSWORD},{$PG.CONN.DB},zbx_pg_replication_slots]'
+              tags:
+                - tag: component
+                  value: Replication
+              trigger_prototypes:
+                - uuid: 775d0b655a8240c2a967e481b9c7cfec
+                  expression: 'min(/Template PostgreSQL Replication Source/pgsql.replication.slot.retained_wal.bytes[{#SLOT_NAME}],5m)>{$PG.SLOT.RETAINED.DISASTER}'
+                  recovery_mode: RECOVERY_EXPRESSION
+                  recovery_expression: 'max(/Template PostgreSQL Replication Source/pgsql.replication.slot.retained_wal.bytes[{#SLOT_NAME}],5m)<{$PG.SLOT.RETAINED.HIGH}'
+                  name: 'PostgreSQL slot {#SLOT_NAME}: retained WAL is critical'
+                  priority: DISASTER
+                  manual_close: 'YES'
+                - uuid: 540243042ddd42dd8cd12c6aeea559af
+                  expression: 'min(/Template PostgreSQL Replication Source/pgsql.replication.slot.retained_wal.bytes[{#SLOT_NAME}],5m)>{$PG.SLOT.RETAINED.HIGH}'
+                  recovery_mode: RECOVERY_EXPRESSION
+                  recovery_expression: 'max(/Template PostgreSQL Replication Source/pgsql.replication.slot.retained_wal.bytes[{#SLOT_NAME}],5m)<{$PG.SLOT.RETAINED.WARN}'
+                  name: 'PostgreSQL slot {#SLOT_NAME}: retained WAL is high'
+                  priority: DISASTER
+                  manual_close: 'YES'
+            - uuid: 6cefbfb0647646118e4b822ba812e1e0
+              name: 'PostgreSQL slot {#SLOT_NAME}: safe WAL size'
+              type: DEPENDENT
+              key: 'pgsql.replication.slot.safe_wal_size.bytes[{#SLOT_NAME}]'
+              delay: '0'
+              history: 30d
+              value_type: FLOAT
+              units: B
+              description: 'Remaining safe WAL size before the slot may become lost. -1 means unlimited or unavailable.'
+              preprocessing:
+                - type: JAVASCRIPT
+                  parameters:
+                    - |
+                      var data = JSON.parse(value);
+                      var slot = "{#SLOT_NAME}";
+                      for (var  i = 0; i < data.length; i++) {
+                          if (String(data[i].slot_name) ===  slot) {
+                              var v = data[i]['safe_wal_size_bytes'];
+                              if  (v === undefined || v === null || v === '') return 0;
+                              return  v;
+                          }
+                      }
+                      return 0;
+              master_item:
+                key: 'pgsql.custom.query[{$PG.CONN.URI},{$PG.CONN.USER},{$PG.CONN.PASSWORD},{$PG.CONN.DB},zbx_pg_replication_slots]'
+              tags:
+                - tag: component
+                  value: Replication
+            - uuid: c56a94077de44ca9975cd93e025cfcf4
+              name: 'PostgreSQL slot {#SLOT_NAME}: type'
+              type: DEPENDENT
+              key: 'pgsql.replication.slot.type[{#SLOT_NAME}]'
+              delay: '0'
+              history: 30d
+              value_type: TEXT
+              trends: '0'
+              preprocessing:
+                - type: JAVASCRIPT
+                  parameters:
+                    - |
+                      var data = JSON.parse(value);
+                      var slot = "{#SLOT_NAME}";
+                      for (var  i = 0; i < data.length; i++) {
+                          if (String(data[i].slot_name) ===  slot) {
+                              var v = data[i]['slot_type'];
+                              if (v === undefined  || v === null || v === '') return 'missing';
+                              return v;
+                           }
+                      }
+                      return 'missing';
+              master_item:
+                key: 'pgsql.custom.query[{$PG.CONN.URI},{$PG.CONN.USER},{$PG.CONN.PASSWORD},{$PG.CONN.DB},zbx_pg_replication_slots]'
+              tags:
+                - tag: component
+                  value: Replication
+            - uuid: a3f6b54c81764570b1d05f6fbd360363
+              name: 'PostgreSQL slot {#SLOT_NAME}: WAL status'
+              type: DEPENDENT
+              key: 'pgsql.replication.slot.wal_status[{#SLOT_NAME}]'
+              delay: '0'
+              history: 30d
+              value_type: TEXT
+              trends: '0'
+              preprocessing:
+                - type: JAVASCRIPT
+                  parameters:
+                    - |
+                      var data = JSON.parse(value);
+                      var slot = "{#SLOT_NAME}";
+                      for (var  i = 0; i < data.length; i++) {
+                          if (String(data[i].slot_name) ===  slot) {
+                              var v = data[i]['wal_status'];
+                              if (v === undefined  || v === null || v === '') return 'missing';
+                              return v;
+                           }
+                      }
+                      return 'missing';
+              master_item:
+                key: 'pgsql.custom.query[{$PG.CONN.URI},{$PG.CONN.USER},{$PG.CONN.PASSWORD},{$PG.CONN.DB},zbx_pg_replication_slots]'
+              tags:
+                - tag: component
+                  value: Replication
+              trigger_prototypes:
+                - uuid: 4bc90b20c8bd42908ebaf03193928d77
+                  expression: 'last(/Template PostgreSQL Replication Source/pgsql.replication.slot.wal_status[{#SLOT_NAME}])="extended"'
+                  name: 'PostgreSQL slot {#SLOT_NAME}: WAL status is extended'
+                  priority: HIGH
+                  manual_close: 'YES'
+                - uuid: 92e2d2bac66e4da2b1b5ce37a37619c2
+                  expression: 'last(/Template PostgreSQL Replication Source/pgsql.replication.slot.wal_status[{#SLOT_NAME}])="lost"'
+                  name: 'PostgreSQL slot {#SLOT_NAME}: WAL status is lost'
+                  priority: DISASTER
+                  manual_close: 'YES'
+          master_item:
+            key: 'pgsql.custom.query[{$PG.CONN.URI},{$PG.CONN.USER},{$PG.CONN.PASSWORD},{$PG.CONN.DB},zbx_pg_replication_slots]'
+          lld_macro_paths:
+            - lld_macro: '{#SLOT_NAME}'
+              path: $.slot_name
+            - lld_macro: '{#SLOT_TYPE}'
+              path: $.slot_type
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - '$[*]'
+      macros:
+        - macro: '{$PG.CONN.DB}'
+          value: postgres
+          description: 'PostgreSQL database name used by Zabbix agent 2 PostgreSQL plugin.'
+        - macro: '{$PG.CONN.PASSWORD}'
+          description: 'PostgreSQL monitoring user password. Set this as a secret macro on the host.'
+        - macro: '{$PG.CONN.URI}'
+          value: 'tcp://127.0.0.1:5432'
+          description: 'PostgreSQL connection URI used by Zabbix agent 2 PostgreSQL plugin.'
+        - macro: '{$PG.CONN.USER}'
+          value: zabbix
+          description: 'PostgreSQL monitoring user.'
+        - macro: '{$PG.REPL.LAG.DISASTER}'
+          value: '53687091200'
+          description: 'Replication byte lag disaster threshold, default 50GB.'
+        - macro: '{$PG.REPL.LAG.HIGH}'
+          value: '21474836480'
+          description: 'Replication byte lag high threshold, default 20GB.'
+        - macro: '{$PG.REPL.LAG.WARN}'
+          value: '5368709120'
+          description: 'Replication byte lag warning threshold, default 5GB.'
+        - macro: '{$PG.REPL.TIME.HIGH}'
+          value: '1800'
+          description: 'Replication time lag high threshold in seconds, default 30 minutes.'
+        - macro: '{$PG.REPL.TIME.WARN}'
+          value: '900'
+          description: 'Replication time lag warning threshold in seconds, default 15 minutes.'
+        - macro: '{$PG.SLOT.INACTIVE.TIME}'
+          value: 10m
+          description: 'How long a discovered slot may stay inactive before alerting.'
+        - macro: '{$PG.SLOT.RETAINED.DISASTER}'
+          value: '85899345920'
+          description: 'Slot retained WAL disaster threshold, default 80GB.'
+        - macro: '{$PG.SLOT.RETAINED.HIGH}'
+          value: '32212254720'
+          description: 'Slot retained WAL high threshold, default 30GB.'
+        - macro: '{$PG.SLOT.RETAINED.WARN}'
+          value: '10737418240'
+          description: 'Slot retained WAL warning threshold, default 10GB.'
+    - uuid: e889aa5843ce482f8c50dcadbdafe6b0
+      template: 'Template PostgreSQL Standby Receiver'
+      name: 'Template PostgreSQL Standby Receiver'
+      description: 'Monitors PostgreSQL standby receiver state, receive/replay gap and replay delay. Apply only to standby nodes.'
+      groups:
+        - name: Templates/Databases
+      items:
+        - uuid: 6c791baa6fb64a11b71bbf49aa176fdb
+          name: 'PostgreSQL standby receiver raw'
+          key: 'pgsql.custom.query[{$PG.CONN.URI},{$PG.CONN.USER},{$PG.CONN.PASSWORD},{$PG.CONN.DB},zbx_pg_standby_receiver]'
+          history: '0'
+          value_type: TEXT
+          trends: '0'
+          tags:
+            - tag: component
+              value: Standby
+        - uuid: 9ad8f267d84646db991f36df201402f9
+          name: 'PostgreSQL standby: in recovery'
+          type: DEPENDENT
+          key: pgsql.standby.in_recovery
+          delay: '0'
+          history: 30d
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - '$[0].in_recovery'
+              error_handler: CUSTOM_VALUE
+              error_handler_params: '0'
+          master_item:
+            key: 'pgsql.custom.query[{$PG.CONN.URI},{$PG.CONN.USER},{$PG.CONN.PASSWORD},{$PG.CONN.DB},zbx_pg_standby_receiver]'
+          tags:
+            - tag: component
+              value: Standby
+          triggers:
+            - uuid: 9b5a37b11bf14584ae13aaed4c889225
+              expression: 'last(/Template PostgreSQL Standby Receiver/pgsql.standby.in_recovery)<>1'
+              name: 'PostgreSQL standby: node is not in recovery mode'
+              priority: DISASTER
+              manual_close: 'YES'
+        - uuid: 795b8a601f434d55a2a51b7f29fc931c
+          name: 'PostgreSQL standby: receive/replay gap'
+          type: DEPENDENT
+          key: pgsql.standby.receive_replay_gap.bytes
+          delay: '0'
+          history: 30d
+          units: B
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - '$[0].receive_replay_gap_bytes'
+              error_handler: CUSTOM_VALUE
+              error_handler_params: '0'
+          master_item:
+            key: 'pgsql.custom.query[{$PG.CONN.URI},{$PG.CONN.USER},{$PG.CONN.PASSWORD},{$PG.CONN.DB},zbx_pg_standby_receiver]'
+          tags:
+            - tag: component
+              value: Standby
+          triggers:
+            - uuid: cdf9f90b59f44014bf0a3eef32224ef7
+              expression: 'min(/Template PostgreSQL Standby Receiver/pgsql.standby.receive_replay_gap.bytes,5m)>{$PG.STANDBY.GAP.HIGH}'
+              name: 'PostgreSQL standby: receive/replay gap is high'
+              priority: DISASTER
+              manual_close: 'YES'
+        - uuid: 1962fc56eae04cbc995ca8b857f01279
+          name: 'PostgreSQL standby: replay delay'
+          type: DEPENDENT
+          key: pgsql.standby.replay_delay.sec
+          delay: '0'
+          history: 30d
+          units: s
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - '$[0].replay_delay_sec'
+              error_handler: CUSTOM_VALUE
+              error_handler_params: '0'
+          master_item:
+            key: 'pgsql.custom.query[{$PG.CONN.URI},{$PG.CONN.USER},{$PG.CONN.PASSWORD},{$PG.CONN.DB},zbx_pg_standby_receiver]'
+          tags:
+            - tag: component
+              value: Standby
+          triggers:
+            - uuid: ef40f6999e6142dfb0fbd085f467da18
+              expression: 'min(/Template PostgreSQL Standby Receiver/pgsql.standby.replay_delay.sec,5m)>{$PG.STANDBY.REPLAY_DELAY.HIGH}'
+              name: 'PostgreSQL standby: replay delay is high'
+              priority: HIGH
+              manual_close: 'YES'
+        - uuid: 2296b8b649894d4ba276800642f605af
+          name: 'PostgreSQL standby: seconds since last WAL receiver message'
+          type: DEPENDENT
+          key: pgsql.standby.wal_receiver.seconds_since_last_msg
+          delay: '0'
+          history: 30d
+          units: s
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - '$[0].seconds_since_last_msg'
+              error_handler: CUSTOM_VALUE
+              error_handler_params: '0'
+          master_item:
+            key: 'pgsql.custom.query[{$PG.CONN.URI},{$PG.CONN.USER},{$PG.CONN.PASSWORD},{$PG.CONN.DB},zbx_pg_standby_receiver]'
+          tags:
+            - tag: component
+              value: Standby
+          triggers:
+            - uuid: f40fa9b1485840d0960a9642e0a78892
+              expression: 'last(/Template PostgreSQL Standby Receiver/pgsql.standby.wal_receiver.seconds_since_last_msg)>{$PG.WAL.RECEIVER.MSG.MAX} and last(/Template PostgreSQL Standby Receiver/pgsql.standby.wal_receiver.seconds_since_last_msg)<>-1'
+              name: 'PostgreSQL standby: no recent WAL receiver message'
+              priority: HIGH
+              manual_close: 'YES'
+        - uuid: f0e8fb3ea2844d9aa719355e7dbf2189
+          name: 'PostgreSQL standby: WAL receiver sender host'
+          type: DEPENDENT
+          key: pgsql.standby.wal_receiver.sender_host
+          delay: '0'
+          history: 30d
+          value_type: TEXT
+          trends: '0'
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - '$[0].sender_host'
+              error_handler: CUSTOM_VALUE
+              error_handler_params: missing
+          master_item:
+            key: 'pgsql.custom.query[{$PG.CONN.URI},{$PG.CONN.USER},{$PG.CONN.PASSWORD},{$PG.CONN.DB},zbx_pg_standby_receiver]'
+          tags:
+            - tag: component
+              value: Standby
+        - uuid: 944ad8a7de2847eea47552955bc5bed0
+          name: 'PostgreSQL standby: WAL receiver slot name'
+          type: DEPENDENT
+          key: pgsql.standby.wal_receiver.slot_name
+          delay: '0'
+          history: 30d
+          value_type: TEXT
+          trends: '0'
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - '$[0].slot_name'
+              error_handler: CUSTOM_VALUE
+              error_handler_params: missing
+          master_item:
+            key: 'pgsql.custom.query[{$PG.CONN.URI},{$PG.CONN.USER},{$PG.CONN.PASSWORD},{$PG.CONN.DB},zbx_pg_standby_receiver]'
+          tags:
+            - tag: component
+              value: Standby
+        - uuid: c84ad7dae9ab45779a4c2050b7d84242
+          name: 'PostgreSQL standby: WAL receiver status'
+          type: DEPENDENT
+          key: pgsql.standby.wal_receiver.status
+          delay: '0'
+          history: 30d
+          value_type: TEXT
+          trends: '0'
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - '$[0].status'
+              error_handler: CUSTOM_VALUE
+              error_handler_params: missing
+          master_item:
+            key: 'pgsql.custom.query[{$PG.CONN.URI},{$PG.CONN.USER},{$PG.CONN.PASSWORD},{$PG.CONN.DB},zbx_pg_standby_receiver]'
+          tags:
+            - tag: component
+              value: Standby
+          triggers:
+            - uuid: 4567945c238246b1b0b7f1286d2337ef
+              expression: 'last(/Template PostgreSQL Standby Receiver/pgsql.standby.wal_receiver.status)<>"streaming"'
+              name: 'PostgreSQL standby: WAL receiver is not streaming'
+              priority: HIGH
+              manual_close: 'YES'
+      macros:
+        - macro: '{$PG.CONN.DB}'
+          value: postgres
+          description: 'PostgreSQL database name used by Zabbix agent 2 PostgreSQL plugin.'
+        - macro: '{$PG.CONN.PASSWORD}'
+          description: 'PostgreSQL monitoring user password. Set this as a secret macro on the host.'
+        - macro: '{$PG.CONN.URI}'
+          value: 'tcp://127.0.0.1:5432'
+          description: 'PostgreSQL connection URI used by Zabbix agent 2 PostgreSQL plugin.'
+        - macro: '{$PG.CONN.USER}'
+          value: zabbix
+          description: 'PostgreSQL monitoring user.'
+        - macro: '{$PG.STANDBY.GAP.HIGH}'
+          value: '1073741824'
+          description: 'Standby receive/replay gap high threshold, default 1GB.'
+        - macro: '{$PG.STANDBY.REPLAY_DELAY.HIGH}'
+          value: '5400'
+          description: 'Standby replay delay high threshold, default 30 minutes.'
+        - macro: '{$PG.WAL.RECEIVER.MSG.MAX}'
+          value: '300'
+          description: 'Maximum seconds since last WAL receiver message.'
+    - uuid: 58f1c43958484c3f8ca536262cfa99bc
+      template: 'Template PostgreSQL WAL and Disk'
+      name: 'Template PostgreSQL WAL and Disk'
+      description: 'Monitors PostgreSQL pg_wal directory size, data filesystem usage, and WAL-related configuration values.'
+      groups:
+        - name: Templates/Databases
+      items:
+        - uuid: f50917ccc5c942df800def465ff5a777
+          name: 'PostgreSQL WAL settings raw'
+          key: 'pgsql.custom.query[{$PG.CONN.URI},{$PG.CONN.USER},{$PG.CONN.PASSWORD},{$PG.CONN.DB},zbx_pg_wal_settings]'
+          history: '0'
+          value_type: TEXT
+          trends: '0'
+          tags:
+            - tag: component
+              value: WAL
+        - uuid: 82550aeb3cd74ed9b970770fe04ad736
+          name: 'PostgreSQL setting: max_slot_wal_keep_size'
+          type: DEPENDENT
+          key: pgsql.setting.max_slot_wal_keep_size.bytes
+          delay: '0'
+          history: 30d
+          value_type: FLOAT
+          units: B
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - '$[?(@.name=="max_slot_wal_keep_size")].setting_bytes.first()'
+              error_handler: CUSTOM_VALUE
+              error_handler_params: '0'
+          master_item:
+            key: 'pgsql.custom.query[{$PG.CONN.URI},{$PG.CONN.USER},{$PG.CONN.PASSWORD},{$PG.CONN.DB},zbx_pg_wal_settings]'
+          tags:
+            - tag: component
+              value: WAL
+          triggers:
+            - uuid: 67a6438747684cad978f87c2e7ac62cb
+              expression: 'last(/Template PostgreSQL WAL and Disk/pgsql.setting.max_slot_wal_keep_size.bytes)=-1'
+              name: 'PostgreSQL max_slot_wal_keep_size is unlimited'
+              priority: WARNING
+              manual_close: 'YES'
+        - uuid: 76bb192373564d02b54719a63e3fa529
+          name: 'PostgreSQL setting: max_wal_size'
+          type: DEPENDENT
+          key: pgsql.setting.max_wal_size.bytes
+          delay: '0'
+          history: 30d
+          units: B
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - '$[?(@.name=="max_wal_size")].setting_bytes.first()'
+              error_handler: CUSTOM_VALUE
+              error_handler_params: '0'
+          master_item:
+            key: 'pgsql.custom.query[{$PG.CONN.URI},{$PG.CONN.USER},{$PG.CONN.PASSWORD},{$PG.CONN.DB},zbx_pg_wal_settings]'
+          tags:
+            - tag: component
+              value: WAL
+        - uuid: 0928b2a259a54273b155bd703408a84e
+          name: 'PostgreSQL setting: min_wal_size'
+          type: DEPENDENT
+          key: pgsql.setting.min_wal_size.bytes
+          delay: '0'
+          history: 30d
+          units: B
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - '$[?(@.name=="min_wal_size")].setting_bytes.first()'
+              error_handler: CUSTOM_VALUE
+              error_handler_params: '0'
+          master_item:
+            key: 'pgsql.custom.query[{$PG.CONN.URI},{$PG.CONN.USER},{$PG.CONN.PASSWORD},{$PG.CONN.DB},zbx_pg_wal_settings]'
+          tags:
+            - tag: component
+              value: WAL
+        - uuid: d584f430262f4344aef6169b813655c4
+          name: 'PostgreSQL setting: wal_keep_size'
+          type: DEPENDENT
+          key: pgsql.setting.wal_keep_size.bytes
+          delay: '0'
+          history: 30d
+          value_type: FLOAT
+          units: B
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - '$[?(@.name=="wal_keep_size")].setting_bytes.first()'
+              error_handler: CUSTOM_VALUE
+              error_handler_params: '0'
+          master_item:
+            key: 'pgsql.custom.query[{$PG.CONN.URI},{$PG.CONN.USER},{$PG.CONN.PASSWORD},{$PG.CONN.DB},zbx_pg_wal_settings]'
+          tags:
+            - tag: component
+              value: WAL
+          triggers:
+            - uuid: 11d00fe7b59e45b896b6288b3a63d754
+              expression: 'last(/Template PostgreSQL WAL and Disk/pgsql.setting.wal_keep_size.bytes)<>{$PG.WAL_KEEP_SIZE.EXPECTED}'
+              name: 'PostgreSQL wal_keep_size is not expected'
+              priority: WARNING
+              manual_close: 'YES'
+        - uuid: 51c4021b3edb45b8baf78d89cbd37586
+          name: 'PostgreSQL pg_wal directory size'
+          key: 'vfs.dir.size[{$PG.DATA_DIR}/pg_wal]'
+          delay: 5m
+          history: 30d
+          units: B
+          tags:
+            - tag: component
+              value: WAL
+          triggers:
+            - uuid: 87dd5bd6c47a4dd4bc275208296bf548
+              expression: 'min(/Template PostgreSQL WAL and Disk/vfs.dir.size[{$PG.DATA_DIR}/pg_wal],5m)>{$PG.WAL.SIZE.DISASTER}'
+              recovery_mode: RECOVERY_EXPRESSION
+              recovery_expression: 'max(/Template PostgreSQL WAL and Disk/vfs.dir.size[{$PG.DATA_DIR}/pg_wal],5m)<{$PG.WAL.SIZE.HIGH}'
+              name: 'PostgreSQL pg_wal directory size is critical'
+              priority: DISASTER
+              manual_close: 'YES'
+            - uuid: 1d8dbfc8af984f1dbfbd727ded4e8b00
+              expression: 'min(/Template PostgreSQL WAL and Disk/vfs.dir.size[{$PG.DATA_DIR}/pg_wal],5m)>{$PG.WAL.SIZE.HIGH}'
+              recovery_mode: RECOVERY_EXPRESSION
+              recovery_expression: 'max(/Template PostgreSQL WAL and Disk/vfs.dir.size[{$PG.DATA_DIR}/pg_wal],5m)<{$PG.WAL.SIZE.WARN}'
+              name: 'PostgreSQL pg_wal directory size is high'
+              priority: HIGH
+              manual_close: 'YES'
+        - uuid: 45a3da17d49e4757a30f1037a6276a54
+          name: 'PostgreSQL data filesystem free'
+          key: 'vfs.fs.size[{$PG.FS.MOUNT},free]'
+          history: 30d
+          units: B
+          tags:
+            - tag: component
+              value: Disk
+        - uuid: bf03b092793d4108b7a0f9a5dbc4873c
+          name: 'PostgreSQL data filesystem used percent'
+          key: 'vfs.fs.size[{$PG.FS.MOUNT},pused]'
+          history: 30d
+          units: '%'
+          tags:
+            - tag: component
+              value: Disk
+          triggers:
+            - uuid: 612c02cba1dc4dd89b6a5a3402fb0d2e
+              expression: 'min(/Template PostgreSQL WAL and Disk/vfs.fs.size[{$PG.FS.MOUNT},pused],5m)>{$PG.FS.PUSED.DISASTER}'
+              name: 'PostgreSQL data filesystem usage is critical'
+              priority: DISASTER
+              manual_close: 'YES'
+            - uuid: 676d65bf1399431c9eca6264805db5c5
+              expression: 'min(/Template PostgreSQL WAL and Disk/vfs.fs.size[{$PG.FS.MOUNT},pused],5m)>{$PG.FS.PUSED.HIGH}'
+              recovery_mode: RECOVERY_EXPRESSION
+              recovery_expression: 'max(/Template PostgreSQL WAL and Disk/vfs.fs.size[{$PG.FS.MOUNT},pused],5m)<{$PG.FS.PUSED.WARN}'
+              name: 'PostgreSQL data filesystem usage is high'
+              priority: HIGH
+              manual_close: 'YES'
+        - uuid: 02e4091f746a4cb79f3dced73e49115d
+          name: 'PostgreSQL data filesystem total'
+          key: 'vfs.fs.size[{$PG.FS.MOUNT},total]'
+          delay: 5m
+          history: 30d
+          units: B
+          tags:
+            - tag: component
+              value: Disk
+      macros:
+        - macro: '{$PG.CONN.DB}'
+          value: postgres
+          description: 'PostgreSQL database name used by Zabbix agent 2 PostgreSQL plugin.'
+        - macro: '{$PG.CONN.PASSWORD}'
+          description: 'PostgreSQL monitoring user password. Set this as a secret macro on the host.'
+        - macro: '{$PG.CONN.URI}'
+          value: 'tcp://127.0.0.1:5432'
+          description: 'PostgreSQL connection URI used by Zabbix agent 2 PostgreSQL plugin.'
+        - macro: '{$PG.CONN.USER}'
+          value: zabbix
+          description: 'PostgreSQL monitoring user.'
+        - macro: '{$PG.DATA_DIR}'
+          value: /var/lib/psql/17/data
+          description: 'PostgreSQL data directory.'
+        - macro: '{$PG.FS.MOUNT}'
+          value: /var/lib/psql
+          description: 'Filesystem mount containing PostgreSQL data directory.'
+        - macro: '{$PG.FS.PUSED.DISASTER}'
+          value: '95'
+          description: 'Data filesystem disaster used percent.'
+        - macro: '{$PG.FS.PUSED.HIGH}'
+          value: '90'
+          description: 'Data filesystem high used percent.'
+        - macro: '{$PG.FS.PUSED.WARN}'
+          value: '80'
+          description: 'Data filesystem warning used percent.'
+        - macro: '{$PG.WAL.SIZE.DISASTER}'
+          value: '214748364800'
+          description: 'pg_wal size disaster threshold, default 200GB.'
+        - macro: '{$PG.WAL.SIZE.HIGH}'
+          value: '137438953472'
+          description: 'pg_wal size high threshold, default 128GB.'
+        - macro: '{$PG.WAL.SIZE.WARN}'
+          value: '68719476736'
+          description: 'pg_wal size warning threshold, default 64GB.'
+        - macro: '{$PG.WAL_KEEP_SIZE.EXPECTED}'
+          value: '34359738368'
+          description: 'Expected wal_keep_size in bytes. Default 32GB.'
