@@ -1,0 +1,1130 @@
+zabbix_export:
+  version: '7.0'
+  template_groups:
+  - uuid: 8b465f11c46946c0bf496be3e43049cc
+    name: Templates/Applications
+  templates:
+  - uuid: 8cfe1a329aa7442fbd2e51cecf3765ed
+    template: Pacemaker cluster by Zabbix trapper
+    name: Pacemaker cluster by Zabbix trapper
+    description: "Monitors a Pacemaker/Corosync active/passive PostgreSQL cluster by processing\nthe XML output of:\n\n  crm_mon -1 --output-as=xml\n\nArchitecture:\n- One logical Zabbix host receives the XML through a Zabbix trapper item.\n- The sender script is installed on every Pacemaker node.\n- During normal operation only the current Pacemaker DC sends data.\n- If no DC is present, reachable nodes may send the cluster state so DC/quorum\n  failures remain observable.\n- PostgreSQL SQL-level monitoring must be configured separately, preferably\n  through the PostgreSQL VIP.\n\nDefault macros reflect a three-node example using:\n- Resource group: pg_group\n- PostgreSQL resource: pgsvc\n- VIP resource: pgvip\n\nReview and override all expected-count and resource-name macros before production use.\n"
+    groups:
+    - name: Templates/Applications
+    items:
+    - uuid: 2e37ca67743e409c9eaae11a384e124e
+      name: 'Pacemaker: Get cluster status'
+      type: TRAP
+      key: pacemaker.cluster.raw
+      history: 1d
+      value_type: TEXT
+      description: Raw XML output of `crm_mon -1 --output-as=xml`. The accompanying sender script sends data from the current DC node to a logical Zabbix cluster host.
+      tags:
+      - tag: component
+        value: pacemaker
+      - tag: scope
+        value: raw
+      triggers:
+      - uuid: be83b4eda2664e86baf48c6648679e83
+        expression: nodata(/Pacemaker cluster by Zabbix trapper/pacemaker.cluster.raw,{$PACEMAKER.NODATA})=1
+        name: 'Pacemaker: Cluster status data is unavailable'
+        priority: DISASTER
+        description: No crm_mon XML was received by the logical cluster host. Check the current DC node, sender timer, zabbix_sender connectivity and trapper host name.
+        tags:
+        - tag: component
+          value: pacemaker
+        - tag: scope
+          value: cluster
+    - uuid: f74472f8bdf049be88f55a0dc2cfdabe
+      name: 'Pacemaker: crm_mon result is OK'
+      type: DEPENDENT
+      key: pacemaker.status.ok
+      history: 7d
+      trends: 365d
+      description: Returns 1 when the crm_mon XML status code is 0.
+      valuemap:
+        name: Pacemaker boolean
+      preprocessing:
+      - type: XMLPATH
+        parameters:
+        - count(/pacemaker-result/status[@code='0'])
+      master_item:
+        key: pacemaker.cluster.raw
+      tags:
+      - tag: component
+        value: pacemaker
+      - tag: scope
+        value: cluster
+      triggers:
+      - uuid: b6701f6e76da4e98b95b6f6e04219252
+        expression: last(/Pacemaker cluster by Zabbix trapper/pacemaker.status.ok)=0
+        name: 'Pacemaker: crm_mon returned a non-OK status'
+        priority: HIGH
+        tags:
+        - tag: component
+          value: pacemaker
+        - tag: scope
+          value: cluster
+    - uuid: 91fadc13d6614ae78e5c65a33bc3ac31
+      name: 'Pacemaker: Stack is running'
+      type: DEPENDENT
+      key: pacemaker.stack.running
+      history: 7d
+      trends: 365d
+      valuemap:
+        name: Pacemaker boolean
+      preprocessing:
+      - type: XMLPATH
+        parameters:
+        - count(/pacemaker-result/summary/stack[@pacemakerd-state='running'])
+      master_item:
+        key: pacemaker.cluster.raw
+      tags:
+      - tag: component
+        value: pacemaker
+      - tag: scope
+        value: cluster
+      triggers:
+      - uuid: c6ddf50196c24075be6c0466ae4e1fc5
+        expression: last(/Pacemaker cluster by Zabbix trapper/pacemaker.stack.running)=0
+        name: 'Pacemaker: Cluster stack is not running'
+        priority: DISASTER
+        tags:
+        - tag: component
+          value: pacemaker
+        - tag: scope
+          value: cluster
+    - uuid: 7b46dd0eb45d4f4aad3d540d848b5b49
+      name: 'Pacemaker: Cluster stack'
+      type: DEPENDENT
+      key: pacemaker.stack.type
+      history: 7d
+      value_type: CHAR
+      preprocessing:
+      - type: XMLPATH
+        parameters:
+        - string(/pacemaker-result/summary/stack/@type)
+      master_item:
+        key: pacemaker.cluster.raw
+      tags:
+      - tag: component
+        value: pacemaker
+      - tag: scope
+        value: cluster
+    - uuid: ad5f8400a51540d18b141762e12a8590
+      name: 'Pacemaker: DC is present'
+      type: DEPENDENT
+      key: pacemaker.dc.present
+      history: 7d
+      trends: 365d
+      valuemap:
+        name: Pacemaker boolean
+      preprocessing:
+      - type: XMLPATH
+        parameters:
+        - count(/pacemaker-result/summary/current_dc[@present='true'])
+      master_item:
+        key: pacemaker.cluster.raw
+      tags:
+      - tag: component
+        value: pacemaker
+      - tag: scope
+        value: cluster
+      triggers:
+      - uuid: e561f771e8484a98b9eff3e49e023b35
+        expression: last(/Pacemaker cluster by Zabbix trapper/pacemaker.dc.present)=0
+        name: 'Pacemaker: Designated Controller is not present'
+        priority: HIGH
+        tags:
+        - tag: component
+          value: pacemaker
+        - tag: scope
+          value: cluster
+    - uuid: 0afd08fca0f14374a87fd959611dcf6b
+      name: 'Pacemaker: Current DC'
+      type: DEPENDENT
+      key: pacemaker.dc.name
+      history: 7d
+      value_type: CHAR
+      preprocessing:
+      - type: XMLPATH
+        parameters:
+        - string(/pacemaker-result/summary/current_dc/@name)
+      master_item:
+        key: pacemaker.cluster.raw
+      tags:
+      - tag: component
+        value: pacemaker
+      - tag: scope
+        value: cluster
+    - uuid: 418312767e2f4a8cb37d95fdf1fc3582
+      name: 'Pacemaker: Cluster has quorum'
+      type: DEPENDENT
+      key: pacemaker.quorum
+      history: 7d
+      trends: 365d
+      valuemap:
+        name: Pacemaker boolean
+      preprocessing:
+      - type: XMLPATH
+        parameters:
+        - count(/pacemaker-result/summary/current_dc[@with_quorum='true'])
+      master_item:
+        key: pacemaker.cluster.raw
+      tags:
+      - tag: component
+        value: pacemaker
+      - tag: scope
+        value: cluster
+      triggers:
+      - uuid: 2a2e85145d754a93a4a35a8fb1870570
+        expression: last(/Pacemaker cluster by Zabbix trapper/pacemaker.quorum)=0
+        name: 'Pacemaker: Cluster quorum is lost'
+        priority: DISASTER
+        description: The cluster uses no-quorum-policy=stop in the supplied configuration, so managed resources may be stopped after quorum loss.
+        tags:
+        - tag: component
+          value: pacemaker
+        - tag: scope
+          value: cluster
+    - uuid: 8dc40db991d943549ccff777b72fc4e5
+      name: 'Pacemaker: Configured node count'
+      type: DEPENDENT
+      key: pacemaker.nodes.configured
+      history: 7d
+      trends: 365d
+      preprocessing:
+      - type: XMLPATH
+        parameters:
+        - number(/pacemaker-result/summary/nodes_configured/@number)
+      master_item:
+        key: pacemaker.cluster.raw
+      tags:
+      - tag: component
+        value: pacemaker
+      - tag: scope
+        value: cluster
+    - uuid: 94bcb44f185746278a26ec434e3bf533
+      name: 'Pacemaker: Online node count'
+      type: DEPENDENT
+      key: pacemaker.nodes.online
+      history: 7d
+      trends: 365d
+      preprocessing:
+      - type: XMLPATH
+        parameters:
+        - count(/pacemaker-result/nodes/node[@online='true'])
+      master_item:
+        key: pacemaker.cluster.raw
+      tags:
+      - tag: component
+        value: pacemaker
+      - tag: scope
+        value: cluster
+      triggers:
+      - uuid: 3775bbd89bc54b9b8e1586eb387a21e5
+        expression: last(/Pacemaker cluster by Zabbix trapper/pacemaker.nodes.online)<{$PACEMAKER.NODE.EXPECTED}
+        name: 'Pacemaker: One or more cluster nodes are offline'
+        opdata: 'Online: {ITEM.LASTVALUE1}, expected: {$PACEMAKER.NODE.EXPECTED}'
+        priority: HIGH
+        tags:
+        - tag: component
+          value: pacemaker
+        - tag: scope
+          value: cluster
+    - uuid: 15fa19a2f52045be8698b5c923320002
+      name: 'Pacemaker: Unclean node count'
+      type: DEPENDENT
+      key: pacemaker.nodes.unclean
+      history: 7d
+      trends: 365d
+      preprocessing:
+      - type: XMLPATH
+        parameters:
+        - count(/pacemaker-result/nodes/node[@unclean='true'])
+      master_item:
+        key: pacemaker.cluster.raw
+      tags:
+      - tag: component
+        value: pacemaker
+      - tag: scope
+        value: cluster
+      triggers:
+      - uuid: b6a6a5bcd9704d9a939315df4a4c5343
+        expression: last(/Pacemaker cluster by Zabbix trapper/pacemaker.nodes.unclean)>0
+        name: 'Pacemaker: One or more nodes are unclean'
+        priority: DISASTER
+        tags:
+        - tag: component
+          value: pacemaker
+        - tag: scope
+          value: cluster
+    - uuid: 572dd35adbcc49c1abed3d0259ef58de
+      name: 'Pacemaker: Pending node count'
+      type: DEPENDENT
+      key: pacemaker.nodes.pending
+      history: 7d
+      trends: 365d
+      preprocessing:
+      - type: XMLPATH
+        parameters:
+        - count(/pacemaker-result/nodes/node[@pending='true'])
+      master_item:
+        key: pacemaker.cluster.raw
+      tags:
+      - tag: component
+        value: pacemaker
+      - tag: scope
+        value: cluster
+      triggers:
+      - uuid: 2cf0c4efe3964ea3ae1be95399a29e6a
+        expression: min(/Pacemaker cluster by Zabbix trapper/pacemaker.nodes.pending,2m)>0
+        name: 'Pacemaker: One or more nodes remain pending'
+        priority: AVERAGE
+        tags:
+        - tag: component
+          value: pacemaker
+        - tag: scope
+          value: cluster
+    - uuid: fded89fa2c5349908adae26f94f98eb0
+      name: 'Pacemaker: Node maintenance count'
+      type: DEPENDENT
+      key: pacemaker.nodes.maintenance
+      history: 7d
+      trends: 365d
+      preprocessing:
+      - type: XMLPATH
+        parameters:
+        - count(/pacemaker-result/nodes/node[@maintenance='true'])
+      master_item:
+        key: pacemaker.cluster.raw
+      tags:
+      - tag: component
+        value: pacemaker
+      - tag: scope
+        value: cluster
+    - uuid: 491cad3569a1464fbb2dd5d218fbb527
+      name: 'Pacemaker: Quorum-only node count'
+      type: DEPENDENT
+      key: pacemaker.quorum_only.configured
+      history: 7d
+      trends: 365d
+      preprocessing:
+      - type: XMLPATH
+        parameters:
+        - count(/pacemaker-result/node_attributes/node[attribute[@name='role' and @value='quorum-only']])
+      master_item:
+        key: pacemaker.cluster.raw
+      tags:
+      - tag: component
+        value: pacemaker
+      - tag: scope
+        value: cluster
+    - uuid: 724a3af6cb10412baa3c6dddd485f507
+      name: 'Pacemaker: Online quorum-only node count'
+      type: DEPENDENT
+      key: pacemaker.quorum_only.online
+      history: 7d
+      trends: 365d
+      preprocessing:
+      - type: XMLPATH
+        parameters:
+        - count(/pacemaker-result/nodes/node[@online='true' and @name=/pacemaker-result/node_attributes/node[attribute[@name='role' and @value='quorum-only']]/@name])
+      master_item:
+        key: pacemaker.cluster.raw
+      tags:
+      - tag: component
+        value: pacemaker
+      - tag: scope
+        value: cluster
+      triggers:
+      - uuid: 0c363895ce7f45d1af0deafa0f651ddc
+        expression: last(/Pacemaker cluster by Zabbix trapper/pacemaker.quorum_only.online)<{$PACEMAKER.QUORUM_ONLY.EXPECTED}
+        name: 'Pacemaker: Quorum-only node is offline'
+        priority: HIGH
+        tags:
+        - tag: component
+          value: pacemaker
+        - tag: scope
+          value: quorum
+    - uuid: ca74f5b67eba46b0be9665e0fd8676a4
+      name: 'Pacemaker: Cluster maintenance mode'
+      type: DEPENDENT
+      key: pacemaker.cluster.maintenance
+      history: 7d
+      trends: 365d
+      valuemap:
+        name: Pacemaker boolean
+      preprocessing:
+      - type: XMLPATH
+        parameters:
+        - count(/pacemaker-result/summary/cluster_options[@maintenance-mode='true'])
+      master_item:
+        key: pacemaker.cluster.raw
+      tags:
+      - tag: component
+        value: pacemaker
+      - tag: scope
+        value: cluster
+      triggers:
+      - uuid: 839cd53c515d4f0787237dd087615d68
+        expression: last(/Pacemaker cluster by Zabbix trapper/pacemaker.cluster.maintenance)=1
+        name: 'Pacemaker: Cluster maintenance mode is enabled'
+        priority: INFO
+        tags:
+        - tag: component
+          value: pacemaker
+        - tag: scope
+          value: cluster
+    - uuid: cb1c89353eeb4f2f969b366e2bac6bcd
+      name: 'Pacemaker: Stop all resources'
+      type: DEPENDENT
+      key: pacemaker.cluster.stop_all
+      history: 7d
+      trends: 365d
+      valuemap:
+        name: Pacemaker boolean
+      preprocessing:
+      - type: XMLPATH
+        parameters:
+        - count(/pacemaker-result/summary/cluster_options[@stop-all-resources='true'])
+      master_item:
+        key: pacemaker.cluster.raw
+      tags:
+      - tag: component
+        value: pacemaker
+      - tag: scope
+        value: cluster
+      triggers:
+      - uuid: 72b63c58fd8546a1964bae8b886fbcd6
+        expression: last(/Pacemaker cluster by Zabbix trapper/pacemaker.cluster.stop_all)=1
+        name: 'Pacemaker: Stop-all-resources is enabled'
+        priority: WARNING
+        tags:
+        - tag: component
+          value: pacemaker
+        - tag: scope
+          value: cluster
+    - uuid: d474536683ac4e708b85d9e1824d6811
+      name: 'Pacemaker: STONITH is enabled'
+      type: DEPENDENT
+      key: pacemaker.stonith.enabled
+      history: 7d
+      trends: 365d
+      valuemap:
+        name: Pacemaker boolean
+      preprocessing:
+      - type: XMLPATH
+        parameters:
+        - count(/pacemaker-result/summary/cluster_options[@stonith-enabled='true'])
+      master_item:
+        key: pacemaker.cluster.raw
+      tags:
+      - tag: component
+        value: pacemaker
+      - tag: scope
+        value: fencing
+      triggers:
+      - uuid: 41ac2c180a3b47baa89b2815d56fb146
+        expression: last(/Pacemaker cluster by Zabbix trapper/pacemaker.stonith.enabled)=0
+        name: 'Pacemaker: STONITH is disabled'
+        priority: DISASTER
+        tags:
+        - tag: component
+          value: pacemaker
+        - tag: scope
+          value: fencing
+    - uuid: 3857e3f1c3ec48d5a6309fb3c3382a22
+      name: 'Pacemaker: Configured resource count'
+      type: DEPENDENT
+      key: pacemaker.resources.configured
+      history: 7d
+      trends: 365d
+      preprocessing:
+      - type: XMLPATH
+        parameters:
+        - number(/pacemaker-result/summary/resources_configured/@number)
+      master_item:
+        key: pacemaker.cluster.raw
+      tags:
+      - tag: component
+        value: pacemaker
+      - tag: scope
+        value: resources
+      triggers:
+      - uuid: e2107f99891141a999ba771877fe5c5f
+        expression: last(/Pacemaker cluster by Zabbix trapper/pacemaker.resources.configured)<>{$PACEMAKER.RESOURCE.EXPECTED}
+        name: 'Pacemaker: Configured resource count differs from expected'
+        priority: WARNING
+        tags:
+        - tag: component
+          value: pacemaker
+        - tag: scope
+          value: resources
+    - uuid: 34f2924a760d424d918b678fcc98ce03
+      name: 'Pacemaker: Blocked resource count'
+      type: DEPENDENT
+      key: pacemaker.resources.blocked
+      history: 7d
+      trends: 365d
+      preprocessing:
+      - type: XMLPATH
+        parameters:
+        - number(/pacemaker-result/summary/resources_configured/@blocked)
+      master_item:
+        key: pacemaker.cluster.raw
+      tags:
+      - tag: component
+        value: pacemaker
+      - tag: scope
+        value: resources
+      triggers:
+      - uuid: 51603cef447a465bbd1367429a2b3a61
+        expression: last(/Pacemaker cluster by Zabbix trapper/pacemaker.resources.blocked)>0
+        name: 'Pacemaker: One or more resources are blocked'
+        priority: HIGH
+        tags:
+        - tag: component
+          value: pacemaker
+        - tag: scope
+          value: resources
+    - uuid: 174d01ac80c845d2b90baa8fcba7de31
+      name: 'Pacemaker: STONITH resource count'
+      type: DEPENDENT
+      key: pacemaker.stonith.total
+      history: 7d
+      trends: 365d
+      preprocessing:
+      - type: XMLPATH
+        parameters:
+        - count(/pacemaker-result/resources/resource[starts-with(@resource_agent,'stonith:')])
+      master_item:
+        key: pacemaker.cluster.raw
+      tags:
+      - tag: component
+        value: pacemaker
+      - tag: scope
+        value: fencing
+      triggers:
+      - uuid: e1084ae02ac948eea5890b4d6487aac5
+        expression: last(/Pacemaker cluster by Zabbix trapper/pacemaker.stonith.total)<{$PACEMAKER.STONITH.EXPECTED}
+        name: 'Pacemaker: STONITH resource count is below expected'
+        priority: HIGH
+        tags:
+        - tag: component
+          value: pacemaker
+        - tag: scope
+          value: fencing
+    - uuid: 3234e2be163747d0b430b38e2c737d99
+      name: 'Pacemaker: Active STONITH resource count'
+      type: DEPENDENT
+      key: pacemaker.stonith.active
+      history: 7d
+      trends: 365d
+      preprocessing:
+      - type: XMLPATH
+        parameters:
+        - count(/pacemaker-result/resources/resource[starts-with(@resource_agent,'stonith:') and @active='true'])
+      master_item:
+        key: pacemaker.cluster.raw
+      tags:
+      - tag: component
+        value: pacemaker
+      - tag: scope
+        value: fencing
+      triggers:
+      - uuid: 54b08179f76e4209bee98a4008db06e6
+        expression: last(/Pacemaker cluster by Zabbix trapper/pacemaker.stonith.active)<{$PACEMAKER.STONITH.EXPECTED}
+        name: 'Pacemaker: One or more STONITH resources are not active'
+        priority: HIGH
+        tags:
+        - tag: component
+          value: pacemaker
+        - tag: scope
+          value: fencing
+    - uuid: 3d98d6b214ad45c48b84606e1f9f2af2
+      name: 'Pacemaker: Failed STONITH resource count'
+      type: DEPENDENT
+      key: pacemaker.stonith.failed
+      history: 7d
+      trends: 365d
+      preprocessing:
+      - type: XMLPATH
+        parameters:
+        - count(/pacemaker-result/resources/resource[starts-with(@resource_agent,'stonith:') and @failed='true'])
+      master_item:
+        key: pacemaker.cluster.raw
+      tags:
+      - tag: component
+        value: pacemaker
+      - tag: scope
+        value: fencing
+      triggers:
+      - uuid: 0400ccdca4d24c9fb9767381263d2dad
+        expression: last(/Pacemaker cluster by Zabbix trapper/pacemaker.stonith.failed)>0
+        name: 'Pacemaker: One or more STONITH resources are failed'
+        priority: DISASTER
+        tags:
+        - tag: component
+          value: pacemaker
+        - tag: scope
+          value: fencing
+    - uuid: ff539c4985e94768ae51c718260e2911
+      name: 'Pacemaker: Location ban count'
+      type: DEPENDENT
+      key: pacemaker.bans.count
+      history: 7d
+      trends: 365d
+      preprocessing:
+      - type: XMLPATH
+        parameters:
+        - count(/pacemaker-result/bans/ban)
+      master_item:
+        key: pacemaker.cluster.raw
+      tags:
+      - tag: component
+        value: pacemaker
+      - tag: scope
+        value: constraints
+      triggers:
+      - uuid: b4862a58fd2b4a7b9945e24fb24c708c
+        expression: last(/Pacemaker cluster by Zabbix trapper/pacemaker.bans.count)<>{$PACEMAKER.BAN.EXPECTED}
+        name: 'Pacemaker: Location ban count differs from expected'
+        priority: WARNING
+        description: The supplied cluster has one permanent location ban preventing pg_group from running on the quorum-only node. Update the macro if the intended constraint count changes.
+        tags:
+        - tag: component
+          value: pacemaker
+        - tag: scope
+          value: constraints
+    - uuid: ccfe651ee5074ba0bc627582d95dd97e
+      name: 'Pacemaker pg_group: Resource count'
+      type: DEPENDENT
+      key: pacemaker.pg_group.resources
+      history: 7d
+      trends: 365d
+      preprocessing:
+      - type: XMLPATH
+        parameters:
+        - count(/pacemaker-result/resources/group[@id='{$PACEMAKER.GROUP.ID}']/resource)
+      master_item:
+        key: pacemaker.cluster.raw
+      tags:
+      - tag: component
+        value: pacemaker
+      - tag: scope
+        value: pg_group
+      triggers:
+      - uuid: b69f5323ca434c66969b81d76b10cdc2
+        expression: last(/Pacemaker cluster by Zabbix trapper/pacemaker.pg_group.resources)<>{$PACEMAKER.GROUP.RESOURCE.EXPECTED}
+        name: 'Pacemaker pg_group: Resource count differs from expected'
+        priority: HIGH
+        tags:
+        - tag: component
+          value: pacemaker
+        - tag: scope
+          value: pg_group
+    - uuid: a67e1e1d8e7145888df884ac6ddba476
+      name: 'Pacemaker pg_group: Active resource count'
+      type: DEPENDENT
+      key: pacemaker.pg_group.active
+      history: 7d
+      trends: 365d
+      preprocessing:
+      - type: XMLPATH
+        parameters:
+        - count(/pacemaker-result/resources/group[@id='{$PACEMAKER.GROUP.ID}']/resource[@active='true'])
+      master_item:
+        key: pacemaker.cluster.raw
+      tags:
+      - tag: component
+        value: pacemaker
+      - tag: scope
+        value: pg_group
+    - uuid: e2af0f43170642c8b8731d77a66079a1
+      name: 'Pacemaker pg_group: Unhealthy resource count'
+      type: DEPENDENT
+      key: pacemaker.pg_group.unhealthy
+      history: 7d
+      trends: 365d
+      preprocessing:
+      - type: XMLPATH
+        parameters:
+        - count(/pacemaker-result/resources/group[@id='{$PACEMAKER.GROUP.ID}']/resource[@active!='true' or @failed='true' or @blocked='true' or @managed!='true'])
+      master_item:
+        key: pacemaker.cluster.raw
+      tags:
+      - tag: component
+        value: pacemaker
+      - tag: scope
+        value: pg_group
+      triggers:
+      - uuid: be4e43c057f946c09601ce630d976dfd
+        expression: min(/Pacemaker cluster by Zabbix trapper/pacemaker.pg_group.unhealthy,1m)>0 and last(/Pacemaker cluster by Zabbix trapper/pacemaker.pgsql.active)=1 and last(/Pacemaker cluster by Zabbix trapper/pacemaker.vip.active)=1 and last(/Pacemaker cluster by Zabbix trapper/pacemaker.cluster.maintenance)=0 and last(/Pacemaker cluster by Zabbix trapper/pacemaker.cluster.stop_all)=0 and last(/Pacemaker cluster by Zabbix trapper/pacemaker.quorum)=1
+        name: 'Pacemaker pg_group: One or more non-PostgreSQL resources are unhealthy'
+        priority: HIGH
+        description: This trigger is intentionally gated by healthy PostgreSQL and VIP resources, so it primarily surfaces LVM or filesystem resource failures without duplicating the PostgreSQL/VIP alarms.
+        tags:
+        - tag: component
+          value: pacemaker
+        - tag: scope
+          value: pg_group
+    - uuid: 60808cb5dfc04f21ba495339ac1f5c73
+      name: 'Pacemaker pg_group: Resources running on another node'
+      type: DEPENDENT
+      key: pacemaker.pg_group.node_mismatch
+      history: 7d
+      trends: 365d
+      preprocessing:
+      - type: XMLPATH
+        parameters:
+        - count(/pacemaker-result/resources/group[@id='{$PACEMAKER.GROUP.ID}']/resource[node/@name != /pacemaker-result/resources/group[@id='{$PACEMAKER.GROUP.ID}']/resource[@id='{$PACEMAKER.PGSQL.ID}']/node/@name])
+      master_item:
+        key: pacemaker.cluster.raw
+      tags:
+      - tag: component
+        value: pacemaker
+      - tag: scope
+        value: pg_group
+      triggers:
+      - uuid: 44f4c2b81bcb415c91a8dd098df393fe
+        expression: min(/Pacemaker cluster by Zabbix trapper/pacemaker.pg_group.node_mismatch,1m)>0 and last(/Pacemaker cluster by Zabbix trapper/pacemaker.cluster.maintenance)=0 and last(/Pacemaker cluster by Zabbix trapper/pacemaker.cluster.stop_all)=0 and last(/Pacemaker cluster by Zabbix trapper/pacemaker.quorum)=1
+        name: 'Pacemaker pg_group: Resources are running on different nodes'
+        priority: DISASTER
+        tags:
+        - tag: component
+          value: pacemaker
+        - tag: scope
+          value: pg_group
+    - uuid: f2cc6dfec50246ee815bc3651ccd1957
+      name: 'Pacemaker PostgreSQL: Resource exists'
+      type: DEPENDENT
+      key: pacemaker.pgsql.exists
+      history: 7d
+      trends: 365d
+      valuemap:
+        name: Pacemaker boolean
+      preprocessing:
+      - type: XMLPATH
+        parameters:
+        - count(//resource[@id='{$PACEMAKER.PGSQL.ID}'])
+      master_item:
+        key: pacemaker.cluster.raw
+      tags:
+      - tag: component
+        value: pacemaker
+      - tag: scope
+        value: postgresql
+      triggers:
+      - uuid: 2031d8358ba94a879124633cd7f9860b
+        expression: last(/Pacemaker cluster by Zabbix trapper/pacemaker.pgsql.exists)=0 and last(/Pacemaker cluster by Zabbix trapper/pacemaker.cluster.maintenance)=0 and last(/Pacemaker cluster by Zabbix trapper/pacemaker.cluster.stop_all)=0
+        name: 'Pacemaker PostgreSQL: Resource is missing'
+        priority: DISASTER
+        tags:
+        - tag: component
+          value: pacemaker
+        - tag: scope
+          value: postgresql
+    - uuid: 15dfaa42c5c946ed96326c72583be2fd
+      name: 'Pacemaker PostgreSQL: Active instance count'
+      type: DEPENDENT
+      key: pacemaker.pgsql.active
+      history: 7d
+      trends: 365d
+      preprocessing:
+      - type: XMLPATH
+        parameters:
+        - count(//resource[@id='{$PACEMAKER.PGSQL.ID}' and @active='true'])
+      master_item:
+        key: pacemaker.cluster.raw
+      tags:
+      - tag: component
+        value: pacemaker
+      - tag: scope
+        value: postgresql
+      triggers:
+      - uuid: 6a5db740bd1a4df699ec996c8aeeea4b
+        expression: (max(/Pacemaker cluster by Zabbix trapper/pacemaker.pgsql.active,{$PACEMAKER.FAILOVER.GRACE})=0 or min(/Pacemaker cluster by Zabbix trapper/pacemaker.pgsql.active,{$PACEMAKER.FAILOVER.GRACE})>1) and last(/Pacemaker cluster by Zabbix trapper/pacemaker.pgsql.failed)=0 and last(/Pacemaker cluster by Zabbix trapper/pacemaker.pgsql.blocked)=0 and last(/Pacemaker cluster by Zabbix trapper/pacemaker.cluster.maintenance)=0 and last(/Pacemaker cluster by Zabbix trapper/pacemaker.cluster.stop_all)=0 and last(/Pacemaker cluster by Zabbix trapper/pacemaker.quorum)=1
+        name: 'Pacemaker PostgreSQL: Active instance count is not one'
+        opdata: 'Active instances: {ITEM.LASTVALUE1}'
+        priority: DISASTER
+        tags:
+        - tag: component
+          value: pacemaker
+        - tag: scope
+          value: postgresql
+    - uuid: 2a4d400d0e6d45cbbda8fd2e6aac9eef
+      name: 'Pacemaker PostgreSQL: Running node'
+      type: DEPENDENT
+      key: pacemaker.pgsql.node
+      history: 7d
+      value_type: CHAR
+      preprocessing:
+      - type: XMLPATH
+        parameters:
+        - string(//resource[@id='{$PACEMAKER.PGSQL.ID}']/node/@name)
+      master_item:
+        key: pacemaker.cluster.raw
+      tags:
+      - tag: component
+        value: pacemaker
+      - tag: scope
+        value: postgresql
+    - uuid: bb903ef5dbe849939fd157098103c9c3
+      name: 'Pacemaker PostgreSQL: Role'
+      type: DEPENDENT
+      key: pacemaker.pgsql.role
+      history: 7d
+      value_type: CHAR
+      preprocessing:
+      - type: XMLPATH
+        parameters:
+        - string(//resource[@id='{$PACEMAKER.PGSQL.ID}']/@role)
+      master_item:
+        key: pacemaker.cluster.raw
+      tags:
+      - tag: component
+        value: pacemaker
+      - tag: scope
+        value: postgresql
+      triggers:
+      - uuid: 3fd33f5a08e447c9aa68f9b5a181f607
+        expression: last(/Pacemaker cluster by Zabbix trapper/pacemaker.pgsql.role)<>"Started" and last(/Pacemaker cluster by Zabbix trapper/pacemaker.pgsql.active)=1 and last(/Pacemaker cluster by Zabbix trapper/pacemaker.cluster.maintenance)=0 and last(/Pacemaker cluster by Zabbix trapper/pacemaker.cluster.stop_all)=0 and last(/Pacemaker cluster by Zabbix trapper/pacemaker.quorum)=1
+        name: 'Pacemaker PostgreSQL: Resource role is not Started'
+        priority: HIGH
+        tags:
+        - tag: component
+          value: pacemaker
+        - tag: scope
+          value: postgresql
+    - uuid: 9c801363b7b84866a462720e77d70247
+      name: 'Pacemaker PostgreSQL: Failed'
+      type: DEPENDENT
+      key: pacemaker.pgsql.failed
+      history: 7d
+      trends: 365d
+      valuemap:
+        name: Pacemaker boolean
+      preprocessing:
+      - type: XMLPATH
+        parameters:
+        - count(//resource[@id='{$PACEMAKER.PGSQL.ID}' and @failed='true'])
+      master_item:
+        key: pacemaker.cluster.raw
+      tags:
+      - tag: component
+        value: pacemaker
+      - tag: scope
+        value: postgresql
+      triggers:
+      - uuid: 4d84db25baf74e6aa52b30cc9b3a3b06
+        expression: last(/Pacemaker cluster by Zabbix trapper/pacemaker.pgsql.failed)=1 and last(/Pacemaker cluster by Zabbix trapper/pacemaker.cluster.maintenance)=0 and last(/Pacemaker cluster by Zabbix trapper/pacemaker.cluster.stop_all)=0 and last(/Pacemaker cluster by Zabbix trapper/pacemaker.quorum)=1
+        name: 'Pacemaker PostgreSQL: Resource is failed'
+        priority: DISASTER
+        tags:
+        - tag: component
+          value: pacemaker
+        - tag: scope
+          value: postgresql
+    - uuid: 464ea2cb13434177a86c4bd55ec47fee
+      name: 'Pacemaker PostgreSQL: Blocked'
+      type: DEPENDENT
+      key: pacemaker.pgsql.blocked
+      history: 7d
+      trends: 365d
+      valuemap:
+        name: Pacemaker boolean
+      preprocessing:
+      - type: XMLPATH
+        parameters:
+        - count(//resource[@id='{$PACEMAKER.PGSQL.ID}' and @blocked='true'])
+      master_item:
+        key: pacemaker.cluster.raw
+      tags:
+      - tag: component
+        value: pacemaker
+      - tag: scope
+        value: postgresql
+      triggers:
+      - uuid: a8f63c3a59fa45108543dbc3ff409553
+        expression: last(/Pacemaker cluster by Zabbix trapper/pacemaker.pgsql.blocked)=1 and last(/Pacemaker cluster by Zabbix trapper/pacemaker.cluster.maintenance)=0 and last(/Pacemaker cluster by Zabbix trapper/pacemaker.cluster.stop_all)=0 and last(/Pacemaker cluster by Zabbix trapper/pacemaker.quorum)=1
+        name: 'Pacemaker PostgreSQL: Resource is blocked'
+        priority: HIGH
+        tags:
+        - tag: component
+          value: pacemaker
+        - tag: scope
+          value: postgresql
+    - uuid: 62647efc699647ad8c5c6783c89d6cf0
+      name: 'Pacemaker PostgreSQL: Managed'
+      type: DEPENDENT
+      key: pacemaker.pgsql.managed
+      history: 7d
+      trends: 365d
+      valuemap:
+        name: Pacemaker boolean
+      preprocessing:
+      - type: XMLPATH
+        parameters:
+        - count(//resource[@id='{$PACEMAKER.PGSQL.ID}' and @managed='true'])
+      master_item:
+        key: pacemaker.cluster.raw
+      tags:
+      - tag: component
+        value: pacemaker
+      - tag: scope
+        value: postgresql
+      triggers:
+      - uuid: b3cec88e2b6242c99af766391f68cd29
+        expression: last(/Pacemaker cluster by Zabbix trapper/pacemaker.pgsql.managed)=0 and last(/Pacemaker cluster by Zabbix trapper/pacemaker.pgsql.exists)=1 and last(/Pacemaker cluster by Zabbix trapper/pacemaker.pgsql.maintenance)=0 and last(/Pacemaker cluster by Zabbix trapper/pacemaker.cluster.maintenance)=0 and last(/Pacemaker cluster by Zabbix trapper/pacemaker.cluster.stop_all)=0
+        name: 'Pacemaker PostgreSQL: Resource is unmanaged'
+        priority: WARNING
+        tags:
+        - tag: component
+          value: pacemaker
+        - tag: scope
+          value: postgresql
+    - uuid: 435343d578294e85a8d16da2e59f4138
+      name: 'Pacemaker PostgreSQL: Maintenance mode'
+      type: DEPENDENT
+      key: pacemaker.pgsql.maintenance
+      history: 7d
+      trends: 365d
+      valuemap:
+        name: Pacemaker boolean
+      preprocessing:
+      - type: XMLPATH
+        parameters:
+        - count(//resource[@id='{$PACEMAKER.PGSQL.ID}' and @maintenance='true'])
+      master_item:
+        key: pacemaker.cluster.raw
+      tags:
+      - tag: component
+        value: pacemaker
+      - tag: scope
+        value: postgresql
+    - uuid: d376f876edf74be79f5a1f2c060ea278
+      name: 'Pacemaker PostgreSQL: Last monitor return code'
+      type: DEPENDENT
+      key: pacemaker.pgsql.monitor.rc
+      history: 7d
+      trends: 365d
+      preprocessing:
+      - type: XMLPATH
+        parameters:
+        - sum(/pacemaker-result/node_history/node[@name=/pacemaker-result/resources/group/resource[@id='{$PACEMAKER.PGSQL.ID}']/node/@name]/resource_history[@id='{$PACEMAKER.PGSQL.ID}']/operation_history[@task='monitor'][last()]/@rc)
+      master_item:
+        key: pacemaker.cluster.raw
+      tags:
+      - tag: component
+        value: pacemaker
+      - tag: scope
+        value: postgresql
+      triggers:
+      - uuid: 345544e52b7d49ab88033f5503ee4248
+        expression: min(/Pacemaker cluster by Zabbix trapper/pacemaker.pgsql.monitor.rc,1m)>0 and last(/Pacemaker cluster by Zabbix trapper/pacemaker.cluster.maintenance)=0 and last(/Pacemaker cluster by Zabbix trapper/pacemaker.cluster.stop_all)=0 and last(/Pacemaker cluster by Zabbix trapper/pacemaker.quorum)=1
+        name: 'Pacemaker PostgreSQL: Monitor operation returned an error'
+        priority: HIGH
+        tags:
+        - tag: component
+          value: pacemaker
+        - tag: scope
+          value: postgresql
+      description: Return code of the latest Pacemaker monitor operation for the PostgreSQL resource. Returns 0 when no monitor history is present; resource availability is evaluated by the dedicated resource state items.
+    - uuid: 9f5e3e6f91774104a56970e2eb7b6314
+      name: 'Pacemaker PostgreSQL: Last monitor execution time'
+      type: DEPENDENT
+      key: pacemaker.pgsql.monitor.exec_time
+      history: 7d
+      trends: 365d
+      units: ms
+      preprocessing:
+      - type: XMLPATH
+        parameters:
+        - string(/pacemaker-result/node_history/node[@name=/pacemaker-result/resources/group/resource[@id='{$PACEMAKER.PGSQL.ID}']/node/@name]/resource_history[@id='{$PACEMAKER.PGSQL.ID}']/operation_history[@task='monitor'][last()]/@exec-time)
+      - type: REGEX
+        parameters:
+        - ^([0-9]+)ms$
+        - \1
+        error_handler: CUSTOM_VALUE
+        error_handler_params: '0'
+      master_item:
+        key: pacemaker.cluster.raw
+      tags:
+      - tag: component
+        value: pacemaker
+      - tag: scope
+        value: postgresql
+      description: Execution time of the latest Pacemaker monitor operation for the PostgreSQL resource. Returns 0 when monitor history is not present.
+    - uuid: 173d24a238ab4b5ebc23396aea54a2d9
+      name: 'Pacemaker VIP: Resource exists'
+      type: DEPENDENT
+      key: pacemaker.vip.exists
+      history: 7d
+      trends: 365d
+      valuemap:
+        name: Pacemaker boolean
+      preprocessing:
+      - type: XMLPATH
+        parameters:
+        - count(//resource[@id='{$PACEMAKER.VIP.ID}'])
+      master_item:
+        key: pacemaker.cluster.raw
+      tags:
+      - tag: component
+        value: pacemaker
+      - tag: scope
+        value: vip
+      triggers:
+      - uuid: 84a2650625404f39a1d3a38bdf7371b0
+        expression: last(/Pacemaker cluster by Zabbix trapper/pacemaker.vip.exists)=0 and last(/Pacemaker cluster by Zabbix trapper/pacemaker.cluster.maintenance)=0 and last(/Pacemaker cluster by Zabbix trapper/pacemaker.cluster.stop_all)=0
+        name: 'Pacemaker VIP: Resource is missing'
+        priority: HIGH
+        tags:
+        - tag: component
+          value: pacemaker
+        - tag: scope
+          value: vip
+    - uuid: b13517bfb6394832848d24b6c7667f89
+      name: 'Pacemaker VIP: Active instance count'
+      type: DEPENDENT
+      key: pacemaker.vip.active
+      history: 7d
+      trends: 365d
+      preprocessing:
+      - type: XMLPATH
+        parameters:
+        - count(//resource[@id='{$PACEMAKER.VIP.ID}' and @active='true'])
+      master_item:
+        key: pacemaker.cluster.raw
+      tags:
+      - tag: component
+        value: pacemaker
+      - tag: scope
+        value: vip
+      triggers:
+      - uuid: 0885e7db75ad400884265ba6f0fb7b6f
+        expression: (max(/Pacemaker cluster by Zabbix trapper/pacemaker.vip.active,{$PACEMAKER.FAILOVER.GRACE})=0 or min(/Pacemaker cluster by Zabbix trapper/pacemaker.vip.active,{$PACEMAKER.FAILOVER.GRACE})>1) and last(/Pacemaker cluster by Zabbix trapper/pacemaker.vip.failed)=0 and last(/Pacemaker cluster by Zabbix trapper/pacemaker.pgsql.active)=1 and last(/Pacemaker cluster by Zabbix trapper/pacemaker.cluster.maintenance)=0 and last(/Pacemaker cluster by Zabbix trapper/pacemaker.cluster.stop_all)=0 and last(/Pacemaker cluster by Zabbix trapper/pacemaker.quorum)=1
+        name: 'Pacemaker VIP: Active instance count is not one'
+        priority: HIGH
+        tags:
+        - tag: component
+          value: pacemaker
+        - tag: scope
+          value: vip
+    - uuid: 5df262dfd2fb4655ab13b718d5ea453d
+      name: 'Pacemaker VIP: Running node'
+      type: DEPENDENT
+      key: pacemaker.vip.node
+      history: 7d
+      value_type: CHAR
+      preprocessing:
+      - type: XMLPATH
+        parameters:
+        - string(//resource[@id='{$PACEMAKER.VIP.ID}']/node/@name)
+      master_item:
+        key: pacemaker.cluster.raw
+      tags:
+      - tag: component
+        value: pacemaker
+      - tag: scope
+        value: vip
+    - uuid: 62efe56a9c614bc4adffd2c08358fbfc
+      name: 'Pacemaker VIP: Failed'
+      type: DEPENDENT
+      key: pacemaker.vip.failed
+      history: 7d
+      trends: 365d
+      valuemap:
+        name: Pacemaker boolean
+      preprocessing:
+      - type: XMLPATH
+        parameters:
+        - count(//resource[@id='{$PACEMAKER.VIP.ID}' and @failed='true'])
+      master_item:
+        key: pacemaker.cluster.raw
+      tags:
+      - tag: component
+        value: pacemaker
+      - tag: scope
+        value: vip
+      triggers:
+      - uuid: 432bf806faa94813a9de3c5426eab609
+        expression: last(/Pacemaker cluster by Zabbix trapper/pacemaker.vip.failed)=1 and last(/Pacemaker cluster by Zabbix trapper/pacemaker.pgsql.active)=1 and last(/Pacemaker cluster by Zabbix trapper/pacemaker.cluster.maintenance)=0 and last(/Pacemaker cluster by Zabbix trapper/pacemaker.cluster.stop_all)=0 and last(/Pacemaker cluster by Zabbix trapper/pacemaker.quorum)=1
+        name: 'Pacemaker VIP: Resource is failed'
+        priority: HIGH
+        tags:
+        - tag: component
+          value: pacemaker
+        - tag: scope
+          value: vip
+    - uuid: a383713294b44b588800f185e72899e2
+      name: 'Pacemaker: PostgreSQL and VIP node mismatch'
+      type: DEPENDENT
+      key: pacemaker.pgsql_vip.node_mismatch
+      history: 7d
+      trends: 365d
+      valuemap:
+        name: Pacemaker boolean
+      preprocessing:
+      - type: XMLPATH
+        parameters:
+        - count(//resource[@id='{$PACEMAKER.VIP.ID}'][node/@name != //resource[@id='{$PACEMAKER.PGSQL.ID}']/node/@name])
+      master_item:
+        key: pacemaker.cluster.raw
+      tags:
+      - tag: component
+        value: pacemaker
+      - tag: scope
+        value: postgresql
+      triggers:
+      - uuid: acc20b0d8466453caa02ab6a303d827f
+        expression: min(/Pacemaker cluster by Zabbix trapper/pacemaker.pgsql_vip.node_mismatch,1m)>0 and last(/Pacemaker cluster by Zabbix trapper/pacemaker.pgsql.active)=1 and last(/Pacemaker cluster by Zabbix trapper/pacemaker.vip.active)=1 and last(/Pacemaker cluster by Zabbix trapper/pacemaker.cluster.maintenance)=0 and last(/Pacemaker cluster by Zabbix trapper/pacemaker.cluster.stop_all)=0 and last(/Pacemaker cluster by Zabbix trapper/pacemaker.quorum)=1
+        name: 'Pacemaker: PostgreSQL and VIP are running on different nodes'
+        priority: DISASTER
+        tags:
+        - tag: component
+          value: pacemaker
+        - tag: scope
+          value: postgresql
+    macros:
+    - macro: '{$PACEMAKER.NODE.EXPECTED}'
+      value: '3'
+      description: Expected number of online Pacemaker nodes.
+    - macro: '{$PACEMAKER.QUORUM_ONLY.EXPECTED}'
+      value: '1'
+      description: Expected number of online quorum-only nodes.
+    - macro: '{$PACEMAKER.RESOURCE.EXPECTED}'
+      value: '13'
+      description: Expected total Pacemaker resource instances.
+    - macro: '{$PACEMAKER.STONITH.EXPECTED}'
+      value: '3'
+      description: Expected number of configured and active STONITH resources.
+    - macro: '{$PACEMAKER.GROUP.ID}'
+      value: pg_group
+      description: Pacemaker PostgreSQL resource group ID.
+    - macro: '{$PACEMAKER.GROUP.RESOURCE.EXPECTED}'
+      value: '10'
+      description: Expected number of resources in pg_group.
+    - macro: '{$PACEMAKER.PGSQL.ID}'
+      value: pgsvc
+      description: Pacemaker PostgreSQL OCF resource ID.
+    - macro: '{$PACEMAKER.VIP.ID}'
+      value: pgvip
+      description: Pacemaker PostgreSQL virtual IP resource ID.
+    - macro: '{$PACEMAKER.BAN.EXPECTED}'
+      value: '1'
+      description: Expected location ban count. The supplied cluster has one permanent ban for the quorum-only node.
+    - macro: '{$PACEMAKER.NODATA}'
+      value: 2m
+      description: Maximum accepted time without crm_mon XML.
+    - macro: '{$PACEMAKER.FAILOVER.GRACE}'
+      value: 2m
+      description: Grace period before PostgreSQL or VIP availability alarms.
+    valuemaps:
+    - uuid: 685576fe648e48178457ec455a958473
+      name: Pacemaker boolean
+      mappings:
+      - value: '0'
+        newvalue: 'No'
+      - value: '1'
+        newvalue: 'Yes'
