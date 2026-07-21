@@ -1,0 +1,16 @@
+# Technical Host name of the logical Pacemaker host in Zabbix.
+ZABBIX_HOST="pacemaker-cluster"
+
+# Proxy-group members or standalone Zabbix server/proxy targets.
+# Use a semicolon between targets. The script tries them sequentially and stops
+# after the first successful send.
+ZABBIX_TARGETS="10.20.30.40;10.20.30.41"
+ZABBIX_PORT="10051"
+ZABBIX_TIMEOUT="10"
+
+# Used for SourceIP and TLS parameters. ServerActive is overridden per target.
+ZABBIX_AGENT_CONFIG="/etc/zabbix/zabbix_agent2.conf"
+
+CRM_MON="/usr/sbin/crm_mon"
+CRM_NODE="/usr/sbin/crm_node"
+ZABBIX_SENDER="/usr/bin/zabbix_sender"

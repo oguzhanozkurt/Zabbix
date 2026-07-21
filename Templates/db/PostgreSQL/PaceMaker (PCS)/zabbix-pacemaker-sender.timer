@@ -1,0 +1,11 @@
+[Unit]
+Description=Run Zabbix Pacemaker sender every 30 seconds
+
+[Timer]
+OnBootSec=20s
+OnUnitActiveSec=30s
+AccuracySec=1s
+Unit=zabbix-pacemaker-sender.service
+
+[Install]
+WantedBy=timers.target

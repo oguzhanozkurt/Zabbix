@@ -1,0 +1,15 @@
+[Unit]
+Description=Send Pacemaker cluster XML to Zabbix
+After=network-online.target pacemaker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=zabbix
+Group=zabbix
+ExecStart=/usr/local/sbin/zabbix-pacemaker-sender
+TimeoutStartSec=120s
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=full
+ReadOnlyPaths=/etc/zabbix

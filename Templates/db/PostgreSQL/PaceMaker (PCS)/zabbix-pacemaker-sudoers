@@ -1,0 +1,3 @@
+# Validate with: visudo -cf /etc/sudoers.d/zabbix-pacemaker
+zabbix ALL=(root) NOPASSWD: /usr/sbin/crm_mon -1 --output-as=xml
+zabbix ALL=(root) NOPASSWD: /usr/sbin/crm_node -n
