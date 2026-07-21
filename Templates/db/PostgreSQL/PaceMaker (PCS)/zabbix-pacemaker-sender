@@ -1,0 +1,112 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+CONFIG_FILE="${PACEMAKER_SENDER_CONFIG:-/etc/zabbix/pacemaker_sender.conf}"
+
+if [[ ! -r "${CONFIG_FILE}" ]]; then
+    echo "Configuration file is not readable: ${CONFIG_FILE}" >&2
+    exit 1
+fi
+
+# This file must be owned by root and not writable by the zabbix user.
+# shellcheck disable=SC1090
+source "${CONFIG_FILE}"
+
+: "${ZABBIX_HOST:?ZABBIX_HOST is required}"
+: "${ZABBIX_TARGETS:?ZABBIX_TARGETS is required}"
+
+ZABBIX_PORT="${ZABBIX_PORT:-10051}"
+ZABBIX_TIMEOUT="${ZABBIX_TIMEOUT:-10}"
+ZABBIX_AGENT_CONFIG="${ZABBIX_AGENT_CONFIG:-/etc/zabbix/zabbix_agent2.conf}"
+CRM_MON="${CRM_MON:-/usr/sbin/crm_mon}"
+CRM_NODE="${CRM_NODE:-/usr/sbin/crm_node}"
+ZABBIX_SENDER="${ZABBIX_SENDER:-/usr/bin/zabbix_sender}"
+
+if [[ ! -r "${ZABBIX_AGENT_CONFIG}" ]]; then
+    echo "Zabbix agent configuration is not readable: ${ZABBIX_AGENT_CONFIG}" >&2
+    exit 1
+fi
+
+for binary in "${CRM_MON}" "${CRM_NODE}" "${ZABBIX_SENDER}"; do
+    if [[ ! -x "${binary}" ]]; then
+        echo "Executable not found: ${binary}" >&2
+        exit 1
+    fi
+done
+
+if ! [[ "${ZABBIX_PORT}" =~ ^[0-9]+$ ]] || (( ZABBIX_PORT < 1 || ZABBIX_PORT > 65535 )); then
+    echo "Invalid ZABBIX_PORT: ${ZABBIX_PORT}" >&2
+    exit 1
+fi
+
+if ! [[ "${ZABBIX_TIMEOUT}" =~ ^[0-9]+$ ]] || (( ZABBIX_TIMEOUT < 1 || ZABBIX_TIMEOUT > 300 )); then
+    echo "Invalid ZABBIX_TIMEOUT: ${ZABBIX_TIMEOUT}" >&2
+    exit 1
+fi
+
+XML="$(sudo -n "${CRM_MON}" -1 --output-as=xml)"
+
+if [[ "${XML}" != *"<pacemaker-result"* ]]; then
+    echo "crm_mon did not return Pacemaker XML." >&2
+    exit 1
+fi
+
+LOCAL_NODE="$(sudo -n "${CRM_NODE}" -n | tr -d '\r\n')"
+
+CURRENT_DC_ELEMENT="$(
+    printf '%s\n' "${XML}" |
+        grep -o '<current_dc[^>]*/>' |
+        head -n 1 || true
+)"
+
+DC_PRESENT="$(
+    printf '%s\n' "${CURRENT_DC_ELEMENT}" |
+        sed -n 's/.* present="\([^"]*\)".*/\1/p'
+)"
+
+DC_NODE="$(
+    printf '%s\n' "${CURRENT_DC_ELEMENT}" |
+        sed -n 's/.* name="\([^"]*\)".*/\1/p'
+)"
+
+# Normal operation: only the current DC sends.
+# No-DC condition: reachable nodes may send the same cluster state so the logical
+# host continues to receive fresh data and DC/quorum triggers can be evaluated.
+if [[ "${DC_PRESENT}" == "true" && -n "${DC_NODE}" && "${LOCAL_NODE}" != "${DC_NODE}" ]]; then
+    exit 0
+fi
+
+IFS=';' read -r -a TARGETS <<< "${ZABBIX_TARGETS}"
+
+VALID_TARGET_COUNT=0
+for TARGET in "${TARGETS[@]}"; do
+    TARGET="${TARGET#"${TARGET%%[![:space:]]*}"}"
+    TARGET="${TARGET%"${TARGET##*[![:space:]]}"}"
+
+    if [[ -z "${TARGET}" ]]; then
+        continue
+    fi
+
+    VALID_TARGET_COUNT=$((VALID_TARGET_COUNT + 1))
+
+    # -c supplies SourceIP/TLS settings. -z and -p intentionally override
+    # ServerActive, allowing one proxy to be tried at a time and preventing
+    # duplicate values from being sent to every proxy-group member.
+    if OUTPUT="$(
+        "${ZABBIX_SENDER}"             -c "${ZABBIX_AGENT_CONFIG}"             -z "${TARGET}"             -p "${ZABBIX_PORT}"             -t "${ZABBIX_TIMEOUT}"             -s "${ZABBIX_HOST}"             -k "pacemaker.cluster.raw"             -o "${XML}" 2>&1
+    )"; then
+        printf '%s\n' "${OUTPUT}"
+        exit 0
+    else
+        RC=$?
+        printf 'zabbix_sender failed for %s:%s (exit=%s): %s\n'             "${TARGET}" "${ZABBIX_PORT}" "${RC}" "${OUTPUT}" >&2
+    fi
+done
+
+if (( VALID_TARGET_COUNT == 0 )); then
+    echo "No valid Zabbix target is defined in ZABBIX_TARGETS." >&2
+else
+    echo "Sending Pacemaker data failed for all configured Zabbix targets." >&2
+fi
+
+exit 1
