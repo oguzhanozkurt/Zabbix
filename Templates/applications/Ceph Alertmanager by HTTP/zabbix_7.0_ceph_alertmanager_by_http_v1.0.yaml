@@ -1,0 +1,572 @@
+zabbix_export:
+  version: '7.0'
+  template_groups:
+  - uuid: 8c0e254b357b419e9a7b01e7a9c26374
+    name: Templates/Applications
+  templates:
+  - uuid: 53622f32335b4f5b9870945446d43d90
+    template: 'Ceph Alertmanager by HTTP'
+    name: 'Ceph Alertmanager by HTTP'
+    description: |
+      Collects Ceph Alertmanager alerts through the Alertmanager v2 API using a Zabbix HTTP agent master item.
+
+      Architecture:
+      - HTTP agent master item: GET /api/v2/alerts
+      - Dependent aggregate counters
+      - Dependent low-level discovery of active alerts
+      - Per-alert raw dependent item prototype
+      - Per-alert state/status/summary/description/startsAt dependent item prototypes
+      - Trigger prototype with Alertmanager severity mapped through LLD overrides
+
+      Endpoint:
+      Set {$CEPH.ALERTMANAGER.URL} to the Alertmanager base URL. The default value is http://172.16.100.3:9093.
+      The master item requests {$CEPH.ALERTMANAGER.URL}/api/v2/alerts.
+
+      Authentication:
+      This template is configured for an Alertmanager endpoint that does not require authentication.
+      If the Ceph Alertmanager requires Basic authentication or TLS, configure the HTTP agent master item accordingly.
+
+      Recovery behavior:
+      When an alert disappears from the Alertmanager response, the raw alert prototype emits a synthetic resolved state.
+      The numeric state item becomes 0 and its trigger returns to OK.
+      If the API request itself fails, the master item receives no new value, so existing alert states are preserved and
+      the separate API data-not-received trigger fires instead of falsely resolving alerts.
+    groups:
+    - name: Templates/Applications
+    items:
+    - uuid: bd0a6b639a17466bbae1625eb8eee19a
+      name: 'Ceph Alertmanager: Get alerts'
+      type: HTTP_AGENT
+      key: ceph.alertmanager.alerts.get
+      delay: '{$CEPH.ALERTMANAGER.INTERVAL}'
+      history: 1d
+      trends: '0'
+      value_type: TEXT
+      description: 'Raw JSON array returned by Alertmanager API v2 /api/v2/alerts.'
+      url: '{$CEPH.ALERTMANAGER.URL}/api/v2/alerts'
+      status_codes: '200'
+      follow_redirects: 'YES'
+      retrieve_mode: BODY
+      request_method: GET
+      output_format: RAW
+      headers:
+      - name: Accept
+        value: application/json
+      timeout: '{$CEPH.ALERTMANAGER.TIMEOUT}'
+      verify_peer: 'NO'
+      verify_host: 'NO'
+      tags:
+      - tag: component
+        value: raw
+      - tag: platform
+        value: ceph
+
+    - uuid: dfa87c90bfb94e8aa50aa403038762c2
+      name: 'Ceph Alertmanager: Returned alert count'
+      type: DEPENDENT
+      key: ceph.alertmanager.alerts.total.count
+      history: 7d
+      description: 'Total number of alert objects returned by the Alertmanager API, including non-active states.'
+      preprocessing:
+      - type: JAVASCRIPT
+        parameters:
+        - |
+          var alerts = JSON.parse(value);
+          if (!Array.isArray(alerts)) {
+              throw 'Alertmanager response is not a JSON array';
+          }
+          return alerts.length;
+      master_item:
+        key: ceph.alertmanager.alerts.get
+      tags:
+      - tag: component
+        value: alerts
+      - tag: platform
+        value: ceph
+
+    - uuid: 19dcd482e31d4d979cdc16f15b7933f6
+      name: 'Ceph Alertmanager: Active alert count'
+      type: DEPENDENT
+      key: ceph.alertmanager.alerts.active.count
+      history: 7d
+      description: 'Number of alerts whose status.state is active.'
+      preprocessing:
+      - type: JAVASCRIPT
+        parameters:
+        - |
+          var alerts = JSON.parse(value);
+          if (!Array.isArray(alerts)) {
+              throw 'Alertmanager response is not a JSON array';
+          }
+          var count = 0;
+          for (var i = 0; i < alerts.length; i++) {
+              var state = alerts[i] && alerts[i].status ? alerts[i].status.state : '';
+              if (String(state).toLowerCase() === 'active') {
+                  count++;
+              }
+          }
+          return count;
+      master_item:
+        key: ceph.alertmanager.alerts.get
+      tags:
+      - tag: component
+        value: alerts
+      - tag: platform
+        value: ceph
+      triggers:
+      - uuid: caada2e11a2e47bd959241c28009ae53
+        expression: 'nodata(/Ceph Alertmanager by HTTP/ceph.alertmanager.alerts.active.count,5m)=1'
+        name: 'Ceph Alertmanager: API data not received for 5 minutes'
+        priority: HIGH
+        description: |
+          No successfully processed Alertmanager data has been received for 5 minutes.
+          Check the Alertmanager URL, network reachability from the Zabbix Server/Proxy,
+          HTTP authentication/TLS settings if enabled, and the JSON response format.
+        tags:
+        - tag: component
+          value: availability
+        - tag: platform
+          value: ceph
+        - tag: source
+          value: alertmanager
+
+    - uuid: 977abf663d8b4c6e957eb1e3ab47f79c
+      name: 'Ceph Alertmanager: Active critical alert count'
+      type: DEPENDENT
+      key: ceph.alertmanager.alerts.critical.count
+      history: 7d
+      description: 'Number of active alerts with labels.severity=critical.'
+      preprocessing:
+      - type: JAVASCRIPT
+        parameters:
+        - |
+          var alerts = JSON.parse(value);
+          if (!Array.isArray(alerts)) {
+              throw 'Alertmanager response is not a JSON array';
+          }
+          var count = 0;
+          for (var i = 0; i < alerts.length; i++) {
+              var a = alerts[i] || {};
+              var state = a.status ? a.status.state : '';
+              var severity = a.labels ? a.labels.severity : '';
+              if (String(state).toLowerCase() === 'active' &&
+                  String(severity).toLowerCase() === 'critical') {
+                  count++;
+              }
+          }
+          return count;
+      master_item:
+        key: ceph.alertmanager.alerts.get
+      tags:
+      - tag: component
+        value: alerts
+      - tag: platform
+        value: ceph
+
+    - uuid: 1e0c69fff6714feb92f9aebc36f8eb6a
+      name: 'Ceph Alertmanager: Active warning alert count'
+      type: DEPENDENT
+      key: ceph.alertmanager.alerts.warning.count
+      history: 7d
+      description: 'Number of active alerts with labels.severity=warning.'
+      preprocessing:
+      - type: JAVASCRIPT
+        parameters:
+        - |
+          var alerts = JSON.parse(value);
+          if (!Array.isArray(alerts)) {
+              throw 'Alertmanager response is not a JSON array';
+          }
+          var count = 0;
+          for (var i = 0; i < alerts.length; i++) {
+              var a = alerts[i] || {};
+              var state = a.status ? a.status.state : '';
+              var severity = a.labels ? a.labels.severity : '';
+              if (String(state).toLowerCase() === 'active' &&
+                  String(severity).toLowerCase() === 'warning') {
+                  count++;
+              }
+          }
+          return count;
+      master_item:
+        key: ceph.alertmanager.alerts.get
+      tags:
+      - tag: component
+        value: alerts
+      - tag: platform
+        value: ceph
+
+    discovery_rules:
+    - uuid: bb8ffc58a69e4de2a26751d224253be6
+      name: 'Ceph Alertmanager: Alert discovery'
+      type: DEPENDENT
+      key: ceph.alertmanager.alert.discovery
+      lifetime_type: DELETE_AFTER
+      lifetime: 7d
+      enabled_lifetime_type: DISABLE_AFTER
+      enabled_lifetime: 1h
+      filter:
+        evaltype: AND
+        conditions:
+        - macro: '{#STATUS}'
+          value: '{$CEPH.ALERTMANAGER.LLD.STATUS.MATCHES}'
+        - macro: '{#FINGERPRINT}'
+          value: '.+'
+      description: |
+        Discovers active Ceph Alertmanager alerts. The Alertmanager fingerprint is used as the unique key component.
+        Common Ceph/Prometheus labels are normalized to '-' when missing so item/trigger names and tags remain usable.
+      preprocessing:
+      - type: JAVASCRIPT
+        parameters:
+        - |-
+          var alerts = JSON.parse(value);
+          if (!Array.isArray(alerts)) {
+              throw 'Alertmanager response is not a JSON array';
+          }
+
+          function sval(v, fallback) {
+              if (v === undefined || v === null || String(v) === '') {
+                  return fallback;
+              }
+              return String(v);
+          }
+
+          function firstLabel(labels, names, fallback) {
+              for (var j = 0; j < names.length; j++) {
+                  if (labels[names[j]] !== undefined && labels[names[j]] !== null && String(labels[names[j]]) !== '') {
+                      return String(labels[names[j]]);
+                  }
+              }
+              return fallback;
+          }
+
+          var out = [];
+
+          for (var i = 0; i < alerts.length; i++) {
+              var a = alerts[i] || {};
+              var labels = a.labels || {};
+              var status = a.status || {};
+              var fp = sval(a.fingerprint, '');
+
+              if (fp === '') {
+                  continue;
+              }
+
+              var cluster = sval(labels.cluster, '-');
+              var instance = sval(labels.instance, '-');
+              var hostname = firstLabel(labels, ['hostname', 'nodename', 'host'], '-');
+              var daemon = firstLabel(labels, ['ceph_daemon', 'daemon'], '-');
+              var device = sval(labels.device, '-');
+              var alertType = sval(labels.type, '-');
+              var target = hostname !== '-' ? hostname :
+                           (instance !== '-' ? instance :
+                           (daemon !== '-' ? daemon :
+                           (device !== '-' ? device : cluster)));
+
+              out.push({
+                  '{#FINGERPRINT}': fp,
+                  '{#ALERTNAME}': sval(labels.alertname, 'unknown'),
+                  '{#SEVERITY}': sval(labels.severity, 'unknown').toLowerCase(),
+                  '{#CLUSTER}': cluster,
+                  '{#INSTANCE}': instance,
+                  '{#HOSTNAME}': hostname,
+                  '{#CEPH_DAEMON}': daemon,
+                  '{#DEVICE}': device,
+                  '{#TYPE}': alertType,
+                  '{#TARGET}': target,
+                  '{#STATUS}': sval(status.state, 'unknown').toLowerCase(),
+                  '{#STARTSAT}': sval(a.startsAt, '-')
+              });
+          }
+
+          return JSON.stringify(out);
+      master_item:
+        key: ceph.alertmanager.alerts.get
+
+      item_prototypes:
+      - uuid: 7105785f609a48d1ac4849d5166dfbc3
+        name: '[Alertmanager] {#ALERTNAME}: Raw alert'
+        type: DEPENDENT
+        key: 'ceph.alertmanager.alert.raw[{#FINGERPRINT}]'
+        history: 1d
+        trends: '0'
+        value_type: TEXT
+        description: |
+          Raw JSON for one Alertmanager alert.
+          If the alert is no longer present in the master response, a synthetic resolved JSON object is returned.
+        preprocessing:
+        - type: JAVASCRIPT
+          parameters:
+          - |
+            var alerts = JSON.parse(value);
+            var fingerprint = '{#FINGERPRINT}';
+
+            if (!Array.isArray(alerts)) {
+                throw 'Alertmanager response is not a JSON array';
+            }
+
+            for (var i = 0; i < alerts.length; i++) {
+                if (alerts[i] &&
+                    String(alerts[i].fingerprint || '') === fingerprint) {
+                    return JSON.stringify(alerts[i]);
+                }
+            }
+
+            return JSON.stringify({
+                fingerprint: fingerprint,
+                status: {state: 'resolved'},
+                labels: {},
+                annotations: {},
+                startsAt: ''
+            });
+        master_item:
+          key: ceph.alertmanager.alerts.get
+        tags:
+        - tag: alertname
+          value: '{#ALERTNAME}'
+        - tag: component
+          value: raw-alert
+        - tag: cluster
+          value: '{#CLUSTER}'
+        - tag: instance
+          value: '{#INSTANCE}'
+      - uuid: 5b4f0652450f4cedb6e75b92e1e5b25f
+        name: '[Alertmanager] {#ALERTNAME}: Active state'
+        type: DEPENDENT
+        key: 'ceph.alertmanager.alert.active[{#FINGERPRINT}]'
+        history: 7d
+        description: '1 when Alertmanager status.state is active; otherwise 0.'
+        preprocessing:
+        - type: JAVASCRIPT
+          parameters:
+          - |
+            var alert = JSON.parse(value);
+            var state = alert && alert.status ? alert.status.state : '';
+            return String(state).toLowerCase() === 'active' ? 1 : 0;
+        master_item:
+          key: 'ceph.alertmanager.alert.raw[{#FINGERPRINT}]'
+        valuemap:
+          name: 'Ceph Alertmanager alert state'
+        tags:
+        - tag: alertname
+          value: '{#ALERTNAME}'
+        - tag: component
+          value: alert
+        - tag: cluster
+          value: '{#CLUSTER}'
+        - tag: instance
+          value: '{#INSTANCE}'
+        - tag: severity
+          value: '{#SEVERITY}'
+      - uuid: 7802d012977247968b9945ea11b7cb9c
+        name: '[Alertmanager] {#ALERTNAME}: Status'
+        type: DEPENDENT
+        key: 'ceph.alertmanager.alert.status[{#FINGERPRINT}]'
+        history: 7d
+        trends: '0'
+        value_type: CHAR
+        description: 'Alertmanager status.state for the alert.'
+        preprocessing:
+        - type: JAVASCRIPT
+          parameters:
+          - |
+            var alert = JSON.parse(value);
+            if (alert && alert.status && alert.status.state) {
+                return String(alert.status.state);
+            }
+            return 'resolved';
+        master_item:
+          key: 'ceph.alertmanager.alert.raw[{#FINGERPRINT}]'
+        tags:
+        - tag: alertname
+          value: '{#ALERTNAME}'
+        - tag: component
+          value: alert
+        - tag: cluster
+          value: '{#CLUSTER}'
+        - tag: instance
+          value: '{#INSTANCE}'
+      - uuid: a1ac1e15b0eb4e5f95ef9bb53da13122
+        name: '[Alertmanager] {#ALERTNAME}: Summary'
+        type: DEPENDENT
+        key: 'ceph.alertmanager.alert.summary[{#FINGERPRINT}]'
+        history: 7d
+        trends: '0'
+        value_type: TEXT
+        description: 'annotations.summary returned by Alertmanager.'
+        preprocessing:
+        - type: JAVASCRIPT
+          parameters:
+          - |
+            var alert = JSON.parse(value);
+            if (alert && alert.annotations && alert.annotations.summary !== undefined) {
+                return String(alert.annotations.summary);
+            }
+            return '';
+        master_item:
+          key: 'ceph.alertmanager.alert.raw[{#FINGERPRINT}]'
+        tags:
+        - tag: alertname
+          value: '{#ALERTNAME}'
+        - tag: component
+          value: alert
+        - tag: cluster
+          value: '{#CLUSTER}'
+        - tag: instance
+          value: '{#INSTANCE}'
+      - uuid: bafd7ceae9664959b3f2c2adc42d865d
+        name: '[Alertmanager] {#ALERTNAME}: Description'
+        type: DEPENDENT
+        key: 'ceph.alertmanager.alert.description[{#FINGERPRINT}]'
+        history: 7d
+        trends: '0'
+        value_type: TEXT
+        description: 'annotations.description returned by Alertmanager.'
+        preprocessing:
+        - type: JAVASCRIPT
+          parameters:
+          - |
+            var alert = JSON.parse(value);
+            if (alert && alert.annotations && alert.annotations.description !== undefined) {
+                return String(alert.annotations.description);
+            }
+            return '';
+        master_item:
+          key: 'ceph.alertmanager.alert.raw[{#FINGERPRINT}]'
+        tags:
+        - tag: alertname
+          value: '{#ALERTNAME}'
+        - tag: component
+          value: alert
+        - tag: cluster
+          value: '{#CLUSTER}'
+        - tag: instance
+          value: '{#INSTANCE}'
+      - uuid: 28316cbfde094e54a016e5fb53299266
+        name: '[Alertmanager] {#ALERTNAME}: Starts at'
+        type: DEPENDENT
+        key: 'ceph.alertmanager.alert.startsat[{#FINGERPRINT}]'
+        history: 7d
+        trends: '0'
+        value_type: CHAR
+        description: 'Alertmanager startsAt timestamp.'
+        preprocessing:
+        - type: JAVASCRIPT
+          parameters:
+          - |
+            var alert = JSON.parse(value);
+            if (alert && alert.startsAt !== undefined && alert.startsAt !== null) {
+                return String(alert.startsAt);
+            }
+            return '';
+        master_item:
+          key: 'ceph.alertmanager.alert.raw[{#FINGERPRINT}]'
+        tags:
+        - tag: alertname
+          value: '{#ALERTNAME}'
+        - tag: component
+          value: alert
+        - tag: cluster
+          value: '{#CLUSTER}'
+        - tag: instance
+          value: '{#INSTANCE}'
+      trigger_prototypes:
+      - uuid: 35b0031561ca41d3a77b36764737aaee
+        expression: 'last(/Ceph Alertmanager by HTTP/ceph.alertmanager.alert.active[{#FINGERPRINT}])=1'
+        name: '[Ceph] {#ALERTNAME}: {#TARGET}'
+        priority: AVERAGE
+        description: |
+          Alert received from Ceph Alertmanager.
+
+          Alert name: {#ALERTNAME}
+          Alertmanager severity: {#SEVERITY}
+          Cluster: {#CLUSTER}
+          Target: {#TARGET}
+          Instance: {#INSTANCE}
+          Hostname: {#HOSTNAME}
+          Ceph daemon: {#CEPH_DAEMON}
+          Device: {#DEVICE}
+          Type: {#TYPE}
+          Fingerprint: {#FINGERPRINT}
+          Starts at: {#STARTSAT}
+
+          The full Alertmanager annotations are available in the discovered Summary, Description and Raw alert items.
+        tags:
+        - tag: alertname
+          value: '{#ALERTNAME}'
+        - tag: cluster
+          value: '{#CLUSTER}'
+        - tag: fingerprint
+          value: '{#FINGERPRINT}'
+        - tag: instance
+          value: '{#INSTANCE}'
+        - tag: platform
+          value: ceph
+        - tag: severity
+          value: '{#SEVERITY}'
+        - tag: source
+          value: alertmanager
+        - tag: type
+          value: '{#TYPE}'
+      overrides:
+      - name: 'Critical Alertmanager alerts'
+        step: '1'
+        filter:
+          conditions:
+          - macro: '{#SEVERITY}'
+            value: '^(critical|error)$'
+        operations:
+        - operationobject: TRIGGER_PROTOTYPE
+          operator: REGEXP
+          value: '^\[Ceph\]'
+          severity: HIGH
+
+      - name: 'Warning Alertmanager alerts'
+        step: '2'
+        filter:
+          conditions:
+          - macro: '{#SEVERITY}'
+            value: '^warning$'
+        operations:
+        - operationobject: TRIGGER_PROTOTYPE
+          operator: REGEXP
+          value: '^\[Ceph\]'
+          severity: WARNING
+
+      - name: 'Informational Alertmanager alerts'
+        step: '3'
+        filter:
+          conditions:
+          - macro: '{#SEVERITY}'
+            value: '^(info|information|none)$'
+        operations:
+        - operationobject: TRIGGER_PROTOTYPE
+          operator: REGEXP
+          value: '^\[Ceph\]'
+          severity: INFO
+
+    macros:
+    - macro: '{$CEPH.ALERTMANAGER.INTERVAL}'
+      value: 1m
+      description: 'Polling interval for the Alertmanager API master item.'
+
+    - macro: '{$CEPH.ALERTMANAGER.LLD.STATUS.MATCHES}'
+      value: '^active$'
+      description: 'Regular expression for Alertmanager status.state values that should be discovered.'
+
+    - macro: '{$CEPH.ALERTMANAGER.TIMEOUT}'
+      value: 10s
+      description: 'HTTP request timeout.'
+
+    - macro: '{$CEPH.ALERTMANAGER.URL}'
+      value: 'http://172.16.100.3:9093'
+      description: 'Base URL of the Ceph Alertmanager service. Do not append /api/v2/alerts.'
+
+    valuemaps:
+    - uuid: 03de690ebffd411780e373d7ac24cfcc
+      name: 'Ceph Alertmanager alert state'
+      mappings:
+      - value: '0'
+        newvalue: RESOLVED
+      - value: '1'
+        newvalue: ACTIVE

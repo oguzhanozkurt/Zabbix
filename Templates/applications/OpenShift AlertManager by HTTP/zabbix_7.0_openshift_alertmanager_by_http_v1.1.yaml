@@ -1,0 +1,546 @@
+zabbix_export:
+  version: '7.0'
+  template_groups:
+    - uuid: a571c0d144b14fd4a87a9d9b2aa9fcd6
+      name: Templates/Applications
+  templates:
+    - uuid: ae9a44528ec84f408e104a48d055c6f3
+      template: 'OpenShift Alertmanager by HTTP'
+      name: 'OpenShift Alertmanager by HTTP'
+      description: |
+        Collects OpenShift Alertmanager alerts through the Alertmanager v2 API using a Zabbix HTTP agent master item.
+
+        Architecture:
+        - HTTP agent master item: GET /api/v2/alerts
+        - Dependent aggregate counters
+        - Dependent low-level discovery of active alerts
+        - Per-alert raw dependent item prototype
+        - Per-alert state/status/summary/description/startsAt dependent item prototypes
+        - Trigger prototype with Alertmanager severity mapped through LLD overrides
+
+        Authentication:
+        Set {$OPENSHIFT.ALERTMANAGER.TOKEN} after importing/linking the template.
+        The token is sent as: Authorization: Bearer <token>
+
+        TLS:
+        verify_peer and verify_host are disabled by default to allow initial use with an OpenShift internal service certificate.
+        For production, install/trust the OpenShift service CA in the Zabbix Proxy container and enable both checks.
+
+        Recovery behavior:
+        When an alert disappears from the Alertmanager response, the raw alert prototype emits a synthetic resolved state.
+        The numeric state item becomes 0 and its trigger returns to OK.
+        If the API request itself fails, the master item receives no new value, so existing alert states are preserved and
+        the separate API data-not-received trigger fires instead of falsely resolving alerts.
+      groups:
+        - name: Templates/Applications
+      items:
+        - uuid: ab64cf37d5404d899a9bce3e30bc6035
+          name: 'OpenShift Alertmanager: Get alerts'
+          type: HTTP_AGENT
+          key: openshift.alertmanager.alerts.get
+          delay: '{$OPENSHIFT.ALERTMANAGER.INTERVAL}'
+          history: 1d
+          trends: '0'
+          value_type: TEXT
+          description: 'Raw JSON array returned by Alertmanager API v2 /api/v2/alerts.'
+          url: '{$OPENSHIFT.ALERTMANAGER.URL}/api/v2/alerts'
+          status_codes: '200'
+          follow_redirects: 'YES'
+          retrieve_mode: BODY
+          request_method: GET
+          output_format: RAW
+          headers:
+            - name: Authorization
+              value: 'Bearer {$OPENSHIFT.ALERTMANAGER.TOKEN}'
+            - name: Accept
+              value: application/json
+          timeout: '{$OPENSHIFT.ALERTMANAGER.TIMEOUT}'
+          verify_peer: 'NO'
+          verify_host: 'NO'
+          tags:
+            - tag: component
+              value: raw
+            - tag: platform
+              value: openshift
+
+        - uuid: 67a36d8c45cf46f687ebf7274e9b774d
+          name: 'OpenShift Alertmanager: Returned alert count'
+          type: DEPENDENT
+          key: openshift.alertmanager.alerts.total.count
+          history: 7d
+          description: 'Total number of alert objects returned by the Alertmanager API, including non-active states.'
+          preprocessing:
+            - type: JAVASCRIPT
+              parameters:
+                - |
+                  var alerts = JSON.parse(value);
+                  if (!Array.isArray(alerts)) {
+                      throw 'Alertmanager response is not a JSON array';
+                  }
+                  return alerts.length;
+          master_item:
+            key: openshift.alertmanager.alerts.get
+          tags:
+            - tag: component
+              value: alerts
+            - tag: platform
+              value: openshift
+
+        - uuid: 9fa3723f69ab485a832c63d5452c80d9
+          name: 'OpenShift Alertmanager: Active alert count'
+          type: DEPENDENT
+          key: openshift.alertmanager.alerts.active.count
+          history: 7d
+          description: 'Number of alerts whose status.state is active.'
+          preprocessing:
+            - type: JAVASCRIPT
+              parameters:
+                - |
+                  var alerts = JSON.parse(value);
+                  if (!Array.isArray(alerts)) {
+                      throw 'Alertmanager response is not a JSON array';
+                  }
+                  var count = 0;
+                  for (var i = 0; i < alerts.length; i++) {
+                      var state = alerts[i] && alerts[i].status ? alerts[i].status.state : '';
+                      if (String(state).toLowerCase() === 'active') {
+                          count++;
+                      }
+                  }
+                  return count;
+          master_item:
+            key: openshift.alertmanager.alerts.get
+          tags:
+            - tag: component
+              value: alerts
+            - tag: platform
+              value: openshift
+          triggers:
+            - uuid: 6b2e4349843942a591709524655f9d9f
+              expression: 'nodata(/OpenShift Alertmanager by HTTP/openshift.alertmanager.alerts.active.count,5m)=1'
+              name: 'OpenShift Alertmanager: API data not received for 5 minutes'
+              priority: HIGH
+              description: |
+                No successfully processed Alertmanager data has been received for 5 minutes.
+                Check the Alertmanager service URL, DNS/network reachability from the Zabbix Proxy pod,
+                Bearer token/RBAC permissions, TLS configuration, and JSON response format.
+              tags:
+                - tag: component
+                  value: availability
+                - tag: platform
+                  value: openshift
+                - tag: source
+                  value: alertmanager
+
+        - uuid: 1959df0d6da9425eb1698af71967b434
+          name: 'OpenShift Alertmanager: Active critical alert count'
+          type: DEPENDENT
+          key: openshift.alertmanager.alerts.critical.count
+          history: 7d
+          description: 'Number of active alerts with labels.severity=critical.'
+          preprocessing:
+            - type: JAVASCRIPT
+              parameters:
+                - |
+                  var alerts = JSON.parse(value);
+                  if (!Array.isArray(alerts)) {
+                      throw 'Alertmanager response is not a JSON array';
+                  }
+                  var count = 0;
+                  for (var i = 0; i < alerts.length; i++) {
+                      var a = alerts[i] || {};
+                      var state = a.status ? a.status.state : '';
+                      var severity = a.labels ? a.labels.severity : '';
+                      if (String(state).toLowerCase() === 'active' &&
+                          String(severity).toLowerCase() === 'critical') {
+                          count++;
+                      }
+                  }
+                  return count;
+          master_item:
+            key: openshift.alertmanager.alerts.get
+          tags:
+            - tag: component
+              value: alerts
+            - tag: platform
+              value: openshift
+
+        - uuid: d69cd7632c17472d9945ce69ec3238c6
+          name: 'OpenShift Alertmanager: Active warning alert count'
+          type: DEPENDENT
+          key: openshift.alertmanager.alerts.warning.count
+          history: 7d
+          description: 'Number of active alerts with labels.severity=warning.'
+          preprocessing:
+            - type: JAVASCRIPT
+              parameters:
+                - |
+                  var alerts = JSON.parse(value);
+                  if (!Array.isArray(alerts)) {
+                      throw 'Alertmanager response is not a JSON array';
+                  }
+                  var count = 0;
+                  for (var i = 0; i < alerts.length; i++) {
+                      var a = alerts[i] || {};
+                      var state = a.status ? a.status.state : '';
+                      var severity = a.labels ? a.labels.severity : '';
+                      if (String(state).toLowerCase() === 'active' &&
+                          String(severity).toLowerCase() === 'warning') {
+                          count++;
+                      }
+                  }
+                  return count;
+          master_item:
+            key: openshift.alertmanager.alerts.get
+          tags:
+            - tag: component
+              value: alerts
+            - tag: platform
+              value: openshift
+
+      discovery_rules:
+        - uuid: e7c45775081d47b4a5155283cd9c5dcf
+          name: 'OpenShift Alertmanager: Alert discovery'
+          type: DEPENDENT
+          key: openshift.alertmanager.alert.discovery
+          lifetime_type: DELETE_AFTER
+          lifetime: 7d
+          enabled_lifetime_type: DISABLE_AFTER
+          enabled_lifetime: 1h
+          filter:
+            evaltype: AND
+            conditions:
+              - macro: '{#STATUS}'
+                value: '{$OPENSHIFT.ALERTMANAGER.LLD.STATUS.MATCHES}'
+              - macro: '{#FINGERPRINT}'
+                value: '.+'
+          description: |
+            Discovers active Alertmanager alerts. The fingerprint is used as the unique key component.
+            Missing labels are normalized to '-' so that item/trigger names and tags remain usable.
+          preprocessing:
+            - type: JAVASCRIPT
+              parameters:
+                - |
+                  var alerts = JSON.parse(value);
+                  if (!Array.isArray(alerts)) {
+                      throw 'Alertmanager response is not a JSON array';
+                  }
+
+                  function sval(v, fallback) {
+                      if (v === undefined || v === null || String(v) === '') {
+                          return fallback;
+                      }
+                      return String(v);
+                  }
+
+                  var out = [];
+
+                  for (var i = 0; i < alerts.length; i++) {
+                      var a = alerts[i] || {};
+                      var labels = a.labels || {};
+                      var status = a.status || {};
+                      var fp = sval(a.fingerprint, '');
+
+                      if (fp === '') {
+                          continue;
+                      }
+
+                      out.push({
+                          '{#FINGERPRINT}': fp,
+                          '{#ALERTNAME}': sval(labels.alertname, 'unknown'),
+                          '{#SEVERITY}': sval(labels.severity, 'unknown').toLowerCase(),
+                          '{#NAMESPACE}': sval(labels.namespace, '-'),
+                          '{#POD}': sval(labels.pod, '-'),
+                          '{#INSTANCE}': sval(labels.instance, '-'),
+                          '{#STATUS}': sval(status.state, 'unknown').toLowerCase(),
+                          '{#STARTSAT}': sval(a.startsAt, '-')
+                      });
+                  }
+
+                  return JSON.stringify(out);
+          master_item:
+            key: openshift.alertmanager.alerts.get
+
+          item_prototypes:
+            - uuid: 7531e833823d4c03b301830b77de367c
+              name: '[Alertmanager] {#ALERTNAME}: Raw alert'
+              type: DEPENDENT
+              key: 'openshift.alertmanager.alert.raw[{#FINGERPRINT}]'
+              history: 1d
+              trends: '0'
+              value_type: TEXT
+              description: |
+                Raw JSON for one Alertmanager alert.
+                If the alert is no longer present in the master response, a synthetic resolved JSON object is returned.
+              preprocessing:
+                - type: JAVASCRIPT
+                  parameters:
+                    - |
+                      var alerts = JSON.parse(value);
+                      var fingerprint = '{#FINGERPRINT}';
+
+                      if (!Array.isArray(alerts)) {
+                          throw 'Alertmanager response is not a JSON array';
+                      }
+
+                      for (var i = 0; i < alerts.length; i++) {
+                          if (alerts[i] &&
+                              String(alerts[i].fingerprint || '') === fingerprint) {
+                              return JSON.stringify(alerts[i]);
+                          }
+                      }
+
+                      return JSON.stringify({
+                          fingerprint: fingerprint,
+                          status: {state: 'resolved'},
+                          labels: {},
+                          annotations: {},
+                          startsAt: ''
+                      });
+              master_item:
+                key: openshift.alertmanager.alerts.get
+              tags:
+                - tag: alertname
+                  value: '{#ALERTNAME}'
+                - tag: component
+                  value: raw-alert
+                - tag: namespace
+                  value: '{#NAMESPACE}'
+
+            - uuid: a1f35ae9496b4aadb5613aeac010ea3a
+              name: '[Alertmanager] {#ALERTNAME}: Active state'
+              type: DEPENDENT
+              key: 'openshift.alertmanager.alert.active[{#FINGERPRINT}]'
+              history: 7d
+              description: '1 when Alertmanager status.state is active; otherwise 0.'
+              preprocessing:
+                - type: JAVASCRIPT
+                  parameters:
+                    - |
+                      var alert = JSON.parse(value);
+                      var state = alert && alert.status ? alert.status.state : '';
+                      return String(state).toLowerCase() === 'active' ? 1 : 0;
+              master_item:
+                key: 'openshift.alertmanager.alert.raw[{#FINGERPRINT}]'
+              valuemap:
+                name: 'OpenShift Alertmanager alert state'
+              tags:
+                - tag: alertname
+                  value: '{#ALERTNAME}'
+                - tag: component
+                  value: alert
+                - tag: namespace
+                  value: '{#NAMESPACE}'
+                - tag: severity
+                  value: '{#SEVERITY}'
+
+            - uuid: a6615f658d544eb29e3f8fc10ab56724
+              name: '[Alertmanager] {#ALERTNAME}: Status'
+              type: DEPENDENT
+              key: 'openshift.alertmanager.alert.status[{#FINGERPRINT}]'
+              history: 7d
+              trends: '0'
+              value_type: CHAR
+              description: 'Alertmanager status.state for the alert.'
+              preprocessing:
+                - type: JAVASCRIPT
+                  parameters:
+                    - |
+                      var alert = JSON.parse(value);
+                      if (alert && alert.status && alert.status.state) {
+                          return String(alert.status.state);
+                      }
+                      return 'resolved';
+              master_item:
+                key: 'openshift.alertmanager.alert.raw[{#FINGERPRINT}]'
+              tags:
+                - tag: alertname
+                  value: '{#ALERTNAME}'
+                - tag: component
+                  value: alert
+                - tag: namespace
+                  value: '{#NAMESPACE}'
+
+            - uuid: aed701c1539345a2b9e478025e1ffe0d
+              name: '[Alertmanager] {#ALERTNAME}: Summary'
+              type: DEPENDENT
+              key: 'openshift.alertmanager.alert.summary[{#FINGERPRINT}]'
+              history: 7d
+              trends: '0'
+              value_type: TEXT
+              description: 'annotations.summary returned by Alertmanager.'
+              preprocessing:
+                - type: JAVASCRIPT
+                  parameters:
+                    - |
+                      var alert = JSON.parse(value);
+                      if (alert && alert.annotations && alert.annotations.summary !== undefined) {
+                          return String(alert.annotations.summary);
+                      }
+                      return '';
+              master_item:
+                key: 'openshift.alertmanager.alert.raw[{#FINGERPRINT}]'
+              tags:
+                - tag: alertname
+                  value: '{#ALERTNAME}'
+                - tag: component
+                  value: alert
+                - tag: namespace
+                  value: '{#NAMESPACE}'
+
+            - uuid: 60a3e221eed845ee854906d247625769
+              name: '[Alertmanager] {#ALERTNAME}: Description'
+              type: DEPENDENT
+              key: 'openshift.alertmanager.alert.description[{#FINGERPRINT}]'
+              history: 7d
+              trends: '0'
+              value_type: TEXT
+              description: 'annotations.description returned by Alertmanager.'
+              preprocessing:
+                - type: JAVASCRIPT
+                  parameters:
+                    - |
+                      var alert = JSON.parse(value);
+                      if (alert && alert.annotations && alert.annotations.description !== undefined) {
+                          return String(alert.annotations.description);
+                      }
+                      return '';
+              master_item:
+                key: 'openshift.alertmanager.alert.raw[{#FINGERPRINT}]'
+              tags:
+                - tag: alertname
+                  value: '{#ALERTNAME}'
+                - tag: component
+                  value: alert
+                - tag: namespace
+                  value: '{#NAMESPACE}'
+
+            - uuid: 74cff07648a940f48d47915c62dcb03b
+              name: '[Alertmanager] {#ALERTNAME}: Starts at'
+              type: DEPENDENT
+              key: 'openshift.alertmanager.alert.startsat[{#FINGERPRINT}]'
+              history: 7d
+              trends: '0'
+              value_type: CHAR
+              description: 'Alertmanager startsAt timestamp.'
+              preprocessing:
+                - type: JAVASCRIPT
+                  parameters:
+                    - |
+                      var alert = JSON.parse(value);
+                      if (alert && alert.startsAt !== undefined && alert.startsAt !== null) {
+                          return String(alert.startsAt);
+                      }
+                      return '';
+              master_item:
+                key: 'openshift.alertmanager.alert.raw[{#FINGERPRINT}]'
+              tags:
+                - tag: alertname
+                  value: '{#ALERTNAME}'
+                - tag: component
+                  value: alert
+                - tag: namespace
+                  value: '{#NAMESPACE}'
+
+          trigger_prototypes:
+            - uuid: 20616149cea7442db3146b737c598aa0
+              expression: 'last(/OpenShift Alertmanager by HTTP/openshift.alertmanager.alert.active[{#FINGERPRINT}])=1'
+              name: '[OpenShift] {#ALERTNAME}: {#NAMESPACE}/{#POD}'
+              priority: AVERAGE
+              description: |
+                Alert received from OpenShift Alertmanager.
+
+                Alert name: {#ALERTNAME}
+                Alertmanager severity: {#SEVERITY}
+                Namespace: {#NAMESPACE}
+                Pod: {#POD}
+                Instance: {#INSTANCE}
+                Fingerprint: {#FINGERPRINT}
+                Starts at: {#STARTSAT}
+
+                The full Alertmanager annotations are available in the discovered Summary, Description and Raw alert items.
+              tags:
+                - tag: alertname
+                  value: '{#ALERTNAME}'
+                - tag: fingerprint
+                  value: '{#FINGERPRINT}'
+                - tag: instance
+                  value: '{#INSTANCE}'
+                - tag: namespace
+                  value: '{#NAMESPACE}'
+                - tag: platform
+                  value: openshift
+                - tag: pod
+                  value: '{#POD}'
+                - tag: severity
+                  value: '{#SEVERITY}'
+                - tag: source
+                  value: alertmanager
+
+          overrides:
+            - name: 'Critical Alertmanager alerts'
+              step: '1'
+              filter:
+                conditions:
+                  - macro: '{#SEVERITY}'
+                    value: '^(critical|error)$'
+              operations:
+                - operationobject: TRIGGER_PROTOTYPE
+                  operator: REGEXP
+                  value: '^\[OpenShift\]'
+                  severity: HIGH
+
+            - name: 'Warning Alertmanager alerts'
+              step: '2'
+              filter:
+                conditions:
+                  - macro: '{#SEVERITY}'
+                    value: '^warning$'
+              operations:
+                - operationobject: TRIGGER_PROTOTYPE
+                  operator: REGEXP
+                  value: '^\[OpenShift\]'
+                  severity: WARNING
+
+            - name: 'Informational Alertmanager alerts'
+              step: '3'
+              filter:
+                conditions:
+                  - macro: '{#SEVERITY}'
+                    value: '^(info|information|none)$'
+              operations:
+                - operationobject: TRIGGER_PROTOTYPE
+                  operator: REGEXP
+                  value: '^\[OpenShift\]'
+                  severity: INFO
+
+      macros:
+        - macro: '{$OPENSHIFT.ALERTMANAGER.INTERVAL}'
+          value: 1m
+          description: 'Polling interval for the Alertmanager API master item.'
+
+        - macro: '{$OPENSHIFT.ALERTMANAGER.LLD.STATUS.MATCHES}'
+          value: '^active$'
+          description: 'Regular expression for Alertmanager status.state values that should be discovered.'
+
+        - macro: '{$OPENSHIFT.ALERTMANAGER.TIMEOUT}'
+          value: 10s
+          description: 'HTTP request timeout.'
+
+        - macro: '{$OPENSHIFT.ALERTMANAGER.TOKEN}'
+          type: SECRET_TEXT
+          value: ''
+          description: 'Bearer token used to access the OpenShift Alertmanager API. Set this after import/linking.'
+
+        - macro: '{$OPENSHIFT.ALERTMANAGER.URL}'
+          value: 'https://alertmanager-main.openshift-monitoring.svc:9094'
+          description: 'Base URL of the OpenShift Alertmanager service.'
+
+      valuemaps:
+        - uuid: 3ec5fa06d5f1404da9d01b38cd8ca007
+          name: 'OpenShift Alertmanager alert state'
+          mappings:
+            - value: '0'
+              newvalue: RESOLVED
+            - value: '1'
+              newvalue: ACTIVE
